@@ -175,7 +175,7 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
 /**
   * Converts word into bytes with rotations having been done.
   */
-static WC_INLINE word32 wc_Chacha_perform_rounds(word32 output[CHACHA_CHUNK_WORDS * MAX_CHACHA_BLOCKS],
+static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS * MAX_CHACHA_BLOCKS],
     const word32 input[CHACHA_CHUNK_WORDS])
 {
     word32 x[CHACHA_CHUNK_WORDS * MAX_CHACHA_BLOCKS]; // process multiple blocks at a time
@@ -184,8 +184,10 @@ static WC_INLINE word32 wc_Chacha_perform_rounds(word32 output[CHACHA_CHUNK_WORD
     XMEMCPY(x, input, CHACHA_CHUNK_BYTES);
     XMEMCPY(x + CHACHA_CHUNK_WORDS, input, CHACHA_CHUNK_BYTES);
     XMEMCPY(x + CHACHA_CHUNK_WORDS*2, input, CHACHA_CHUNK_BYTES);
+    XMEMCPY(x + CHACHA_CHUNK_WORDS*3, input, CHACHA_CHUNK_BYTES);
     x[CHACHA_CHUNK_WORDS + CHACHA_IV_BYTES] += 1;
     x[CHACHA_CHUNK_WORDS*2 + CHACHA_IV_BYTES] += 2;
+    x[CHACHA_CHUNK_WORDS*3 + CHACHA_IV_BYTES] += 3;
 
     __asm__ __volatile__ (
             // The paper NEON crypto by Daniel J. Bernstein and Peter Schwabe was used to optimize for ARM
@@ -200,6 +202,8 @@ static WC_INLINE word32 wc_Chacha_perform_rounds(word32 output[CHACHA_CHUNK_WORD
             // v9 second block helper
             // v10-v13 - third block
             // v14 third block helper
+            // v15-v18 - fourth block
+            // v19 fourth block helper
 
             // v0  0  1  2  3
             // v1  4  5  6  7
@@ -211,6 +215,8 @@ static WC_INLINE word32 wc_Chacha_perform_rounds(word32 output[CHACHA_CHUNK_WORD
             "LD1 { v5.4S-v8.4S }, [%[x_in]] \n"
             "ADD %[x_in], %[x_in], %[chacha_chunk_bytes] \n"
             "LD1 { v10.4S-v13.4S }, [%[x_in]] \n"
+            "ADD %[x_in], %[x_in], %[chacha_chunk_bytes] \n"
+            "LD1 { v15.4S-v18.4S }, [%[x_in]] \n"
 
             "loop: \n"
 
@@ -219,58 +225,74 @@ static WC_INLINE word32 wc_Chacha_perform_rounds(word32 output[CHACHA_CHUNK_WORD
             "ADD v0.4S, v0.4S, v1.4S \n"
             "ADD v5.4S, v5.4S, v6.4S \n"
             "ADD v10.4S, v10.4S, v11.4S \n"
+            "ADD v15.4S, v15.4S, v16.4S \n"
             "EOR v4.16B, v3.16B, v0.16B \n"
             "EOR v9.16B, v8.16B, v5.16B \n"
             "EOR v14.16B, v13.16B, v10.16B \n"
+            "EOR v19.16B, v18.16B, v15.16B \n"
             // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
             "SHL v3.4S, v4.4S, #16 \n"
             "SHL v8.4S, v9.4S, #16 \n"
             "SHL v13.4S, v14.4S, #16 \n"
+            "SHL v18.4S, v19.4S, #16 \n"
             "SRI v3.4S, v4.4S, #16 \n"
             "SRI v8.4S, v9.4S, #16 \n"
             "SRI v13.4S, v14.4S, #16 \n"
+            "SRI v18.4S, v19.4S, #16 \n"
 
             "ADD v2.4S, v2.4S, v3.4S \n"
             "ADD v7.4S, v7.4S, v8.4S \n"
             "ADD v12.4S, v12.4S, v13.4S \n"
+            "ADD v17.4S, v17.4S, v18.4S \n"
             "EOR v4.16B, v1.16B, v2.16B \n"
             "EOR v9.16B, v6.16B, v7.16B \n"
             "EOR v14.16B, v11.16B, v12.16B \n"
+            "EOR v19.16B, v16.16B, v17.16B \n"
             // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
             "SHL v1.4S, v4.4S, #12 \n"
             "SHL v6.4S, v9.4S, #12 \n"
             "SHL v11.4S, v14.4S, #12 \n"
+            "SHL v16.4S, v19.4S, #12 \n"
             "SRI v1.4S, v4.4S, #20 \n"
             "SRI v6.4S, v9.4S, #20 \n"
             "SRI v11.4S, v14.4S, #20 \n"
+            "SRI v16.4S, v19.4S, #20 \n"
 
             "ADD v0.4S, v0.4S, v1.4S \n"
             "ADD v5.4S, v5.4S, v6.4S \n"
             "ADD v10.4S, v10.4S, v11.4S \n"
+            "ADD v15.4S, v15.4S, v16.4S \n"
             "EOR v4.16B, v3.16B, v0.16B \n"
             "EOR v9.16B, v8.16B, v5.16B \n"
             "EOR v14.16B, v13.16B, v10.16B \n"
+            "EOR v19.16B, v18.16B, v15.16B \n"
             // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
             "SHL v3.4S, v4.4S, #8 \n"
             "SHL v8.4S, v9.4S, #8 \n"
             "SHL v13.4S, v14.4S, #8 \n"
+            "SHL v18.4S, v19.4S, #8 \n"
             "SRI v3.4S, v4.4S, #24 \n"
             "SRI v8.4S, v9.4S, #24 \n"
             "SRI v13.4S, v14.4S, #24 \n"
+            "SRI v18.4S, v19.4S, #24 \n"
 
             "ADD v2.4S, v2.4S, v3.4S \n"
             "ADD v7.4S, v7.4S, v8.4S \n"
             "ADD v12.4S, v12.4S, v13.4S \n"
+            "ADD v17.4S, v17.4S, v18.4S \n"
             "EOR v4.16B, v1.16B, v2.16B \n"
             "EOR v9.16B, v6.16B, v7.16B \n"
             "EOR v14.16B, v11.16B, v12.16B \n"
+            "EOR v19.16B, v16.16B, v17.16B \n"
             // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
             "SHL v1.4S, v4.4S, #7 \n"
             "SHL v6.4S, v9.4S, #7 \n"
             "SHL v11.4S, v14.4S, #7 \n"
+            "SHL v16.4S, v19.4S, #7 \n"
             "SRI v1.4S, v4.4S, #25 \n"
             "SRI v6.4S, v9.4S, #25 \n"
             "SRI v11.4S, v14.4S, #25 \n"
+            "SRI v16.4S, v19.4S, #25 \n"
 
             // EVEN ROUND
 
@@ -292,61 +314,81 @@ static WC_INLINE word32 wc_Chacha_perform_rounds(word32 output[CHACHA_CHUNK_WORD
             "EXT v12.16B, v12.16B, v12.16B, #8 \n" // permute elements left by two
             "EXT v13.16B, v13.16B, v13.16B, #12 \n" // permute elements left by three
 
+            "EXT v16.16B, v16.16B, v16.16B, #4 \n" // permute elements left by one
+            "EXT v17.16B, v17.16B, v17.16B, #8 \n" // permute elements left by two
+            "EXT v18.16B, v18.16B, v18.16B, #12 \n" // permute elements left by three
+
             "ADD v0.4S, v0.4S, v1.4S \n"
             "ADD v5.4S, v5.4S, v6.4S \n"
             "ADD v10.4S, v10.4S, v11.4S \n"
+            "ADD v15.4S, v15.4S, v16.4S \n"
             "EOR v4.16B, v3.16B, v0.16B \n"
             "EOR v9.16B, v8.16B, v5.16B \n"
             "EOR v14.16B, v13.16B, v10.16B \n"
+            "EOR v19.16B, v18.16B, v15.16B \n"
             // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
             "SHL v3.4S, v4.4S, #16 \n"
             "SHL v8.4S, v9.4S, #16 \n"
             "SHL v13.4S, v14.4S, #16 \n"
+            "SHL v18.4S, v19.4S, #16 \n"
             "SRI v3.4S, v4.4S, #16 \n"
             "SRI v8.4S, v9.4S, #16 \n"
             "SRI v13.4S, v14.4S, #16 \n"
+            "SRI v18.4S, v19.4S, #16 \n"
 
             "ADD v2.4S, v2.4S, v3.4S \n"
             "ADD v7.4S, v7.4S, v8.4S \n"
             "ADD v12.4S, v12.4S, v13.4S \n"
+            "ADD v17.4S, v17.4S, v18.4S \n"
             "EOR v4.16B, v1.16B, v2.16B \n"
             "EOR v9.16B, v6.16B, v7.16B \n"
             "EOR v14.16B, v11.16B, v12.16B \n"
+            "EOR v19.16B, v16.16B, v17.16B \n"
             // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
             "SHL v1.4S, v4.4S, #12 \n"
             "SHL v6.4S, v9.4S, #12 \n"
             "SHL v11.4S, v14.4S, #12 \n"
+            "SHL v16.4S, v19.4S, #12 \n"
             "SRI v1.4S, v4.4S, #20 \n"
             "SRI v6.4S, v9.4S, #20 \n"
             "SRI v11.4S, v14.4S, #20 \n"
+            "SRI v16.4S, v19.4S, #20 \n"
 
             "ADD v0.4S, v0.4S, v1.4S \n"
             "ADD v5.4S, v5.4S, v6.4S \n"
             "ADD v10.4S, v10.4S, v11.4S \n"
+            "ADD v15.4S, v15.4S, v16.4S \n"
             "EOR v4.16B, v3.16B, v0.16B \n"
             "EOR v9.16B, v8.16B, v5.16B \n"
             "EOR v14.16B, v13.16B, v10.16B \n"
+            "EOR v19.16B, v18.16B, v15.16B \n"
             // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
             "SHL v3.4S, v4.4S, #8 \n"
             "SHL v8.4S, v9.4S, #8 \n"
             "SHL v13.4S, v14.4S, #8 \n"
+            "SHL v18.4S, v19.4S, #8 \n"
             "SRI v3.4S, v4.4S, #24 \n"
             "SRI v8.4S, v9.4S, #24 \n"
             "SRI v13.4S, v14.4S, #24 \n"
+            "SRI v18.4S, v19.4S, #24 \n"
 
             "ADD v2.4S, v2.4S, v3.4S \n"
             "ADD v7.4S, v7.4S, v8.4S \n"
             "ADD v12.4S, v12.4S, v13.4S \n"
+            "ADD v17.4S, v17.4S, v18.4S \n"
             "EOR v4.16B, v1.16B, v2.16B \n"
             "EOR v9.16B, v6.16B, v7.16B \n"
             "EOR v14.16B, v11.16B, v12.16B \n"
+            "EOR v19.16B, v16.16B, v17.16B \n"
             // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
             "SHL v1.4S, v4.4S, #7 \n"
             "SHL v6.4S, v9.4S, #7 \n"
             "SHL v11.4S, v14.4S, #7 \n"
+            "SHL v16.4S, v19.4S, #7 \n"
             "SRI v1.4S, v4.4S, #25 \n"
             "SRI v6.4S, v9.4S, #25 \n"
             "SRI v11.4S, v14.4S, #25 \n"
+            "SRI v16.4S, v19.4S, #25 \n"
 
             "EXT v1.16B, v1.16B, v1.16B, #12 \n" // permute elements left by three
             "EXT v2.16B, v2.16B, v2.16B, #8 \n" // permute elements left by two
@@ -359,6 +401,10 @@ static WC_INLINE word32 wc_Chacha_perform_rounds(word32 output[CHACHA_CHUNK_WORD
             "EXT v11.16B, v11.16B, v11.16B, #12 \n" // permute elements left by three
             "EXT v12.16B, v12.16B, v12.16B, #8 \n" // permute elements left by two
             "EXT v13.16B, v13.16B, v13.16B, #4 \n" // permute elements left by one
+
+            "EXT v16.16B, v16.16B, v16.16B, #12 \n" // permute elements left by three
+            "EXT v17.16B, v17.16B, v17.16B, #8 \n" // permute elements left by two
+            "EXT v18.16B, v18.16B, v18.16B, #4 \n" // permute elements left by one
 
             "SUB x0, x0, #1 \n"
             "CBNZ x0, loop \n"
@@ -400,6 +446,20 @@ static WC_INLINE word32 wc_Chacha_perform_rounds(word32 output[CHACHA_CHUNK_WORD
 
             "ST1 { v10.4S-v13.4S }, [%[x_out]] \n"
 
+            "ADD %[x_out], %[x_out], %[chacha_chunk_bytes] \n"
+
+            // increment counter
+            "MOV w0, v31.S[0] \n"
+            "ADD w0, w0, 1 \n"
+            "MOV v31.S[0], w0 \n"
+
+            "ADD v15.4S, v15.4S, v28.4S \n"
+            "ADD v16.4S, v16.4S, v29.4S \n"
+            "ADD v17.4S, v17.4S, v30.4S \n"
+            "ADD v18.4S, v18.4S, v31.4S \n"
+
+            "ST1 { v15.4S-v18.4S }, [%[x_out]] \n"
+
             :
             : [x_out] "r" (x), [x_in] "r" (x), [rounds] "I" (ROUNDS/2), [in] "r" (input), [chacha_chunk_bytes] "I" (CHACHA_CHUNK_BYTES)
             : "memory",
@@ -407,14 +467,13 @@ static WC_INLINE word32 wc_Chacha_perform_rounds(word32 output[CHACHA_CHUNK_WORD
               "v0",  "v1",  "v2",  "v3",  "v4",
               "v5",  "v6",  "v7",  "v8",  "v9",
               "v10", "v11", "v12", "v13", "v14",
+              "v15", "v16", "v17", "v18", "v19",
               "v28", "v29", "v30", "v31"
     );
 
     for (i = 0; i < CHACHA_CHUNK_WORDS * MAX_CHACHA_BLOCKS; i++) {
         output[i] = LITTLE32(x[i]);
     }
-
-    return MAX_CHACHA_BLOCKS;
 }
 
 /**
@@ -427,12 +486,10 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
     word32 temp[CHACHA_CHUNK_WORDS * MAX_CHACHA_BLOCKS]; /* used to make sure aligned */
     word32 i;
     word32 blk;
-    word32 blocks;
 
     for (; bytes > 0;) {
         output = (byte*)temp;
-        blocks = wc_Chacha_perform_rounds(temp, ctx->X);
-        ctx->X[CHACHA_IV_BYTES] = PLUS(ctx->X[CHACHA_IV_BYTES], blocks);
+        wc_Chacha_wordtobyte(temp, ctx->X);
 
         for (blk = 0; blk < MAX_CHACHA_BLOCKS && bytes > CHACHA_CHUNK_BYTES; ++blk) {
             // assume CHACHA_CHUNK_BYTES == 64
@@ -453,6 +510,8 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
             c += CHACHA_CHUNK_BYTES;
             m += CHACHA_CHUNK_BYTES;
             output += CHACHA_CHUNK_BYTES;
+
+            ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
         }
 
         if (bytes <= CHACHA_CHUNK_BYTES && blk < MAX_CHACHA_BLOCKS) {
@@ -494,6 +553,8 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
             for (i = 0; i < bytes; ++i) {
                 c[i] = m[i] ^ output[i];
             }
+
+            ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
 
             return;
         }
