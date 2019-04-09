@@ -186,10 +186,12 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS * MA
     XMEMCPY(x + CHACHA_CHUNK_WORDS*2, input, CHACHA_CHUNK_BYTES);
     XMEMCPY(x + CHACHA_CHUNK_WORDS*3, input, CHACHA_CHUNK_BYTES);
     XMEMCPY(x + CHACHA_CHUNK_WORDS*4, input, CHACHA_CHUNK_BYTES);
+    XMEMCPY(x + CHACHA_CHUNK_WORDS*5, input, CHACHA_CHUNK_BYTES);
     x[CHACHA_CHUNK_WORDS + CHACHA_IV_BYTES] += 1;
     x[CHACHA_CHUNK_WORDS*2 + CHACHA_IV_BYTES] += 2;
     x[CHACHA_CHUNK_WORDS*3 + CHACHA_IV_BYTES] += 3;
     x[CHACHA_CHUNK_WORDS*4 + CHACHA_IV_BYTES] += 4;
+    x[CHACHA_CHUNK_WORDS*5 + CHACHA_IV_BYTES] += 5;
 
     __asm__ __volatile__ (
             // The paper NEON crypto by Daniel J. Bernstein and Peter Schwabe was used to optimize for ARM
@@ -199,15 +201,17 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS * MA
             "MOV x0, %[rounds] \n"
 
             // v0-v3 - first block
-            // v4 first block helper
-            // v5-v8 - second block
-            // v9 second block helper
-            // v10-v13 - third block
-            // v14 third block helper
-            // v15-v18 - fourth block
-            // v19 fourth block helper
-            // v20-v23 - fifth block
-            // v24 fifth block helper
+            // v24 first block helper
+            // v4-v7 - second block
+            // v25 second block helper
+            // v8-v11 - third block
+            // v26 third block helper
+            // v12-v15 - fourth block
+            // v27 fourth block helper
+            // v16-v19 - fifth block
+            // v28 fifth block helper
+            // v20-v23 - sixth block
+            // v29 sixth block helper
 
             // v0  0  1  2  3
             // v1  4  5  6  7
@@ -216,11 +220,13 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS * MA
             // load CHACHA state as shown above
             "LD1 { v0.4S-v3.4S }, [%[x_in]] \n"
             "ADD %[x_in], %[x_in], %[chacha_chunk_bytes] \n"
-            "LD1 { v5.4S-v8.4S }, [%[x_in]] \n"
+            "LD1 { v4.4S-v7.4S }, [%[x_in]] \n"
             "ADD %[x_in], %[x_in], %[chacha_chunk_bytes] \n"
-            "LD1 { v10.4S-v13.4S }, [%[x_in]] \n"
+            "LD1 { v8.4S-v11.4S }, [%[x_in]] \n"
             "ADD %[x_in], %[x_in], %[chacha_chunk_bytes] \n"
-            "LD1 { v15.4S-v18.4S }, [%[x_in]] \n"
+            "LD1 { v12.4S-v15.4S }, [%[x_in]] \n"
+            "ADD %[x_in], %[x_in], %[chacha_chunk_bytes] \n"
+            "LD1 { v16.4S-v19.4S }, [%[x_in]] \n"
             "ADD %[x_in], %[x_in], %[chacha_chunk_bytes] \n"
             "LD1 { v20.4S-v23.4S }, [%[x_in]] \n"
 
@@ -229,92 +235,108 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS * MA
             // ODD ROUND
 
             "ADD v0.4S, v0.4S, v1.4S \n"
-            "ADD v5.4S, v5.4S, v6.4S \n"
-            "ADD v10.4S, v10.4S, v11.4S \n"
-            "ADD v15.4S, v15.4S, v16.4S \n"
+            "ADD v4.4S, v4.4S, v5.4S \n"
+            "ADD v8.4S, v8.4S, v9.4S \n"
+            "ADD v12.4S, v12.4S, v13.4S \n"
+            "ADD v16.4S, v16.4S, v17.4S \n"
             "ADD v20.4S, v20.4S, v21.4S \n"
-            "EOR v4.16B, v3.16B, v0.16B \n"
-            "EOR v9.16B, v8.16B, v5.16B \n"
-            "EOR v14.16B, v13.16B, v10.16B \n"
-            "EOR v19.16B, v18.16B, v15.16B \n"
-            "EOR v24.16B, v23.16B, v20.16B \n"
+            "EOR v24.16B, v3.16B, v0.16B \n"
+            "EOR v25.16B, v7.16B, v4.16B \n"
+            "EOR v26.16B, v11.16B, v8.16B \n"
+            "EOR v27.16B, v15.16B, v12.16B \n"
+            "EOR v28.16B, v19.16B, v16.16B \n"
+            "EOR v29.16B, v23.16B, v20.16B \n"
             // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
-            "SHL v3.4S, v4.4S, #16 \n"
-            "SHL v8.4S, v9.4S, #16 \n"
-            "SHL v13.4S, v14.4S, #16 \n"
-            "SHL v18.4S, v19.4S, #16 \n"
-            "SHL v23.4S, v24.4S, #16 \n"
-            "SRI v3.4S, v4.4S, #16 \n"
-            "SRI v8.4S, v9.4S, #16 \n"
-            "SRI v13.4S, v14.4S, #16 \n"
-            "SRI v18.4S, v19.4S, #16 \n"
-            "SRI v23.4S, v24.4S, #16 \n"
+            "SHL v3.4S, v24.4S, #16 \n"
+            "SHL v7.4S, v25.4S, #16 \n"
+            "SHL v11.4S, v26.4S, #16 \n"
+            "SHL v15.4S, v27.4S, #16 \n"
+            "SHL v19.4S, v28.4S, #16 \n"
+            "SHL v23.4S, v29.4S, #16 \n"
+            "SRI v3.4S, v24.4S, #16 \n"
+            "SRI v7.4S, v25.4S, #16 \n"
+            "SRI v11.4S, v26.4S, #16 \n"
+            "SRI v15.4S, v27.4S, #16 \n"
+            "SRI v19.4S, v28.4S, #16 \n"
+            "SRI v23.4S, v29.4S, #16 \n"
 
             "ADD v2.4S, v2.4S, v3.4S \n"
-            "ADD v7.4S, v7.4S, v8.4S \n"
-            "ADD v12.4S, v12.4S, v13.4S \n"
-            "ADD v17.4S, v17.4S, v18.4S \n"
+            "ADD v6.4S, v6.4S, v7.4S \n"
+            "ADD v10.4S, v10.4S, v11.4S \n"
+            "ADD v14.4S, v14.4S, v15.4S \n"
+            "ADD v18.4S, v18.4S, v19.4S \n"
             "ADD v22.4S, v22.4S, v23.4S \n"
-            "EOR v4.16B, v1.16B, v2.16B \n"
-            "EOR v9.16B, v6.16B, v7.16B \n"
-            "EOR v14.16B, v11.16B, v12.16B \n"
-            "EOR v19.16B, v16.16B, v17.16B \n"
-            "EOR v24.16B, v21.16B, v22.16B \n"
+            "EOR v24.16B, v1.16B, v2.16B \n"
+            "EOR v25.16B, v5.16B, v6.16B \n"
+            "EOR v26.16B, v9.16B, v10.16B \n"
+            "EOR v27.16B, v13.16B, v14.16B \n"
+            "EOR v28.16B, v17.16B, v18.16B \n"
+            "EOR v29.16B, v21.16B, v22.16B \n"
             // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
-            "SHL v1.4S, v4.4S, #12 \n"
-            "SHL v6.4S, v9.4S, #12 \n"
-            "SHL v11.4S, v14.4S, #12 \n"
-            "SHL v16.4S, v19.4S, #12 \n"
-            "SHL v21.4S, v24.4S, #12 \n"
-            "SRI v1.4S, v4.4S, #20 \n"
-            "SRI v6.4S, v9.4S, #20 \n"
-            "SRI v11.4S, v14.4S, #20 \n"
-            "SRI v16.4S, v19.4S, #20 \n"
-            "SRI v21.4S, v24.4S, #20 \n"
+            "SHL v1.4S, v24.4S, #12 \n"
+            "SHL v5.4S, v25.4S, #12 \n"
+            "SHL v9.4S, v26.4S, #12 \n"
+            "SHL v13.4S, v27.4S, #12 \n"
+            "SHL v17.4S, v28.4S, #12 \n"
+            "SHL v21.4S, v29.4S, #12 \n"
+            "SRI v1.4S, v24.4S, #20 \n"
+            "SRI v5.4S, v25.4S, #20 \n"
+            "SRI v9.4S, v26.4S, #20 \n"
+            "SRI v13.4S, v27.4S, #20 \n"
+            "SRI v17.4S, v28.4S, #20 \n"
+            "SRI v21.4S, v29.4S, #20 \n"
 
             "ADD v0.4S, v0.4S, v1.4S \n"
-            "ADD v5.4S, v5.4S, v6.4S \n"
-            "ADD v10.4S, v10.4S, v11.4S \n"
-            "ADD v15.4S, v15.4S, v16.4S \n"
+            "ADD v4.4S, v4.4S, v5.4S \n"
+            "ADD v8.4S, v8.4S, v9.4S \n"
+            "ADD v12.4S, v12.4S, v13.4S \n"
+            "ADD v16.4S, v16.4S, v17.4S \n"
             "ADD v20.4S, v20.4S, v21.4S \n"
-            "EOR v4.16B, v3.16B, v0.16B \n"
-            "EOR v9.16B, v8.16B, v5.16B \n"
-            "EOR v14.16B, v13.16B, v10.16B \n"
-            "EOR v19.16B, v18.16B, v15.16B \n"
-            "EOR v24.16B, v23.16B, v20.16B \n"
+            "EOR v24.16B, v3.16B, v0.16B \n"
+            "EOR v25.16B, v7.16B, v4.16B \n"
+            "EOR v26.16B, v11.16B, v8.16B \n"
+            "EOR v27.16B, v15.16B, v12.16B \n"
+            "EOR v28.16B, v19.16B, v16.16B \n"
+            "EOR v29.16B, v23.16B, v20.16B \n"
             // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
-            "SHL v3.4S, v4.4S, #8 \n"
-            "SHL v8.4S, v9.4S, #8 \n"
-            "SHL v13.4S, v14.4S, #8 \n"
-            "SHL v18.4S, v19.4S, #8 \n"
-            "SHL v23.4S, v24.4S, #8 \n"
-            "SRI v3.4S, v4.4S, #24 \n"
-            "SRI v8.4S, v9.4S, #24 \n"
-            "SRI v13.4S, v14.4S, #24 \n"
-            "SRI v18.4S, v19.4S, #24 \n"
-            "SRI v23.4S, v24.4S, #24 \n"
+            "SHL v3.4S, v24.4S, #8 \n"
+            "SHL v7.4S, v25.4S, #8 \n"
+            "SHL v11.4S, v26.4S, #8 \n"
+            "SHL v15.4S, v27.4S, #8 \n"
+            "SHL v19.4S, v28.4S, #8 \n"
+            "SHL v23.4S, v29.4S, #8 \n"
+            "SRI v3.4S, v24.4S, #24 \n"
+            "SRI v7.4S, v25.4S, #24 \n"
+            "SRI v11.4S, v26.4S, #24 \n"
+            "SRI v15.4S, v27.4S, #24 \n"
+            "SRI v19.4S, v28.4S, #24 \n"
+            "SRI v23.4S, v29.4S, #24 \n"
 
             "ADD v2.4S, v2.4S, v3.4S \n"
-            "ADD v7.4S, v7.4S, v8.4S \n"
-            "ADD v12.4S, v12.4S, v13.4S \n"
-            "ADD v17.4S, v17.4S, v18.4S \n"
+            "ADD v6.4S, v6.4S, v7.4S \n"
+            "ADD v10.4S, v10.4S, v11.4S \n"
+            "ADD v14.4S, v14.4S, v15.4S \n"
+            "ADD v18.4S, v18.4S, v19.4S \n"
             "ADD v22.4S, v22.4S, v23.4S \n"
-            "EOR v4.16B, v1.16B, v2.16B \n"
-            "EOR v9.16B, v6.16B, v7.16B \n"
-            "EOR v14.16B, v11.16B, v12.16B \n"
-            "EOR v19.16B, v16.16B, v17.16B \n"
-            "EOR v24.16B, v21.16B, v22.16B \n"
+            "EOR v24.16B, v1.16B, v2.16B \n"
+            "EOR v25.16B, v5.16B, v6.16B \n"
+            "EOR v26.16B, v9.16B, v10.16B \n"
+            "EOR v27.16B, v13.16B, v14.16B \n"
+            "EOR v28.16B, v17.16B, v18.16B \n"
+            "EOR v29.16B, v21.16B, v22.16B \n"
             // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
-            "SHL v1.4S, v4.4S, #7 \n"
-            "SHL v6.4S, v9.4S, #7 \n"
-            "SHL v11.4S, v14.4S, #7 \n"
-            "SHL v16.4S, v19.4S, #7 \n"
-            "SHL v21.4S, v24.4S, #7 \n"
-            "SRI v1.4S, v4.4S, #25 \n"
-            "SRI v6.4S, v9.4S, #25 \n"
-            "SRI v11.4S, v14.4S, #25 \n"
-            "SRI v16.4S, v19.4S, #25 \n"
-            "SRI v21.4S, v24.4S, #25 \n"
+            "SHL v1.4S, v24.4S, #7 \n"
+            "SHL v5.4S, v25.4S, #7 \n"
+            "SHL v9.4S, v26.4S, #7 \n"
+            "SHL v13.4S, v27.4S, #7 \n"
+            "SHL v17.4S, v28.4S, #7 \n"
+            "SHL v21.4S, v29.4S, #7 \n"
+            "SRI v1.4S, v24.4S, #25 \n"
+            "SRI v5.4S, v25.4S, #25 \n"
+            "SRI v9.4S, v26.4S, #25 \n"
+            "SRI v13.4S, v27.4S, #25 \n"
+            "SRI v17.4S, v28.4S, #25 \n"
+            "SRI v21.4S, v29.4S, #25 \n"
 
             // EVEN ROUND
 
@@ -328,125 +350,149 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS * MA
             "EXT v2.16B, v2.16B, v2.16B, #8 \n" // permute elements left by two
             "EXT v3.16B, v3.16B, v3.16B, #12 \n" // permute elements left by three
 
-            "EXT v6.16B, v6.16B, v6.16B, #4 \n" // permute elements left by one
-            "EXT v7.16B, v7.16B, v7.16B, #8 \n" // permute elements left by two
-            "EXT v8.16B, v8.16B, v8.16B, #12 \n" // permute elements left by three
+            "EXT v5.16B, v5.16B, v5.16B, #4 \n" // permute elements left by one
+            "EXT v6.16B, v6.16B, v6.16B, #8 \n" // permute elements left by two
+            "EXT v7.16B, v7.16B, v7.16B, #12 \n" // permute elements left by three
 
-            "EXT v11.16B, v11.16B, v11.16B, #4 \n" // permute elements left by one
-            "EXT v12.16B, v12.16B, v12.16B, #8 \n" // permute elements left by two
-            "EXT v13.16B, v13.16B, v13.16B, #12 \n" // permute elements left by three
+            "EXT v9.16B, v9.16B, v9.16B, #4 \n" // permute elements left by one
+            "EXT v10.16B, v10.16B, v10.16B, #8 \n" // permute elements left by two
+            "EXT v11.16B, v11.16B, v11.16B, #12 \n" // permute elements left by three
 
-            "EXT v16.16B, v16.16B, v16.16B, #4 \n" // permute elements left by one
-            "EXT v17.16B, v17.16B, v17.16B, #8 \n" // permute elements left by two
-            "EXT v18.16B, v18.16B, v18.16B, #12 \n" // permute elements left by three
+            "EXT v13.16B, v13.16B, v13.16B, #4 \n" // permute elements left by one
+            "EXT v14.16B, v14.16B, v14.16B, #8 \n" // permute elements left by two
+            "EXT v15.16B, v15.16B, v15.16B, #12 \n" // permute elements left by three
+
+            "EXT v17.16B, v17.16B, v17.16B, #4 \n" // permute elements left by one
+            "EXT v18.16B, v18.16B, v18.16B, #8 \n" // permute elements left by two
+            "EXT v19.16B, v19.16B, v19.16B, #12 \n" // permute elements left by three
 
             "EXT v21.16B, v21.16B, v21.16B, #4 \n" // permute elements left by one
             "EXT v22.16B, v22.16B, v22.16B, #8 \n" // permute elements left by two
             "EXT v23.16B, v23.16B, v23.16B, #12 \n" // permute elements left by three
 
             "ADD v0.4S, v0.4S, v1.4S \n"
-            "ADD v5.4S, v5.4S, v6.4S \n"
-            "ADD v10.4S, v10.4S, v11.4S \n"
-            "ADD v15.4S, v15.4S, v16.4S \n"
+            "ADD v4.4S, v4.4S, v5.4S \n"
+            "ADD v8.4S, v8.4S, v9.4S \n"
+            "ADD v12.4S, v12.4S, v13.4S \n"
+            "ADD v16.4S, v16.4S, v17.4S \n"
             "ADD v20.4S, v20.4S, v21.4S \n"
-            "EOR v4.16B, v3.16B, v0.16B \n"
-            "EOR v9.16B, v8.16B, v5.16B \n"
-            "EOR v14.16B, v13.16B, v10.16B \n"
-            "EOR v19.16B, v18.16B, v15.16B \n"
-            "EOR v24.16B, v23.16B, v20.16B \n"
+            "EOR v24.16B, v3.16B, v0.16B \n"
+            "EOR v25.16B, v7.16B, v4.16B \n"
+            "EOR v26.16B, v11.16B, v8.16B \n"
+            "EOR v27.16B, v15.16B, v12.16B \n"
+            "EOR v28.16B, v19.16B, v16.16B \n"
+            "EOR v29.16B, v23.16B, v20.16B \n"
             // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
-            "SHL v3.4S, v4.4S, #16 \n"
-            "SHL v8.4S, v9.4S, #16 \n"
-            "SHL v13.4S, v14.4S, #16 \n"
-            "SHL v18.4S, v19.4S, #16 \n"
-            "SHL v23.4S, v24.4S, #16 \n"
-            "SRI v3.4S, v4.4S, #16 \n"
-            "SRI v8.4S, v9.4S, #16 \n"
-            "SRI v13.4S, v14.4S, #16 \n"
-            "SRI v18.4S, v19.4S, #16 \n"
-            "SRI v23.4S, v24.4S, #16 \n"
+            "SHL v3.4S, v24.4S, #16 \n"
+            "SHL v7.4S, v25.4S, #16 \n"
+            "SHL v11.4S, v26.4S, #16 \n"
+            "SHL v15.4S, v27.4S, #16 \n"
+            "SHL v19.4S, v28.4S, #16 \n"
+            "SHL v23.4S, v29.4S, #16 \n"
+            "SRI v3.4S, v24.4S, #16 \n"
+            "SRI v7.4S, v25.4S, #16 \n"
+            "SRI v11.4S, v26.4S, #16 \n"
+            "SRI v15.4S, v27.4S, #16 \n"
+            "SRI v19.4S, v28.4S, #16 \n"
+            "SRI v23.4S, v29.4S, #16 \n"
 
             "ADD v2.4S, v2.4S, v3.4S \n"
-            "ADD v7.4S, v7.4S, v8.4S \n"
-            "ADD v12.4S, v12.4S, v13.4S \n"
-            "ADD v17.4S, v17.4S, v18.4S \n"
+            "ADD v6.4S, v6.4S, v7.4S \n"
+            "ADD v10.4S, v10.4S, v11.4S \n"
+            "ADD v14.4S, v14.4S, v15.4S \n"
+            "ADD v18.4S, v18.4S, v19.4S \n"
             "ADD v22.4S, v22.4S, v23.4S \n"
-            "EOR v4.16B, v1.16B, v2.16B \n"
-            "EOR v9.16B, v6.16B, v7.16B \n"
-            "EOR v14.16B, v11.16B, v12.16B \n"
-            "EOR v19.16B, v16.16B, v17.16B \n"
-            "EOR v24.16B, v21.16B, v22.16B \n"
+            "EOR v24.16B, v1.16B, v2.16B \n"
+            "EOR v25.16B, v5.16B, v6.16B \n"
+            "EOR v26.16B, v9.16B, v10.16B \n"
+            "EOR v27.16B, v13.16B, v14.16B \n"
+            "EOR v28.16B, v17.16B, v18.16B \n"
+            "EOR v29.16B, v21.16B, v22.16B \n"
             // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
-            "SHL v1.4S, v4.4S, #12 \n"
-            "SHL v6.4S, v9.4S, #12 \n"
-            "SHL v11.4S, v14.4S, #12 \n"
-            "SHL v16.4S, v19.4S, #12 \n"
-            "SHL v21.4S, v24.4S, #12 \n"
-            "SRI v1.4S, v4.4S, #20 \n"
-            "SRI v6.4S, v9.4S, #20 \n"
-            "SRI v11.4S, v14.4S, #20 \n"
-            "SRI v16.4S, v19.4S, #20 \n"
-            "SRI v21.4S, v24.4S, #20 \n"
+            "SHL v1.4S, v24.4S, #12 \n"
+            "SHL v5.4S, v25.4S, #12 \n"
+            "SHL v9.4S, v26.4S, #12 \n"
+            "SHL v13.4S, v27.4S, #12 \n"
+            "SHL v17.4S, v28.4S, #12 \n"
+            "SHL v21.4S, v29.4S, #12 \n"
+            "SRI v1.4S, v24.4S, #20 \n"
+            "SRI v5.4S, v25.4S, #20 \n"
+            "SRI v9.4S, v26.4S, #20 \n"
+            "SRI v13.4S, v27.4S, #20 \n"
+            "SRI v17.4S, v28.4S, #20 \n"
+            "SRI v21.4S, v29.4S, #20 \n"
 
             "ADD v0.4S, v0.4S, v1.4S \n"
-            "ADD v5.4S, v5.4S, v6.4S \n"
-            "ADD v10.4S, v10.4S, v11.4S \n"
-            "ADD v15.4S, v15.4S, v16.4S \n"
+            "ADD v4.4S, v4.4S, v5.4S \n"
+            "ADD v8.4S, v8.4S, v9.4S \n"
+            "ADD v12.4S, v12.4S, v13.4S \n"
+            "ADD v16.4S, v16.4S, v17.4S \n"
             "ADD v20.4S, v20.4S, v21.4S \n"
-            "EOR v4.16B, v3.16B, v0.16B \n"
-            "EOR v9.16B, v8.16B, v5.16B \n"
-            "EOR v14.16B, v13.16B, v10.16B \n"
-            "EOR v19.16B, v18.16B, v15.16B \n"
-            "EOR v24.16B, v23.16B, v20.16B \n"
+            "EOR v24.16B, v3.16B, v0.16B \n"
+            "EOR v25.16B, v7.16B, v4.16B \n"
+            "EOR v26.16B, v11.16B, v8.16B \n"
+            "EOR v27.16B, v15.16B, v12.16B \n"
+            "EOR v28.16B, v19.16B, v16.16B \n"
+            "EOR v29.16B, v23.16B, v20.16B \n"
             // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
-            "SHL v3.4S, v4.4S, #8 \n"
-            "SHL v8.4S, v9.4S, #8 \n"
-            "SHL v13.4S, v14.4S, #8 \n"
-            "SHL v18.4S, v19.4S, #8 \n"
-            "SHL v23.4S, v24.4S, #8 \n"
-            "SRI v3.4S, v4.4S, #24 \n"
-            "SRI v8.4S, v9.4S, #24 \n"
-            "SRI v13.4S, v14.4S, #24 \n"
-            "SRI v18.4S, v19.4S, #24 \n"
-            "SRI v23.4S, v24.4S, #24 \n"
+            "SHL v3.4S, v24.4S, #8 \n"
+            "SHL v7.4S, v25.4S, #8 \n"
+            "SHL v11.4S, v26.4S, #8 \n"
+            "SHL v15.4S, v27.4S, #8 \n"
+            "SHL v19.4S, v28.4S, #8 \n"
+            "SHL v23.4S, v29.4S, #8 \n"
+            "SRI v3.4S, v24.4S, #24 \n"
+            "SRI v7.4S, v25.4S, #24 \n"
+            "SRI v11.4S, v26.4S, #24 \n"
+            "SRI v15.4S, v27.4S, #24 \n"
+            "SRI v19.4S, v28.4S, #24 \n"
+            "SRI v23.4S, v29.4S, #24 \n"
 
             "ADD v2.4S, v2.4S, v3.4S \n"
-            "ADD v7.4S, v7.4S, v8.4S \n"
-            "ADD v12.4S, v12.4S, v13.4S \n"
-            "ADD v17.4S, v17.4S, v18.4S \n"
+            "ADD v6.4S, v6.4S, v7.4S \n"
+            "ADD v10.4S, v10.4S, v11.4S \n"
+            "ADD v14.4S, v14.4S, v15.4S \n"
+            "ADD v18.4S, v18.4S, v19.4S \n"
             "ADD v22.4S, v22.4S, v23.4S \n"
-            "EOR v4.16B, v1.16B, v2.16B \n"
-            "EOR v9.16B, v6.16B, v7.16B \n"
-            "EOR v14.16B, v11.16B, v12.16B \n"
-            "EOR v19.16B, v16.16B, v17.16B \n"
-            "EOR v24.16B, v21.16B, v22.16B \n"
+            "EOR v24.16B, v1.16B, v2.16B \n"
+            "EOR v25.16B, v5.16B, v6.16B \n"
+            "EOR v26.16B, v9.16B, v10.16B \n"
+            "EOR v27.16B, v13.16B, v14.16B \n"
+            "EOR v28.16B, v17.16B, v18.16B \n"
+            "EOR v29.16B, v21.16B, v22.16B \n"
             // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
-            "SHL v1.4S, v4.4S, #7 \n"
-            "SHL v6.4S, v9.4S, #7 \n"
-            "SHL v11.4S, v14.4S, #7 \n"
-            "SHL v16.4S, v19.4S, #7 \n"
-            "SHL v21.4S, v24.4S, #7 \n"
-            "SRI v1.4S, v4.4S, #25 \n"
-            "SRI v6.4S, v9.4S, #25 \n"
-            "SRI v11.4S, v14.4S, #25 \n"
-            "SRI v16.4S, v19.4S, #25 \n"
-            "SRI v21.4S, v24.4S, #25 \n"
+            "SHL v1.4S, v24.4S, #7 \n"
+            "SHL v5.4S, v25.4S, #7 \n"
+            "SHL v9.4S, v26.4S, #7 \n"
+            "SHL v13.4S, v27.4S, #7 \n"
+            "SHL v17.4S, v28.4S, #7 \n"
+            "SHL v21.4S, v29.4S, #7 \n"
+            "SRI v1.4S, v24.4S, #25 \n"
+            "SRI v5.4S, v25.4S, #25 \n"
+            "SRI v9.4S, v26.4S, #25 \n"
+            "SRI v13.4S, v27.4S, #25 \n"
+            "SRI v17.4S, v28.4S, #25 \n"
+            "SRI v21.4S, v29.4S, #25 \n"
 
             "EXT v1.16B, v1.16B, v1.16B, #12 \n" // permute elements left by three
             "EXT v2.16B, v2.16B, v2.16B, #8 \n" // permute elements left by two
             "EXT v3.16B, v3.16B, v3.16B, #4 \n" // permute elements left by one
 
-            "EXT v6.16B, v6.16B, v6.16B, #12 \n" // permute elements left by three
-            "EXT v7.16B, v7.16B, v7.16B, #8 \n" // permute elements left by two
-            "EXT v8.16B, v8.16B, v8.16B, #4 \n" // permute elements left by one
+            "EXT v5.16B, v5.16B, v5.16B, #12 \n" // permute elements left by three
+            "EXT v6.16B, v6.16B, v6.16B, #8 \n" // permute elements left by two
+            "EXT v7.16B, v7.16B, v7.16B, #4 \n" // permute elements left by one
 
-            "EXT v11.16B, v11.16B, v11.16B, #12 \n" // permute elements left by three
-            "EXT v12.16B, v12.16B, v12.16B, #8 \n" // permute elements left by two
-            "EXT v13.16B, v13.16B, v13.16B, #4 \n" // permute elements left by one
+            "EXT v9.16B, v9.16B, v9.16B, #12 \n" // permute elements left by three
+            "EXT v10.16B, v10.16B, v10.16B, #8 \n" // permute elements left by two
+            "EXT v11.16B, v11.16B, v11.16B, #4 \n" // permute elements left by one
 
-            "EXT v16.16B, v16.16B, v16.16B, #12 \n" // permute elements left by three
-            "EXT v17.16B, v17.16B, v17.16B, #8 \n" // permute elements left by two
-            "EXT v18.16B, v18.16B, v18.16B, #4 \n" // permute elements left by one
+            "EXT v13.16B, v13.16B, v13.16B, #12 \n" // permute elements left by three
+            "EXT v14.16B, v14.16B, v14.16B, #8 \n" // permute elements left by two
+            "EXT v15.16B, v15.16B, v15.16B, #4 \n" // permute elements left by one
+
+            "EXT v17.16B, v17.16B, v17.16B, #12 \n" // permute elements left by three
+            "EXT v18.16B, v18.16B, v18.16B, #8 \n" // permute elements left by two
+            "EXT v19.16B, v19.16B, v19.16B, #4 \n" // permute elements left by one
 
             "EXT v21.16B, v21.16B, v21.16B, #12 \n" // permute elements left by three
             "EXT v22.16B, v22.16B, v22.16B, #8 \n" // permute elements left by two
@@ -455,68 +501,82 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS * MA
             "SUB x0, x0, #1 \n"
             "CBNZ x0, loop \n"
 
-            "LD1 { v28.4S-v31.4S }, [%[in]] \n"
+            "LD1 { v24.4S-v27.4S }, [%[in]] \n"
 
-            "ADD v0.4S, v0.4S, v28.4S \n"
-            "ADD v1.4S, v1.4S, v29.4S \n"
-            "ADD v2.4S, v2.4S, v30.4S \n"
-            "ADD v3.4S, v3.4S, v31.4S \n"
+            "ADD v0.4S, v0.4S, v24.4S \n"
+            "ADD v1.4S, v1.4S, v25.4S \n"
+            "ADD v2.4S, v2.4S, v26.4S \n"
+            "ADD v3.4S, v3.4S, v27.4S \n"
 
             "ST1 { v0.4S-v3.4S }, [%[x_out]] \n"
 
             "ADD %[x_out], %[x_out], %[chacha_chunk_bytes] \n"
 
             // increment counter
-            "MOV w0, v31.S[0] \n"
+            "MOV w0, v27.S[0] \n"
             "ADD w0, w0, 1 \n"
-            "MOV v31.S[0], w0 \n"
+            "MOV v27.S[0], w0 \n"
 
-            "ADD v5.4S, v5.4S, v28.4S \n"
-            "ADD v6.4S, v6.4S, v29.4S \n"
-            "ADD v7.4S, v7.4S, v30.4S \n"
-            "ADD v8.4S, v8.4S, v31.4S \n"
+            "ADD v4.4S, v4.4S, v24.4S \n"
+            "ADD v5.4S, v5.4S, v25.4S \n"
+            "ADD v6.4S, v6.4S, v26.4S \n"
+            "ADD v7.4S, v7.4S, v27.4S \n"
 
-            "ST1 { v5.4S-v8.4S }, [%[x_out]] \n"
+            "ST1 { v4.4S-v7.4S }, [%[x_out]] \n"
 
             "ADD %[x_out], %[x_out], %[chacha_chunk_bytes] \n"
 
             // increment counter
-            "MOV w0, v31.S[0] \n"
+            "MOV w0, v27.S[0] \n"
             "ADD w0, w0, 1 \n"
-            "MOV v31.S[0], w0 \n"
+            "MOV v27.S[0], w0 \n"
 
-            "ADD v10.4S, v10.4S, v28.4S \n"
-            "ADD v11.4S, v11.4S, v29.4S \n"
-            "ADD v12.4S, v12.4S, v30.4S \n"
-            "ADD v13.4S, v13.4S, v31.4S \n"
+            "ADD v8.4S, v8.4S, v24.4S \n"
+            "ADD v9.4S, v9.4S, v25.4S \n"
+            "ADD v10.4S, v10.4S, v26.4S \n"
+            "ADD v11.4S, v11.4S, v27.4S \n"
 
-            "ST1 { v10.4S-v13.4S }, [%[x_out]] \n"
+            "ST1 { v8.4S-v11.4S }, [%[x_out]] \n"
 
             "ADD %[x_out], %[x_out], %[chacha_chunk_bytes] \n"
 
             // increment counter
-            "MOV w0, v31.S[0] \n"
+            "MOV w0, v27.S[0] \n"
             "ADD w0, w0, 1 \n"
-            "MOV v31.S[0], w0 \n"
+            "MOV v27.S[0], w0 \n"
 
-            "ADD v15.4S, v15.4S, v28.4S \n"
-            "ADD v16.4S, v16.4S, v29.4S \n"
-            "ADD v17.4S, v17.4S, v30.4S \n"
-            "ADD v18.4S, v18.4S, v31.4S \n"
+            "ADD v12.4S, v12.4S, v24.4S \n"
+            "ADD v13.4S, v13.4S, v25.4S \n"
+            "ADD v14.4S, v14.4S, v26.4S \n"
+            "ADD v15.4S, v15.4S, v27.4S \n"
 
-            "ST1 { v15.4S-v18.4S }, [%[x_out]] \n"
+            "ST1 { v12.4S-v15.4S }, [%[x_out]] \n"
 
             "ADD %[x_out], %[x_out], %[chacha_chunk_bytes] \n"
 
             // increment counter
-            "MOV w0, v31.S[0] \n"
+            "MOV w0, v27.S[0] \n"
             "ADD w0, w0, 1 \n"
-            "MOV v31.S[0], w0 \n"
+            "MOV v27.S[0], w0 \n"
 
-            "ADD v15.4S, v15.4S, v28.4S \n"
-            "ADD v16.4S, v16.4S, v29.4S \n"
-            "ADD v17.4S, v17.4S, v30.4S \n"
-            "ADD v18.4S, v18.4S, v31.4S \n"
+            "ADD v16.4S, v16.4S, v24.4S \n"
+            "ADD v17.4S, v17.4S, v25.4S \n"
+            "ADD v18.4S, v18.4S, v26.4S \n"
+            "ADD v19.4S, v19.4S, v27.4S \n"
+
+            "ST1 { v16.4S-v19.4S }, [%[x_out]] \n"
+
+            "ADD %[x_out], %[x_out], %[chacha_chunk_bytes] \n"
+
+            // increment counter
+            "MOV w0, v27.S[0] \n"
+            "ADD w0, w0, 1 \n"
+            "MOV v27.S[0], w0 \n"
+
+            "ADD v20.4S, v20.4S, v24.4S \n"
+            "ADD v21.4S, v21.4S, v25.4S \n"
+            "ADD v22.4S, v22.4S, v26.4S \n"
+            "ADD v23.4S, v23.4S, v27.4S \n"
 
             "ST1 { v20.4S-v23.4S }, [%[x_out]] \n"
 
@@ -528,7 +588,8 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS * MA
               "v5",  "v6",  "v7",  "v8",  "v9",
               "v10", "v11", "v12", "v13", "v14",
               "v15", "v16", "v17", "v18", "v19",
-              "v28", "v29", "v30", "v31"
+              "v20", "v21", "v22", "v23", "v24",
+              "v25", "v26", "v27", "v28", "v29"
     );
 
     for (i = 0; i < CHACHA_CHUNK_WORDS * MAX_CHACHA_BLOCKS; i++) {
