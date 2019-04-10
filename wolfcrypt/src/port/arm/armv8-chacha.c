@@ -176,31 +176,12 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
   * Converts word into bytes with rotations having been done.
   */
 static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS * MAX_CHACHA_BLOCKS],
-    const word32 input[CHACHA_CHUNK_WORDS])
+        const word32 input[CHACHA_CHUNK_WORDS])
 {
-    word32 x[CHACHA_CHUNK_WORDS * MAX_CHACHA_BLOCKS]; // process multiple blocks at a time
-    word32 i;
-
-    XMEMCPY(x, input, CHACHA_CHUNK_BYTES);
-    XMEMCPY(x + CHACHA_CHUNK_WORDS, input, CHACHA_CHUNK_BYTES);
-    XMEMCPY(x + CHACHA_CHUNK_WORDS*2, input, CHACHA_CHUNK_BYTES);
-    XMEMCPY(x + CHACHA_CHUNK_WORDS*3, input, CHACHA_CHUNK_BYTES);
-    XMEMCPY(x + CHACHA_CHUNK_WORDS*4, input, CHACHA_CHUNK_BYTES);
-    XMEMCPY(x + CHACHA_CHUNK_WORDS*5, input, CHACHA_CHUNK_BYTES);
-    XMEMCPY(x + CHACHA_CHUNK_WORDS*6, input, CHACHA_CHUNK_BYTES);
-    x[CHACHA_CHUNK_WORDS + CHACHA_IV_BYTES] += 1;
-    x[CHACHA_CHUNK_WORDS*2 + CHACHA_IV_BYTES] += 2;
-    x[CHACHA_CHUNK_WORDS*3 + CHACHA_IV_BYTES] += 3;
-    x[CHACHA_CHUNK_WORDS*4 + CHACHA_IV_BYTES] += 4;
-    x[CHACHA_CHUNK_WORDS*5 + CHACHA_IV_BYTES] += 5;
-    x[CHACHA_CHUNK_WORDS*6 + CHACHA_IV_BYTES] += 6;
-
     __asm__ __volatile__ (
             // The paper NEON crypto by Daniel J. Bernstein and Peter Schwabe was used to optimize for ARM
             // https://cryptojedi.org/papers/neoncrypto-20120320.pdf
 
-            // Load counter
-            "MOV x0, %[rounds] \n"
 
             // v0-v3 - first block
             // v24 first block helper
@@ -221,34 +202,73 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS * MA
             // v2  8  9 10 11
             // v3 12 13 14 15
             // load CHACHA state as shown above
-            "LD1 { v0.4S-v3.4S }, [%[x_in]] \n"
-            "ADD %[x_in], %[x_in], %[chacha_chunk_bytes] \n"
-            "LD1 { v4.4S-v7.4S }, [%[x_in]] \n"
-            "ADD %[x_in], %[x_in], %[chacha_chunk_bytes] \n"
-            "LD1 { v8.4S-v11.4S }, [%[x_in]] \n"
-            "ADD %[x_in], %[x_in], %[chacha_chunk_bytes] \n"
-            "LD1 { v12.4S-v15.4S }, [%[x_in]] \n"
-            "ADD %[x_in], %[x_in], %[chacha_chunk_bytes] \n"
-            "LD1 { v16.4S-v19.4S }, [%[x_in]] \n"
-            "ADD %[x_in], %[x_in], %[chacha_chunk_bytes] \n"
-            "LD1 { v20.4S-v23.4S }, [%[x_in]] \n"
+            "LD1 { v0.4S-v3.4S }, [%[input]] \n"
+
+            "MOV v4.16B, v0.16B \n"
+            "MOV v5.16B, v1.16B \n"
+            "MOV v6.16B, v2.16B \n"
+            "MOV v7.16B, v3.16B \n"
+
+            "MOV v8.16B, v0.16B \n"
+            "MOV v9.16B, v1.16B \n"
+            "MOV v10.16B, v2.16B \n"
+            "MOV v11.16B, v3.16B \n"
+
+            "MOV v12.16B, v0.16B \n"
+            "MOV v13.16B, v1.16B \n"
+            "MOV v14.16B, v2.16B \n"
+            "MOV v15.16B, v3.16B \n"
+
+            "MOV v16.16B, v0.16B \n"
+            "MOV v17.16B, v1.16B \n"
+            "MOV v18.16B, v2.16B \n"
+            "MOV v19.16B, v3.16B \n"
+
+            "MOV v20.16B, v0.16B \n"
+            "MOV v21.16B, v1.16B \n"
+            "MOV v22.16B, v2.16B \n"
+            "MOV v23.16B, v3.16B \n"
+
+            // load correct counter values
+            "MOV w0, v3.S[0] \n"
+            "ADD w0, w0, 1 \n"
+            "MOV v7.S[0], w0 \n"
+            "ADD w0, w0, 1 \n"
+            "MOV v11.S[0], w0 \n"
+            "ADD w0, w0, 1 \n"
+            "MOV v15.S[0], w0 \n"
+            "ADD w0, w0, 1 \n"
+            "MOV v19.S[0], w0 \n"
+            "ADD w0, w0, 1 \n"
+            "MOV v23.S[0], w0 \n"
+            "ADD w0, w0, 1 \n"
 
             // load final block to regular ARM registers
-            "LDP x1, x3, [%[x_in]], #16 \n"
+            "MOV x1, v0.D[0] \n"
+            "MOV x3, v0.D[1] \n"
             "LSR x2, x1, #32 \n"
             "LSR x4, x3, #32 \n"
 
-            "LDP x5, x7, [%[x_in]], #16 \n"
+            "MOV x5, v1.D[0] \n"
+            "MOV x7, v1.D[1] \n"
             "LSR x6, x5, #32 \n"
             "LSR x8, x7, #32 \n"
 
-            "LDP x9, x11, [%[x_in]], #16 \n"
+            "MOV x9, v2.D[0] \n"
+            "MOV x11, v2.D[1] \n"
             "LSR x10, x9, #32 \n"
             "LSR x12, x11, #32 \n"
 
-            "LDP x13, x15, [%[x_in]], #16 \n"
+            "MOV x13, v3.D[0] \n"
+            "MOV x15, v3.D[1] \n"
             "LSR x14, x13, #32 \n"
             "LSR x16, x15, #32 \n"
+
+            // set counter
+            "MOV w13, w0 \n"
+
+            // Load counter
+            "MOV x0, %[rounds] \n"
 
             "loop: \n"
 
@@ -617,15 +637,15 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS * MA
             "SUB x0, x0, #1 \n"
             "CBNZ x0, loop \n"
 
-            "LD1 { v24.4S-v27.4S }, [%[in]] \n"
+            "LD1 { v24.4S-v27.4S }, [%[input]] \n"
 
             "ADD v0.4S, v0.4S, v24.4S \n"
             "ADD v1.4S, v1.4S, v25.4S \n"
             "ADD v2.4S, v2.4S, v26.4S \n"
             "ADD v3.4S, v3.4S, v27.4S \n"
-            "ST1 { v0.4S-v3.4S }, [%[x_out]] \n"
+            "ST1 { v0.4S-v3.4S }, [%[output]] \n"
+            "ADD %[output], %[output], %[chacha_chunk_bytes] \n"
 
-            "ADD %[x_out], %[x_out], %[chacha_chunk_bytes] \n"
             // increment counter
             "MOV w0, v27.S[0] \n"
             "ADD w0, w0, 1 \n"
@@ -634,9 +654,9 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS * MA
             "ADD v5.4S, v5.4S, v25.4S \n"
             "ADD v6.4S, v6.4S, v26.4S \n"
             "ADD v7.4S, v7.4S, v27.4S \n"
-            "ST1 { v4.4S-v7.4S }, [%[x_out]] \n"
+            "ST1 { v4.4S-v7.4S }, [%[output]] \n"
+            "ADD %[output], %[output], %[chacha_chunk_bytes] \n"
 
-            "ADD %[x_out], %[x_out], %[chacha_chunk_bytes] \n"
             // increment counter
             "MOV w0, v27.S[0] \n"
             "ADD w0, w0, 1 \n"
@@ -645,9 +665,9 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS * MA
             "ADD v9.4S, v9.4S, v25.4S \n"
             "ADD v10.4S, v10.4S, v26.4S \n"
             "ADD v11.4S, v11.4S, v27.4S \n"
-            "ST1 { v8.4S-v11.4S }, [%[x_out]] \n"
+            "ST1 { v8.4S-v11.4S }, [%[output]] \n"
+            "ADD %[output], %[output], %[chacha_chunk_bytes] \n"
 
-            "ADD %[x_out], %[x_out], %[chacha_chunk_bytes] \n"
             // increment counter
             "MOV w0, v27.S[0] \n"
             "ADD w0, w0, 1 \n"
@@ -656,9 +676,9 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS * MA
             "ADD v13.4S, v13.4S, v25.4S \n"
             "ADD v14.4S, v14.4S, v26.4S \n"
             "ADD v15.4S, v15.4S, v27.4S \n"
-            "ST1 { v12.4S-v15.4S }, [%[x_out]] \n"
+            "ST1 { v12.4S-v15.4S }, [%[output]] \n"
+            "ADD %[output], %[output], %[chacha_chunk_bytes] \n"
 
-            "ADD %[x_out], %[x_out], %[chacha_chunk_bytes] \n"
             // increment counter
             "MOV w0, v27.S[0] \n"
             "ADD w0, w0, 1 \n"
@@ -667,9 +687,9 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS * MA
             "ADD v17.4S, v17.4S, v25.4S \n"
             "ADD v18.4S, v18.4S, v26.4S \n"
             "ADD v19.4S, v19.4S, v27.4S \n"
-            "ST1 { v16.4S-v19.4S }, [%[x_out]] \n"
+            "ST1 { v16.4S-v19.4S }, [%[output]] \n"
+            "ADD %[output], %[output], %[chacha_chunk_bytes] \n"
 
-            "ADD %[x_out], %[x_out], %[chacha_chunk_bytes] \n"
             // increment counter
             "MOV w0, v27.S[0] \n"
             "ADD w0, w0, 1 \n"
@@ -678,27 +698,41 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS * MA
             "ADD v21.4S, v21.4S, v25.4S \n"
             "ADD v22.4S, v22.4S, v26.4S \n"
             "ADD v23.4S, v23.4S, v27.4S \n"
-            "ST1 { v20.4S-v23.4S }, [%[x_out]] \n"
+            "ST1 { v20.4S-v23.4S }, [%[output]] \n"
+            "ADD %[output], %[output], %[chacha_chunk_bytes] \n"
 
-            // store final block from regular ARM registers
+            // increment counter
+            "MOV w0, v27.S[0] \n"
+            "ADD w0, w0, 1 \n"
+            "MOV v27.S[0], w0 \n"
+
+            // move block from regular arm registers to v0-v3
             "ORR x1, x1, x2, LSL #32 \n"
             "ORR x3, x3, x4, LSL #32 \n"
-            "STP x1, x3, [%[x_out]], #16 \n"
-
+            "MOV v0.D[0], x1 \n"
+            "MOV v0.D[1], x3 \n"
             "ORR x5, x5, x6, LSL #32 \n"
             "ORR x7, x7, x8, LSL #32 \n"
-            "STP x5, x7, [%[x_out]], #16 \n"
-
+            "MOV v1.D[0], x5 \n"
+            "MOV v1.D[1], x7 \n"
             "ORR x9, x9, x10, LSL #32 \n"
             "ORR x11, x11, x12, LSL #32 \n"
-            "STP x9, x11, [%[x_out]], #16 \n"
-
+            "MOV v2.D[0], x9 \n"
+            "MOV v2.D[1], x11 \n"
             "ORR x13, x13, x14, LSL #32 \n"
             "ORR x15, x15, x16, LSL #32 \n"
-            "STP x13, x15, [%[x_out]], #16 \n"
+            "MOV v3.D[0], x13 \n"
+            "MOV v3.D[1], x15 \n"
 
-            :
-            : [x_out] "r" (x), [x_in] "r" (x), [rounds] "I" (ROUNDS/2), [in] "r" (input), [chacha_chunk_bytes] "I" (CHACHA_CHUNK_BYTES)
+            "ADD v0.4S, v0.4S, v24.4S \n"
+            "ADD v1.4S, v1.4S, v25.4S \n"
+            "ADD v2.4S, v2.4S, v26.4S \n"
+            "ADD v3.4S, v3.4S, v27.4S \n"
+            "ST1 { v0.4S-v3.4S }, [%[output]] \n"
+
+            : [output] "=r" (output)
+            : "0" (output), [rounds] "I" (ROUNDS/2), [input] "r" (input), [chacha_chunk_bytes] "I" (CHACHA_CHUNK_BYTES),
+              [x_offset_back] "I" (CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS)
             : "memory",
               "x0",
               "x1",  "x2",  "x3",  "x4",
@@ -713,9 +747,11 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS * MA
               "v25", "v26", "v27", "v28", "v29"
     );
 
+#ifdef BIG_ENDIAN_ORDER
     for (i = 0; i < CHACHA_CHUNK_WORDS * MAX_CHACHA_BLOCKS; i++) {
-        output[i] = LITTLE32(x[i]);
+        output[i] = LITTLE32(output[i]);
     }
+#endif
 }
 
 /**
@@ -743,8 +779,8 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                     "EOR v2.16B, v2.16B, v6.16B \n"
                     "EOR v3.16B, v3.16B, v7.16B \n"
                     "ST1 { v0.16B-v3.16B }, [%[c]] \n"
-                    :
-                    : [c] "r" (c), [m] "r" (m), [output] "r" (output)
+                    : [c] "=r" (c)
+                    : "0" (c), [m] "r" (m), [output] "r" (output)
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7"
             );
 
@@ -752,9 +788,9 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
             c += CHACHA_CHUNK_BYTES;
             m += CHACHA_CHUNK_BYTES;
             output += CHACHA_CHUNK_BYTES;
-
-            ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
         }
+
+        ctx->X[CHACHA_IV_BYTES] = PLUS(ctx->X[CHACHA_IV_BYTES], blk);
 
         if (bytes <= CHACHA_CHUNK_BYTES && blk < MAX_CHACHA_BLOCKS) {
 
@@ -764,8 +800,8 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                         "LD1 { v1.16B }, [%[output]] \n"
                         "EOR v0.16B, v0.16B, v1.16B \n"
                         "ST1 { v0.16B }, [%[c]] \n"
-                        :
-                        : [c] "r" (c), [m] "r" (m), [output] "r" (output)
+                        : [c] "=r" (c)
+                        : "0" (c), [m] "r" (m), [output] "r" (output)
                         : "memory", "v0", "v1"
                 );
 
@@ -781,8 +817,8 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                         "LD1 { v1.8B }, [%[output]] \n"
                         "EOR v0.8B, v0.8B, v1.8B \n"
                         "ST1 { v0.8B }, [%[c]] \n"
-                        :
-                        : [c] "r" (c), [m] "r" (m), [output] "r" (output)
+                        : [c] "=r" (c)
+                        : "0" (c), [m] "r" (m), [output] "r" (output)
                         : "memory", "v0", "v1"
                 );
 
