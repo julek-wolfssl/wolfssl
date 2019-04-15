@@ -624,13 +624,16 @@ static WC_INLINE void wc_Chacha_wordtobyte(const word32 input[CHACHA_CHUNK_WORDS
 
             "LD1 { v24.4S-v27.4S }, [%[input]] \n"
 
-            "LD1 { v28.4S-v31.4S }, [%[m]] \n"
-            "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
+            // counter
+            "MOV w0, v27.S[0] \n"
 
             "ADD v0.4S, v0.4S, v24.4S \n"
             "ADD v1.4S, v1.4S, v25.4S \n"
             "ADD v2.4S, v2.4S, v26.4S \n"
             "ADD v3.4S, v3.4S, v27.4S \n"
+            "LD1 { v28.4S-v31.4S }, [%[m]] \n"
+            "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
+            "ADD w0, w0, 1 \n"
             "EOR v0.16B, v0.16B, v28.16B \n"
             "EOR v1.16B, v1.16B, v29.16B \n"
             "EOR v2.16B, v2.16B, v30.16B \n"
@@ -641,9 +644,8 @@ static WC_INLINE void wc_Chacha_wordtobyte(const word32 input[CHACHA_CHUNK_WORDS
             "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
 
             // increment counter
-            "MOV w0, v27.S[0] \n"
-            "ADD w0, w0, 1 \n"
             "MOV v27.S[0], w0 \n"
+            "ADD w0, w0, 1 \n"
             "ADD v4.4S, v4.4S, v24.4S \n"
             "ADD v5.4S, v5.4S, v25.4S \n"
             "ADD v6.4S, v6.4S, v26.4S \n"
@@ -654,17 +656,16 @@ static WC_INLINE void wc_Chacha_wordtobyte(const word32 input[CHACHA_CHUNK_WORDS
             "EOR v7.16B, v7.16B, v31.16B \n"
             "ST1 { v4.4S-v7.4S }, [%[c]] \n"
             "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
-            "LD1 { v28.4S-v31.4S }, [%[m]] \n"
-            "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
 
             // increment counter
-            "MOV w0, v27.S[0] \n"
-            "ADD w0, w0, 1 \n"
             "MOV v27.S[0], w0 \n"
+            "ADD w0, w0, 1 \n"
             "ADD v8.4S, v8.4S, v24.4S \n"
             "ADD v9.4S, v9.4S, v25.4S \n"
             "ADD v10.4S, v10.4S, v26.4S \n"
             "ADD v11.4S, v11.4S, v27.4S \n"
+            "LD1 { v28.4S-v31.4S }, [%[m]] \n"
+            "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
             "EOR v8.16B, v8.16B, v28.16B \n"
             "EOR v9.16B, v9.16B, v29.16B \n"
             "EOR v10.16B, v10.16B, v30.16B \n"
@@ -672,16 +673,15 @@ static WC_INLINE void wc_Chacha_wordtobyte(const word32 input[CHACHA_CHUNK_WORDS
             "ST1 { v8.4S-v11.4S }, [%[c]] \n"
             "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
             "LD1 { v28.4S-v31.4S }, [%[m]] \n"
-            "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
 
             // increment counter
-            "MOV w0, v27.S[0] \n"
-            "ADD w0, w0, 1 \n"
             "MOV v27.S[0], w0 \n"
+            "ADD w0, w0, 1 \n"
             "ADD v12.4S, v12.4S, v24.4S \n"
             "ADD v13.4S, v13.4S, v25.4S \n"
             "ADD v14.4S, v14.4S, v26.4S \n"
             "ADD v15.4S, v15.4S, v27.4S \n"
+            "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
             "EOR v12.16B, v12.16B, v28.16B \n"
             "EOR v13.16B, v13.16B, v29.16B \n"
             "EOR v14.16B, v14.16B, v30.16B \n"
@@ -692,9 +692,8 @@ static WC_INLINE void wc_Chacha_wordtobyte(const word32 input[CHACHA_CHUNK_WORDS
             "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
 
             // increment counter
-            "MOV w0, v27.S[0] \n"
-            "ADD w0, w0, 1 \n"
             "MOV v27.S[0], w0 \n"
+            "ADD w0, w0, 1 \n"
             "ADD v16.4S, v16.4S, v24.4S \n"
             "ADD v17.4S, v17.4S, v25.4S \n"
             "ADD v18.4S, v18.4S, v26.4S \n"
@@ -709,9 +708,8 @@ static WC_INLINE void wc_Chacha_wordtobyte(const word32 input[CHACHA_CHUNK_WORDS
             "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
 
             // increment counter
-            "MOV w0, v27.S[0] \n"
-            "ADD w0, w0, 1 \n"
             "MOV v27.S[0], w0 \n"
+            "ADD w0, w0, 1 \n"
             "ADD v20.4S, v20.4S, v24.4S \n"
             "ADD v21.4S, v21.4S, v25.4S \n"
             "ADD v22.4S, v22.4S, v26.4S \n"
@@ -721,14 +719,10 @@ static WC_INLINE void wc_Chacha_wordtobyte(const word32 input[CHACHA_CHUNK_WORDS
             "EOR v22.16B, v22.16B, v30.16B \n"
             "EOR v23.16B, v23.16B, v31.16B \n"
             "ST1 { v20.4S-v23.4S }, [%[c]] \n"
-            "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
-            "LD1 { v28.4S-v31.4S }, [%[m]] \n"
 
 
 
             // increment counter
-            "MOV w0, v27.S[0] \n"
-            "ADD w0, w0, 1 \n"
             "MOV v27.S[0], w0 \n"
             // move block from regular arm registers to v0-v3
             "ORR x1, x1, x2, LSL #32 \n"
@@ -752,6 +746,8 @@ static WC_INLINE void wc_Chacha_wordtobyte(const word32 input[CHACHA_CHUNK_WORDS
             "ADD v1.4S, v1.4S, v25.4S \n"
             "ADD v2.4S, v2.4S, v26.4S \n"
             "ADD v3.4S, v3.4S, v27.4S \n"
+            "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
+            "LD1 { v28.4S-v31.4S }, [%[m]] \n"
             "EOR v0.16B, v0.16B, v28.16B \n"
             "EOR v1.16B, v1.16B, v29.16B \n"
             "EOR v2.16B, v2.16B, v30.16B \n"
@@ -775,12 +771,6 @@ static WC_INLINE void wc_Chacha_wordtobyte(const word32 input[CHACHA_CHUNK_WORDS
               "v20", "v21", "v22", "v23", "v24",
               "v25", "v26", "v27", "v28", "v29", "v30", "v31"
     );
-
-#ifdef BIG_ENDIAN_ORDER
-    for (i = 0; i < CHACHA_CHUNK_WORDS * MAX_CHACHA_BLOCKS; i++) {
-        output[i] = LITTLE32(output[i]);
-    }
-#endif
 }
 
 static WC_INLINE void wc_Chacha_wordtobyte_small(word32 output[CHACHA_CHUNK_WORDS],
@@ -825,6 +815,7 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
 
     for (; bytes > 0;) {
         output = (byte*)temp;
+#ifndef BIG_ENDIAN_ORDER
         if (bytes >= CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS) {
             wc_Chacha_wordtobyte(ctx->X, m, c);
 
@@ -833,7 +824,9 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
             m += CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS;
             output += CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS;
             ctx->X[CHACHA_IV_BYTES] = PLUS(ctx->X[CHACHA_IV_BYTES], MAX_CHACHA_BLOCKS);
-        } else {
+        } else
+#endif /* BIG_ENDIAN_ORDER */
+        {
             wc_Chacha_wordtobyte_small(temp, ctx->X);
             if (bytes > CHACHA_CHUNK_BYTES) {
                 // assume CHACHA_CHUNK_BYTES == 64
