@@ -204,23 +204,41 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS * MA
             // load CHACHA state as shown above
             "LD1 { v0.4S-v3.4S }, [%[input]] \n"
 
+            // get counter value
+            "MOV w0, v3.S[0] \n"
+
+            // load other registers with regular arm registers interleaved
             "MOV v4.16B, v0.16B \n"
+            "MOV x1, v0.D[0] \n"
             "MOV v5.16B, v1.16B \n"
+            "MOV x3, v0.D[1] \n"
             "MOV v6.16B, v2.16B \n"
+            "LSR x2, x1, #32 \n"
             "MOV v7.16B, v3.16B \n"
+            "LSR x4, x3, #32 \n"
 
             "MOV v8.16B, v0.16B \n"
+            "MOV x5, v1.D[0] \n"
             "MOV v9.16B, v1.16B \n"
+            "MOV x7, v1.D[1] \n"
             "MOV v10.16B, v2.16B \n"
+            "LSR x6, x5, #32 \n"
             "MOV v11.16B, v3.16B \n"
+            "LSR x8, x7, #32 \n"
 
             "MOV v12.16B, v0.16B \n"
+            "MOV x9, v2.D[0] \n"
             "MOV v13.16B, v1.16B \n"
+            "MOV x11, v2.D[1] \n"
             "MOV v14.16B, v2.16B \n"
+            "LSR x10, x9, #32 \n"
             "MOV v15.16B, v3.16B \n"
+            "LSR x12, x11, #32 \n"
 
             "MOV v16.16B, v0.16B \n"
+            "MOV x15, v3.D[1] \n"
             "MOV v17.16B, v1.16B \n"
+            "LSR x16, x15, #32 \n"
             "MOV v18.16B, v2.16B \n"
             "MOV v19.16B, v3.16B \n"
 
@@ -230,7 +248,6 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS * MA
             "MOV v23.16B, v3.16B \n"
 
             // load correct counter values
-            "MOV w0, v3.S[0] \n"
             "ADD w0, w0, 1 \n"
             "MOV v7.S[0], w0 \n"
             "ADD w0, w0, 1 \n"
@@ -243,29 +260,9 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS * MA
             "MOV v23.S[0], w0 \n"
             "ADD w0, w0, 1 \n"
 
-            // load final block to regular ARM registers
-            "MOV x1, v0.D[0] \n"
-            "MOV x3, v0.D[1] \n"
-            "LSR x2, x1, #32 \n"
-            "LSR x4, x3, #32 \n"
-
-            "MOV x5, v1.D[0] \n"
-            "MOV x7, v1.D[1] \n"
-            "LSR x6, x5, #32 \n"
-            "LSR x8, x7, #32 \n"
-
-            "MOV x9, v2.D[0] \n"
-            "MOV x11, v2.D[1] \n"
-            "LSR x10, x9, #32 \n"
-            "LSR x12, x11, #32 \n"
-
-            "MOV x13, v3.D[0] \n"
-            "MOV x15, v3.D[1] \n"
-            "LSR x14, x13, #32 \n"
-            "LSR x16, x15, #32 \n"
-
             // set counter
             "MOV w13, w0 \n"
+            "LSR x14, x13, #32 \n"
 
             // Load counter
             "MOV x0, %[rounds] \n"
@@ -293,24 +290,18 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS * MA
             "EOR v28.16B, v19.16B, v16.16B \n"
             "EOR v29.16B, v23.16B, v20.16B \n"
             "ADD w1, w1, w5 \n"
-            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
-            "SHL v3.4S, v24.4S, #16 \n"
-            "SHL v7.4S, v25.4S, #16 \n"
+            // rotation by 16 bits may be done by reversing the 16 bit elements in 32 bit words
+            "REV32 v3.8H, v24.8H \n"
             "EOR w13, w13, w1 \n"
-            "SHL v11.4S, v26.4S, #16 \n"
-            "SHL v15.4S, v27.4S, #16 \n"
+            "REV32 v7.8H, v25.8H \n"
             "ROR w13, w13, #24 \n"
-            "SHL v19.4S, v28.4S, #16 \n"
-            "SHL v23.4S, v29.4S, #16 \n"
+            "REV32 v11.8H, v26.8H \n"
             "ADD w9, w9, w13 \n"
-            "SRI v3.4S, v24.4S, #16 \n"
-            "SRI v7.4S, v25.4S, #16 \n"
+            "REV32 v15.8H, v27.8H \n"
             "EOR w5, w5, w9 \n"
-            "SRI v11.4S, v26.4S, #16 \n"
-            "SRI v15.4S, v27.4S, #16 \n"
+            "REV32 v19.8H, v28.8H \n"
             "ROR w5, w5, #25 \n"
-            "SRI v19.4S, v28.4S, #16 \n"
-            "SRI v23.4S, v29.4S, #16 \n"
+            "REV32 v23.8H, v29.8H \n"
 
             "ADD w2, w2, w6 \n"
             "ADD v2.4S, v2.4S, v3.4S \n"
@@ -477,24 +468,18 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS * MA
             "EOR v28.16B, v19.16B, v16.16B \n"
             "EOR v29.16B, v23.16B, v20.16B \n"
             "ADD w1, w1, w6 \n"
-            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
-            "SHL v3.4S, v24.4S, #16 \n"
-            "SHL v7.4S, v25.4S, #16 \n"
+            // rotation by 16 bits may be done by reversing the 16 bit elements in 32 bit words
+            "REV32 v3.8H, v24.8H \n"
             "EOR w16, w16, w1 \n"
-            "SHL v11.4S, v26.4S, #16 \n"
-            "SHL v15.4S, v27.4S, #16 \n"
+            "REV32 v7.8H, v25.8H \n"
             "ROR w16, w16, #24 \n"
-            "SHL v19.4S, v28.4S, #16 \n"
-            "SHL v23.4S, v29.4S, #16 \n"
+            "REV32 v11.8H, v26.8H \n"
             "ADD w11, w11, w16 \n"
-            "SRI v3.4S, v24.4S, #16 \n"
-            "SRI v7.4S, v25.4S, #16 \n"
+            "REV32 v15.8H, v27.8H \n"
             "EOR w6, w6, w11 \n"
-            "SRI v11.4S, v26.4S, #16 \n"
-            "SRI v15.4S, v27.4S, #16 \n"
+            "REV32 v19.8H, v28.8H \n"
             "ROR w6, w6, #25 \n"
-            "SRI v19.4S, v28.4S, #16 \n"
-            "SRI v23.4S, v29.4S, #16 \n"
+            "REV32 v23.8H, v29.8H \n"
 
             "ADD w2, w2, w7 \n"
             "ADD v2.4S, v2.4S, v3.4S \n"
