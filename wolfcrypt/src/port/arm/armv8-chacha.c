@@ -751,8 +751,8 @@ static WC_INLINE void wc_Chacha_wordtobyte(const word32 input[CHACHA_CHUNK_WORDS
             "EOR v3.16B, v3.16B, v31.16B \n"
             "ST1 { v0.4S-v3.4S }, [%[c]] \n"
 
-            : [c] "=r" (c)
-            : "0" (c), [m] "r" (m), [rounds] "I" (ROUNDS/2), [input] "r" (input), [chacha_chunk_bytes] "I" (CHACHA_CHUNK_BYTES)
+            : [c] "=r" (c), [m] "=r" (m)
+            : "0" (c), "1" (m), [rounds] "I" (ROUNDS/2), [input] "r" (input), [chacha_chunk_bytes] "I" (CHACHA_CHUNK_BYTES)
             : "memory",
               "x0",
               "x1",  "x2",  "x3",  "x4",
