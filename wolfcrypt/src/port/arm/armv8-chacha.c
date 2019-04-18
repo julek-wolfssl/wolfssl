@@ -542,10 +542,10 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
             "EOR v17.16B, v17.16B, v29.16B \n"
             "EOR v18.16B, v18.16B, v30.16B \n"
             "EOR v19.16B, v19.16B, v31.16B \n"
-            "ST1 { v16.4S-v19.4S }, [%[c]] \n"
-            "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
             "LD1 { v28.4S-v31.4S }, [%[m]] \n"
             "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
+            "ST1 { v16.4S-v19.4S }, [%[c]] \n"
+            "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
 
             // increment counter
             "MOV v27.S[0], w17 \n"
@@ -557,10 +557,10 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
             "EOR v17.16B, v17.16B, v29.16B \n"
             "EOR v18.16B, v18.16B, v30.16B \n"
             "EOR v19.16B, v19.16B, v31.16B \n"
-            "ST1 { v16.4S-v19.4S }, [%[c]] \n"
-            "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
             "LD1 { v28.4S-v31.4S }, [%[m]] \n"
             "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
+            "ST1 { v16.4S-v19.4S }, [%[c]] \n"
+            "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
 
             // increment counter
             "MOV v27.S[0], w18 \n"
@@ -572,10 +572,10 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
             "EOR v17.16B, v17.16B, v29.16B \n"
             "EOR v18.16B, v18.16B, v30.16B \n"
             "EOR v19.16B, v19.16B, v31.16B \n"
-            "ST1 { v16.4S-v19.4S }, [%[c]] \n"
-            "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
             "LD1 { v28.4S-v31.4S }, [%[m]] \n"
             "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
+            "ST1 { v16.4S-v19.4S }, [%[c]] \n"
+            "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
 
             // increment counter
             "MOV v27.S[0], w19 \n"
@@ -587,10 +587,10 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
             "EOR v17.16B, v17.16B, v29.16B \n"
             "EOR v18.16B, v18.16B, v30.16B \n"
             "EOR v19.16B, v19.16B, v31.16B \n"
-            "ST1 { v16.4S-v19.4S }, [%[c]] \n"
-            "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
             "LD1 { v28.4S-v31.4S }, [%[m]] \n"
             "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
+            "ST1 { v16.4S-v19.4S }, [%[c]] \n"
+            "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
 
             // increment counter
             "MOV v27.S[0], w20 \n"
