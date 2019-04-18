@@ -181,20 +181,6 @@ static WC_INLINE int wc_Chacha_wordtobyte_big(const word32 input[CHACHA_CHUNK_WO
             // The paper NEON crypto by Daniel J. Bernstein and Peter Schwabe was used to optimize for ARM
             // https://cryptojedi.org/papers/neoncrypto-20120320.pdf
 
-
-            // v0-v3 - first block
-            // v12 first block helper
-            // v4-v7 - second block
-            // v13 second block helper
-            // v8-v11 - third block
-            // v14 third block helper
-            // w1-w16 - fourth block
-
-//            "LD4R { v0.4S-v3.4S }, [%[input]], #16 \n"
-//            "LD4R { v4.4S-v7.4S }, [%[input]], #16 \n"
-//            "LD4R { v8.4S-v11.4S }, [%[input]], #16 \n"
-//            "LD4R { v12.4S-v15.4S }, [%[input]], #16 \n"
-
             "LD1 { v24.4S-v27.4S }, [%[input]] \n"
 
             "outer_loop: \n"
@@ -218,64 +204,37 @@ static WC_INLINE int wc_Chacha_wordtobyte_big(const word32 input[CHACHA_CHUNK_WO
             "DUP v14.4S, v27.S[2] \n"
             "DUP v15.4S, v27.S[3] \n"
 
-            // v0  0  1  2  3
-            // v1  4  5  6  7
-            // v2  8  9 10 11
-            // v3 12 13 14 15
-            // load CHACHA state as shown above
-//            "MOV v0.16B, v24.16B \n"
-//            "MOV v1.16B, v25.16B \n"
-//            "MOV v2.16B, v26.16B \n"
-//            "MOV v3.16B, v27.16B \n"
-
             // get counter value
             "ADD w17, w0, #1 \n"
             "ADD w18, w0, #2 \n"
             "ADD w19, w0, #3 \n"
+            "ADD w20, w0, #4 \n"
             "MOV v12.S[1], w17 \n"
             "MOV v12.S[2], w18 \n"
             "MOV v12.S[3], w19 \n"
 
             // load other registers with regular arm registers interleaved
             // final chacha block is stored in w1-w16 regular registers
-//            "MOV v4.16B, v24.16B \n"
-//            "MOV x1, v24.D[0] \n"
-//            "MOV v5.16B, v25.16B \n"
-//            "MOV x3, v24.D[1] \n"
-//            "MOV v6.16B, v26.16B \n"
-//            "LSR x2, x1, #32 \n"
-//            "MOV v7.16B, v27.16B \n"
-//            "LSR x4, x3, #32 \n"
-//
-//            "MOV v8.16B, v24.16B \n"
-//            "MOV x5, v25.D[0] \n"
-//            "MOV v9.16B, v25.16B \n"
-//            "MOV x7, v25.D[1] \n"
-//            "MOV v10.16B, v26.16B \n"
-//            "LSR x6, x5, #32 \n"
-//            "MOV v11.16B, v27.16B \n"
-//            "LSR x8, x7, #32 \n"
-//
-//            "ADD w17, w0, #2 \n"
-//            "ADD w0, w0, #1 \n"
-//
-//            "MOV x9, v26.D[0] \n"
-//            "MOV x11, v26.D[1] \n"
-//            "MOV x13, v27.D[0] \n"
-//            "MOV x15, v27.D[1] \n"
-//
-//            "LSR x10, x9, #32 \n"
-//            "LSR x12, x11, #32 \n"
-//
-//            "LSR x14, x13, #32 \n"
-//            "LSR x16, x15, #32 \n"
-//
-//            // set counter
-//            "ADD w13, w13, #3 \n"
+            "MOV x1, v24.D[0] \n"
+            "MOV x3, v24.D[1] \n"
+            "MOV x5, v25.D[0] \n"
+            "MOV x7, v25.D[1] \n"
+            "MOV x9, v26.D[0] \n"
+            "MOV x11, v26.D[1] \n"
+            "MOV x13, v27.D[0] \n"
+            "MOV x15, v27.D[1] \n"
 
-            // load correct counter values
-//            "MOV v7.S[0], w0 \n"
-//            "MOV v11.S[0], w17 \n"
+            "LSR x2, x1, #32 \n"
+            "LSR x4, x3, #32 \n"
+            "LSR x6, x5, #32 \n"
+            "LSR x8, x7, #32 \n"
+            "LSR x10, x9, #32 \n"
+            "LSR x12, x11, #32 \n"
+            "LSR x14, x13, #32 \n"
+            "LSR x16, x15, #32 \n"
+
+            // set counter
+            "MOV w13, w20 \n"
 
             "MOV x0, %[rounds] \n" // Load loop counter
 
@@ -285,34 +244,58 @@ static WC_INLINE int wc_Chacha_wordtobyte_big(const word32 input[CHACHA_CHUNK_WO
             // odd round
 
             "ADD v0.4S, v0.4S, v4.4S \n"
+            "ADD w1, w1, w5 \n"
             "ADD v1.4S, v1.4S, v5.4S \n"
+            "ADD w2, w2, w6 \n"
             "ADD v2.4S, v2.4S, v6.4S \n"
+            "ADD w3, w3, w7 \n"
             "ADD v3.4S, v3.4S, v7.4S \n"
+            "ADD w4, w4, w8 \n"
 
             "EOR v12.16b, v12.16b, v0.16b \n"
+            "EOR w13, w13, w1 \n"
             "EOR v13.16b, v13.16b, v1.16b \n"
+            "EOR w14, w14, w2 \n"
             "EOR v14.16b, v14.16b, v2.16b \n"
+            "EOR w15, w15, w3 \n"
             "EOR v15.16b, v15.16b, v3.16b \n"
+            "EOR w16, w16, w4 \n"
 
             "REV32 v12.8H, v12.8H \n"
+            "ROR w13, w13, #16 \n"
             "REV32 v13.8H, v13.8H \n"
+            "ROR w14, w14, #16 \n"
             "REV32 v14.8H, v14.8H \n"
+            "ROR w15, w15, #16 \n"
             "REV32 v15.8H, v15.8H \n"
+            "ROR w16, w16, #16 \n"
 
             "ADD v8.4S, v8.4S, v12.4S \n"
+            "ADD w9, w9, w13 \n"
             "ADD v9.4S, v9.4S, v13.4S \n"
+            "ADD w10, w10, w14 \n"
             "ADD v10.4S, v10.4S, v14.4S \n"
+            "ADD w11, w11, w15 \n"
             "ADD v11.4S, v11.4S, v15.4S \n"
+            "ADD w12, w12, w16 \n"
 
             "EOR v16.16b, v4.16b, v8.16b \n"
+            "EOR w5, w5, w9 \n"
             "EOR v17.16b, v5.16b, v9.16b \n"
+            "EOR w6, w6, w10 \n"
             "EOR v18.16b, v6.16b, v10.16b \n"
+            "EOR w7, w7, w11 \n"
             "EOR v19.16b, v7.16b, v11.16b \n"
+            "EOR w8, w8, w12 \n"
 
             "SHL v4.4S, v16.4S, #12 \n"
+            "ROR w5, w5, #20 \n"
             "SHL v5.4S, v17.4S, #12 \n"
+            "ROR w6, w6, #20 \n"
             "SHL v6.4S, v18.4S, #12 \n"
+            "ROR w7, w7, #20 \n"
             "SHL v7.4S, v19.4S, #12 \n"
+            "ROR w8, w8, #20 \n"
 
             "SRI v4.4S, v16.4S, #20 \n"
             "SRI v5.4S, v17.4S, #20 \n"
@@ -320,19 +303,31 @@ static WC_INLINE int wc_Chacha_wordtobyte_big(const word32 input[CHACHA_CHUNK_WO
             "SRI v7.4S, v19.4S, #20 \n"
 
             "ADD v0.4S, v0.4S, v4.4S \n"
+            "ADD w1, w1, w5 \n"
             "ADD v1.4S, v1.4S, v5.4S \n"
+            "ADD w2, w2, w6 \n"
             "ADD v2.4S, v2.4S, v6.4S \n"
+            "ADD w3, w3, w7 \n"
             "ADD v3.4S, v3.4S, v7.4S \n"
+            "ADD w4, w4, w8 \n"
 
             "EOR v16.16b, v12.16b, v0.16b \n"
+            "EOR w13, w13, w1 \n"
             "EOR v17.16b, v13.16b, v1.16b \n"
+            "EOR w14, w14, w2 \n"
             "EOR v18.16b, v14.16b, v2.16b \n"
+            "EOR w15, w15, w3 \n"
             "EOR v19.16b, v15.16b, v3.16b \n"
+            "EOR w16, w16, w4 \n"
 
             "SHL v12.4S, v16.4S, #8 \n"
+            "ROR w13, w13, #24 \n"
             "SHL v13.4S, v17.4S, #8 \n"
+            "ROR w14, w14, #24 \n"
             "SHL v14.4S, v18.4S, #8 \n"
+            "ROR w15, w15, #24 \n"
             "SHL v15.4S, v19.4S, #8 \n"
+            "ROR w16, w16, #24 \n"
 
             "SRI v12.4S, v16.4S, #24 \n"
             "SRI v13.4S, v17.4S, #24 \n"
@@ -340,19 +335,31 @@ static WC_INLINE int wc_Chacha_wordtobyte_big(const word32 input[CHACHA_CHUNK_WO
             "SRI v15.4S, v19.4S, #24 \n"
 
             "ADD v8.4S, v8.4S, v12.4S \n"
+            "ADD w9, w9, w13 \n"
             "ADD v9.4S, v9.4S, v13.4S \n"
+            "ADD w10, w10, w14 \n"
             "ADD v10.4S, v10.4S, v14.4S \n"
+            "ADD w11, w11, w15 \n"
             "ADD v11.4S, v11.4S, v15.4S \n"
+            "ADD w12, w12, w16 \n"
 
             "EOR v16.16b, v4.16b, v8.16b \n"
+            "EOR w5, w5, w9 \n"
             "EOR v17.16b, v5.16b, v9.16b \n"
+            "EOR w6, w6, w10 \n"
             "EOR v18.16b, v6.16b, v10.16b \n"
+            "EOR w7, w7, w11 \n"
             "EOR v19.16b, v7.16b, v11.16b \n"
+            "EOR w8, w8, w12 \n"
 
             "SHL v4.4S, v16.4S, #7 \n"
+            "ROR w5, w5, #25 \n"
             "SHL v5.4S, v17.4S, #7 \n"
+            "ROR w6, w6, #25 \n"
             "SHL v6.4S, v18.4S, #7 \n"
+            "ROR w7, w7, #25 \n"
             "SHL v7.4S, v19.4S, #7 \n"
+            "ROR w8, w8, #25 \n"
 
             "SRI v4.4S, v16.4S, #25 \n"
             "SRI v5.4S, v17.4S, #25 \n"
@@ -362,34 +369,58 @@ static WC_INLINE int wc_Chacha_wordtobyte_big(const word32 input[CHACHA_CHUNK_WO
             // even round
 
             "ADD v0.4S, v0.4S, v5.4S \n"
+            "ADD w1, w1, w6 \n"
             "ADD v1.4S, v1.4S, v6.4S \n"
+            "ADD w2, w2, w7 \n"
             "ADD v2.4S, v2.4S, v7.4S \n"
+            "ADD w3, w3, w8 \n"
             "ADD v3.4S, v3.4S, v4.4S \n"
+            "ADD w4, w4, w5 \n"
 
             "EOR v15.16b, v15.16b, v0.16b \n"
+            "EOR w16, w16, w1 \n"
             "EOR v12.16b, v12.16b, v1.16b \n"
+            "EOR w13, w13, w2 \n"
             "EOR v13.16b, v13.16b, v2.16b \n"
+            "EOR w14, w14, w3 \n"
             "EOR v14.16b, v14.16b, v3.16b \n"
+            "EOR w15, w15, w4 \n"
 
             "REV32 v15.8H, v15.8H \n"
+            "ROR w16, w16, #16 \n"
             "REV32 v12.8H, v12.8H \n"
+            "ROR w13, w13, #16 \n"
             "REV32 v13.8H, v13.8H \n"
+            "ROR w14, w14, #16 \n"
             "REV32 v14.8H, v14.8H \n"
+            "ROR w15, w15, #16 \n"
 
             "ADD v10.4S, v10.4S, v15.4S \n"
+            "ADD w11, w11, w16 \n"
             "ADD v11.4S, v11.4S, v12.4S \n"
+            "ADD w12, w12, w13 \n"
             "ADD v8.4S, v8.4S, v13.4S \n"
+            "ADD w9, w9, w14 \n"
             "ADD v9.4S, v9.4S, v14.4S \n"
+            "ADD w10, w10, w15 \n"
 
             "EOR v16.16b, v5.16b, v10.16b \n"
+            "EOR w6, w6, w11 \n"
             "EOR v17.16b, v6.16b, v11.16b \n"
+            "EOR w7, w7, w12 \n"
             "EOR v18.16b, v7.16b, v8.16b \n"
+            "EOR w8, w8, w9 \n"
             "EOR v19.16b, v4.16b, v9.16b \n"
+            "EOR w5, w5, w10 \n"
 
             "SHL v5.4S, v16.4S, #12 \n"
+            "ROR w6, w6, #20 \n"
             "SHL v6.4S, v17.4S, #12 \n"
+            "ROR w7, w7, #20 \n"
             "SHL v7.4S, v18.4S, #12 \n"
+            "ROR w8, w8, #20 \n"
             "SHL v4.4S, v19.4S, #12 \n"
+            "ROR w5, w5, #20 \n"
 
             "SRI v5.4S, v16.4S, #20 \n"
             "SRI v6.4S, v17.4S, #20 \n"
@@ -397,19 +428,31 @@ static WC_INLINE int wc_Chacha_wordtobyte_big(const word32 input[CHACHA_CHUNK_WO
             "SRI v4.4S, v19.4S, #20 \n"
 
             "ADD v0.4S, v0.4S, v5.4S \n"
+            "ADD w1, w1, w6 \n"
             "ADD v1.4S, v1.4S, v6.4S \n"
+            "ADD w2, w2, w7 \n"
             "ADD v2.4S, v2.4S, v7.4S \n"
+            "ADD w3, w3, w8 \n"
             "ADD v3.4S, v3.4S, v4.4S \n"
+            "ADD w4, w4, w5 \n"
 
             "EOR v16.16b, v15.16b, v0.16b \n"
+            "EOR w16, w16, w1 \n"
             "EOR v17.16b, v12.16b, v1.16b \n"
+            "EOR w13, w13, w2 \n"
             "EOR v18.16b, v13.16b, v2.16b \n"
+            "EOR w14, w14, w3 \n"
             "EOR v19.16b, v14.16b, v3.16b \n"
+            "EOR w15, w15, w4 \n"
 
             "SHL v15.4S, v16.4S, #8 \n"
+            "ROR w16, w16, #24 \n"
             "SHL v12.4S, v17.4S, #8 \n"
+            "ROR w13, w13, #24 \n"
             "SHL v13.4S, v18.4S, #8 \n"
+            "ROR w14, w14, #24 \n"
             "SHL v14.4S, v19.4S, #8 \n"
+            "ROR w15, w15, #24 \n"
 
             "SRI v15.4S, v16.4S, #24 \n"
             "SRI v12.4S, v17.4S, #24 \n"
@@ -417,19 +460,31 @@ static WC_INLINE int wc_Chacha_wordtobyte_big(const word32 input[CHACHA_CHUNK_WO
             "SRI v14.4S, v19.4S, #24 \n"
 
             "ADD v10.4S, v10.4S, v15.4S \n"
+            "ADD w11, w11, w16 \n"
             "ADD v11.4S, v11.4S, v12.4S \n"
+            "ADD w12, w12, w13 \n"
             "ADD v8.4S, v8.4S, v13.4S \n"
+            "ADD w9, w9, w14 \n"
             "ADD v9.4S, v9.4S, v14.4S \n"
+            "ADD w10, w10, w15 \n"
 
             "EOR v16.16b, v5.16b, v10.16b \n"
+            "EOR w6, w6, w11 \n"
             "EOR v17.16b, v6.16b, v11.16b \n"
+            "EOR w7, w7, w12 \n"
             "EOR v18.16b, v7.16b, v8.16b \n"
+            "EOR w8, w8, w9 \n"
             "EOR v19.16b, v4.16b, v9.16b \n"
+            "EOR w5, w5, w10 \n"
 
             "SHL v5.4S, v16.4S, #7 \n"
+            "ROR w6, w6, #25 \n"
             "SHL v6.4S, v17.4S, #7 \n"
+            "ROR w7, w7, #25 \n"
             "SHL v7.4S, v18.4S, #7 \n"
+            "ROR w8, w8, #25 \n"
             "SHL v4.4S, v19.4S, #7 \n"
+            "ROR w5, w5, #25 \n"
 
             "SRI v5.4S, v16.4S, #25 \n"
             "SRI v6.4S, v17.4S, #25 \n"
@@ -541,18 +596,52 @@ static WC_INLINE int wc_Chacha_wordtobyte_big(const word32 input[CHACHA_CHUNK_WO
             "LD1 { v28.4S-v31.4S }, [%[m]] \n"
             "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
 
+            // increment counter
+            "MOV v27.S[0], w20 \n"
+            // move block from regular arm registers to v0-v3
+            "MOV v0.S[0], w1 \n"
+            "MOV v0.S[1], w2 \n"
+            "MOV v0.S[2], w3 \n"
+            "MOV v0.S[3], w4 \n"
+            "MOV v1.S[0], w5 \n"
+            "MOV v1.S[1], w6 \n"
+            "MOV v1.S[2], w7 \n"
+            "MOV v1.S[3], w8 \n"
+            "MOV v2.S[0], w9 \n"
+            "MOV v2.S[1], w10 \n"
+            "MOV v2.S[2], w11 \n"
+            "MOV v2.S[3], w12 \n"
+            "MOV v3.S[0], w13 \n"
+            "MOV v3.S[1], w14 \n"
+            "MOV v3.S[2], w15 \n"
+            "MOV v3.S[3], w16 \n"
+
+            "ADD v0.4S, v0.4S, v24.4S \n"
+            "ADD v1.4S, v1.4S, v25.4S \n"
+            "ADD v2.4S, v2.4S, v26.4S \n"
+            "ADD v3.4S, v3.4S, v27.4S \n"
+            "EOR v0.16B, v0.16B, v28.16B \n"
+            "EOR v1.16B, v1.16B, v29.16B \n"
+            "EOR v2.16B, v2.16B, v30.16B \n"
+            "EOR v3.16B, v3.16B, v31.16B \n"
+            "ST1 { v0.4S-v3.4S }, [%[c]] \n"
+            "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
+
+            "ADD w0, w20, #1 \n"
+            "MOV v27.S[0], w0 \n"
+
             "CBNZ %[outer_rounds], outer_loop \n"
 
             : [c] "=r" (c), [m] "=r" (m)
             : "0" (c), "1" (m), [rounds] "I" (ROUNDS/2), [input] "r" (input), [chacha_chunk_bytes] "I" (CHACHA_CHUNK_BYTES),
-              [outer_rounds] "r" (1)// (bytes / (CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS))
+              [outer_rounds] "r" (bytes / (CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS))
             : "memory",
               "x0",
               "x1",  "x2",  "x3",  "x4",
               "x5",  "x6",  "x7",  "x8",
               "x9",  "x10", "x11", "x12",
               "x13", "x14", "x15", "x16",
-              "x17", "x18", "x19",
+              "x17", "x18", "x19", "x20",
               "v0",  "v1",  "v2",  "v3",  "v4",
               "v5",  "v6",  "v7",  "v8",  "v9",
               "v10", "v11", "v12", "v13", "v14",
@@ -561,8 +650,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_big(const word32 input[CHACHA_CHUNK_WO
               "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
     );
 
-//    return (bytes / (CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS)) * CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS;
-    return CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS;
+    return (bytes / (CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS)) * CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS;
 }
 
 static WC_INLINE int wc_Chacha_wordtobyte_med(const word32 input[CHACHA_CHUNK_WORDS], const byte* m, byte* c) {
