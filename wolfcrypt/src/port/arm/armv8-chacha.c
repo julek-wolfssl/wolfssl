@@ -682,7 +682,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WO
 
             "MOV x0, %[rounds] \n" // Load loop counter
 
-            "med_loop: \n"
+            "loop_128_%=: \n"
             "SUB x0, x0, #1 \n"
 
             // ODD ROUND
@@ -787,7 +787,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WO
             "EXT v6.16B, v6.16B, v6.16B, #8 \n" // permute elements left by two
             "EXT v7.16B, v7.16B, v7.16B, #4 \n" // permute elements left by one
 
-            "CBNZ x0, med_loop \n"
+            "CBNZ x0, loop_128_%= \n"
 
             "ADD v0.4S, v0.4S, v24.4S \n"
             "ADD v1.4S, v1.4S, v25.4S \n"
