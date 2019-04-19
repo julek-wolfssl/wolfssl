@@ -650,6 +650,422 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
     return (bytes / (CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS)) * CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS;
 }
 
+
+/**
+  * Converts word into bytes with rotations having been done.
+  */
+static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WORDS], const byte* m, byte* c)
+{
+    __asm__ __volatile__ (
+            // The paper NEON crypto by Daniel J. Bernstein and Peter Schwabe was used to optimize for ARM
+            // https://cryptojedi.org/papers/neoncrypto-20120320.pdf
+
+
+            // v0-v3 - first block
+            // v12 first block helper
+            // v4-v7 - second block
+            // v13 second block helper
+            // v8-v11 - third block
+            // v14 third block helper
+            // w1-w16 - fourth block
+
+            // v0  0  1  2  3
+            // v1  4  5  6  7
+            // v2  8  9 10 11
+            // v3 12 13 14 15
+            // load CHACHA state as shown above
+            "LD1 { v0.4S-v3.4S }, [%[input]] \n"
+
+            // get counter value
+            "MOV w0, v3.S[0] \n"
+            "ADD w17, w0, #2 \n"
+            "ADD w0, w0, #1 \n"
+
+            // load other registers with regular arm registers interleaved
+            // final chacha block is stored in w1-w16 regular registers
+            "MOV v4.16B, v0.16B \n"
+            "MOV x1, v0.D[0] \n"
+            "MOV v5.16B, v1.16B \n"
+            "MOV x3, v0.D[1] \n"
+            "MOV v6.16B, v2.16B \n"
+            "LSR x2, x1, #32 \n"
+            "MOV v7.16B, v3.16B \n"
+            "LSR x4, x3, #32 \n"
+
+            "MOV v8.16B, v0.16B \n"
+            "MOV x5, v1.D[0] \n"
+            "MOV v9.16B, v1.16B \n"
+            "MOV x7, v1.D[1] \n"
+            "MOV v10.16B, v2.16B \n"
+            "LSR x6, x5, #32 \n"
+            "MOV v11.16B, v3.16B \n"
+            "LSR x8, x7, #32 \n"
+
+            "MOV x9, v2.D[0] \n"
+            "MOV x11, v2.D[1] \n"
+            "MOV x13, v3.D[0] \n"
+            "MOV x15, v3.D[1] \n"
+
+            "LSR x10, x9, #32 \n"
+            "LSR x12, x11, #32 \n"
+
+            "LSR x14, x13, #32 \n"
+            "LSR x16, x15, #32 \n"
+
+            // set counter
+            "ADD w13, w13, #3 \n"
+
+            // load correct counter values
+            "MOV v7.S[0], w0 \n"
+            "MOV v11.S[0], w17 \n"
+
+            "MOV x0, %[rounds] \n" // Load loop counter
+
+
+            "loop_256: \n"
+            "SUB x0, x0, #1 \n"
+
+            // ODD ROUND
+
+            "ADD w1, w1, w5 \n"
+            "ADD v0.4S, v0.4S, v1.4S \n"
+            "ADD w2, w2, w6 \n"
+            "ADD v4.4S, v4.4S, v5.4S \n"
+            "ADD w3, w3, w7 \n"
+            "ADD v8.4S, v8.4S, v9.4S \n"
+            "ADD w4, w4, w8 \n"
+            "EOR v12.16B, v3.16B, v0.16B \n"
+            "EOR w13, w13, w1 \n"
+            "EOR v13.16B, v7.16B, v4.16B \n"
+            "EOR w14, w14, w2 \n"
+            "EOR v14.16B, v11.16B, v8.16B \n"
+            "EOR w15, w15, w3 \n"
+            // rotation by 16 bits may be done by reversing the 16 bit elements in 32 bit words
+            "REV32 v3.8H, v12.8H \n"
+            "EOR w16, w16, w4 \n"
+            "REV32 v7.8H, v13.8H \n"
+            "ROR w13, w13, #16 \n"
+            "REV32 v11.8H, v14.8H \n"
+            "ROR w14, w14, #16 \n"
+
+            "ADD v2.4S, v2.4S, v3.4S \n"
+            "ROR w15, w15, #16 \n"
+            "ADD v6.4S, v6.4S, v7.4S \n"
+            "ROR w16, w16, #16 \n"
+            "ADD v10.4S, v10.4S, v11.4S \n"
+            "ADD w9, w9, w13 \n"
+            "EOR v12.16B, v1.16B, v2.16B \n"
+            "ADD w10, w10, w14 \n"
+            "EOR v13.16B, v5.16B, v6.16B \n"
+            "ADD w11, w11, w15 \n"
+            "EOR v14.16B, v9.16B, v10.16B \n"
+            "ADD w12, w12, w16 \n"
+            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
+            "SHL v1.4S, v12.4S, #12 \n"
+            "EOR w5, w5, w9 \n"
+            "SHL v5.4S, v13.4S, #12 \n"
+            "EOR w6, w6, w10 \n"
+            "SHL v9.4S, v14.4S, #12 \n"
+            "EOR w7, w7, w11 \n"
+            "SRI v1.4S, v12.4S, #20 \n"
+            "EOR w8, w8, w12 \n"
+            "SRI v5.4S, v13.4S, #20 \n"
+            "ROR w5, w5, #20 \n"
+            "SRI v9.4S, v14.4S, #20 \n"
+            "ROR w6, w6, #20 \n"
+
+            "ADD v0.4S, v0.4S, v1.4S \n"
+            "ROR w7, w7, #20 \n"
+            "ADD v4.4S, v4.4S, v5.4S \n"
+            "ROR w8, w8, #20 \n"
+            "ADD v8.4S, v8.4S, v9.4S \n"
+            "ADD w1, w1, w5 \n"
+            "EOR v12.16B, v3.16B, v0.16B \n"
+            "ADD w2, w2, w6 \n"
+            "EOR v13.16B, v7.16B, v4.16B \n"
+            "ADD w3, w3, w7 \n"
+            "EOR v14.16B, v11.16B, v8.16B \n"
+            "ADD w4, w4, w8 \n"
+            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
+            "SHL v3.4S, v12.4S, #8 \n"
+            "EOR w13, w13, w1 \n"
+            "SHL v7.4S, v13.4S, #8 \n"
+            "EOR w14, w14, w2 \n"
+            "SHL v11.4S, v14.4S, #8 \n"
+            "EOR w15, w15, w3 \n"
+            "SRI v3.4S, v12.4S, #24 \n"
+            "EOR w16, w16, w4 \n"
+            "SRI v7.4S, v13.4S, #24 \n"
+            "ROR w13, w13, #24 \n"
+            "SRI v11.4S, v14.4S, #24 \n"
+            "ROR w14, w14, #24 \n"
+
+            "ADD v2.4S, v2.4S, v3.4S \n"
+            "ROR w15, w15, #24 \n"
+            "ADD v6.4S, v6.4S, v7.4S \n"
+            "ROR w16, w16, #24 \n"
+            "ADD v10.4S, v10.4S, v11.4S \n"
+            "ADD w9, w9, w13 \n"
+            "EOR v12.16B, v1.16B, v2.16B \n"
+            "ADD w10, w10, w14 \n"
+            "EOR v13.16B, v5.16B, v6.16B \n"
+            "ADD w11, w11, w15 \n"
+            "EOR v14.16B, v9.16B, v10.16B \n"
+            "ADD w12, w12, w16 \n"
+            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
+            "SHL v1.4S, v12.4S, #7 \n"
+            "EOR w5, w5, w9 \n"
+            "SHL v5.4S, v13.4S, #7 \n"
+            "EOR w6, w6, w10 \n"
+            "SHL v9.4S, v14.4S, #7 \n"
+            "EOR w7, w7, w11 \n"
+            "SRI v1.4S, v12.4S, #25 \n"
+            "EOR w8, w8, w12 \n"
+            "SRI v5.4S, v13.4S, #25 \n"
+            "ROR w5, w5, #25 \n"
+            "SRI v9.4S, v14.4S, #25 \n"
+            "ROR w6, w6, #25 \n"
+
+            // EVEN ROUND
+
+            // v0   0  1  2  3
+            // v1   5  6  7  4
+            // v2  10 11  8  9
+            // v3  15 12 13 14
+            // CHACHA block vector elements shifted as shown above
+
+            "EXT v1.16B, v1.16B, v1.16B, #4 \n" // permute elements left by one
+            "EXT v2.16B, v2.16B, v2.16B, #8 \n" // permute elements left by two
+            "ROR w7, w7, #25 \n"
+            "EXT v3.16B, v3.16B, v3.16B, #12 \n" // permute elements left by three
+
+            "EXT v5.16B, v5.16B, v5.16B, #4 \n" // permute elements left by one
+            "ROR w8, w8, #25 \n"
+            "EXT v6.16B, v6.16B, v6.16B, #8 \n" // permute elements left by two
+            "EXT v7.16B, v7.16B, v7.16B, #12 \n" // permute elements left by three
+
+            "EXT v9.16B, v9.16B, v9.16B, #4 \n" // permute elements left by one
+            "EXT v10.16B, v10.16B, v10.16B, #8 \n" // permute elements left by two
+            "EXT v11.16B, v11.16B, v11.16B, #12 \n" // permute elements left by three
+
+            "ADD v0.4S, v0.4S, v1.4S \n"
+            "ADD w1, w1, w6 \n"
+            "ADD v4.4S, v4.4S, v5.4S \n"
+            "ADD w2, w2, w7 \n"
+            "ADD v8.4S, v8.4S, v9.4S \n"
+            "ADD w3, w3, w8 \n"
+            "EOR v12.16B, v3.16B, v0.16B \n"
+            "ADD w4, w4, w5 \n"
+            "EOR v13.16B, v7.16B, v4.16B \n"
+            "EOR w16, w16, w1 \n"
+            "EOR v14.16B, v11.16B, v8.16B \n"
+            "EOR w13, w13, w2 \n"
+            // rotation by 16 bits may be done by reversing the 16 bit elements in 32 bit words
+            "REV32 v3.8H, v12.8H \n"
+            "EOR w14, w14, w3 \n"
+            "REV32 v7.8H, v13.8H \n"
+            "EOR w15, w15, w4 \n"
+            "REV32 v11.8H, v14.8H \n"
+            "ROR w16, w16, #16 \n"
+
+            "ADD v2.4S, v2.4S, v3.4S \n"
+            "ROR w13, w13, #16 \n"
+            "ADD v6.4S, v6.4S, v7.4S \n"
+            "ROR w14, w14, #16 \n"
+            "ADD v10.4S, v10.4S, v11.4S \n"
+            "ROR w15, w15, #16 \n"
+            "EOR v12.16B, v1.16B, v2.16B \n"
+            "ADD w11, w11, w16 \n"
+            "EOR v13.16B, v5.16B, v6.16B \n"
+            "ADD w12, w12, w13 \n"
+            "EOR v14.16B, v9.16B, v10.16B \n"
+            "ADD w9, w9, w14 \n"
+            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
+            "SHL v1.4S, v12.4S, #12 \n"
+            "ADD w10, w10, w15 \n"
+            "SHL v5.4S, v13.4S, #12 \n"
+            "EOR w6, w6, w11 \n"
+            "SHL v9.4S, v14.4S, #12 \n"
+            "EOR w7, w7, w12 \n"
+            "SRI v1.4S, v12.4S, #20 \n"
+            "EOR w8, w8, w9 \n"
+            "SRI v5.4S, v13.4S, #20 \n"
+            "EOR w5, w5, w10 \n"
+            "SRI v9.4S, v14.4S, #20 \n"
+            "ROR w6, w6, #20 \n"
+
+            "ADD v0.4S, v0.4S, v1.4S \n"
+            "ROR w7, w7, #20 \n"
+            "ADD v4.4S, v4.4S, v5.4S \n"
+            "ROR w8, w8, #20 \n"
+            "ADD v8.4S, v8.4S, v9.4S \n"
+            "ROR w5, w5, #20 \n"
+            "EOR v12.16B, v3.16B, v0.16B \n"
+            "ADD w1, w1, w6 \n"
+            "EOR v13.16B, v7.16B, v4.16B \n"
+            "ADD w2, w2, w7 \n"
+            "EOR v14.16B, v11.16B, v8.16B \n"
+            "ADD w3, w3, w8 \n"
+            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
+            "SHL v3.4S, v12.4S, #8 \n"
+            "ADD w4, w4, w5 \n"
+            "SHL v7.4S, v13.4S, #8 \n"
+            "EOR w16, w16, w1 \n"
+            "SHL v11.4S, v14.4S, #8 \n"
+            "EOR w13, w13, w2 \n"
+            "SRI v3.4S, v12.4S, #24 \n"
+            "EOR w14, w14, w3 \n"
+            "SRI v7.4S, v13.4S, #24 \n"
+            "EOR w15, w15, w4 \n"
+            "SRI v11.4S, v14.4S, #24 \n"
+            "ROR w16, w16, #24 \n"
+
+            "ADD v2.4S, v2.4S, v3.4S \n"
+            "ROR w13, w13, #24 \n"
+            "ADD v6.4S, v6.4S, v7.4S \n"
+            "ROR w14, w14, #24 \n"
+            "ADD v10.4S, v10.4S, v11.4S \n"
+            "ROR w15, w15, #24 \n"
+            "EOR v12.16B, v1.16B, v2.16B \n"
+            "ADD w11, w11, w16 \n"
+            "EOR v13.16B, v5.16B, v6.16B \n"
+            "ADD w12, w12, w13 \n"
+            "EOR v14.16B, v9.16B, v10.16B \n"
+            "ADD w9, w9, w14 \n"
+            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
+            "SHL v1.4S, v12.4S, #7 \n"
+            "ADD w10, w10, w15 \n"
+            "SHL v5.4S, v13.4S, #7 \n"
+            "EOR w6, w6, w11 \n"
+            "SHL v9.4S, v14.4S, #7 \n"
+            "EOR w7, w7, w12 \n"
+            "SRI v1.4S, v12.4S, #25 \n"
+            "EOR w8, w8, w9 \n"
+            "SRI v5.4S, v13.4S, #25 \n"
+            "EOR w5, w5, w10 \n"
+            "SRI v9.4S, v14.4S, #25 \n"
+            "ROR w6, w6, #25 \n"
+
+            "EXT v1.16B, v1.16B, v1.16B, #12 \n" // permute elements left by three
+            "EXT v2.16B, v2.16B, v2.16B, #8 \n" // permute elements left by two
+            "ROR w7, w7, #25 \n"
+            "EXT v3.16B, v3.16B, v3.16B, #4 \n" // permute elements left by one
+
+            "EXT v5.16B, v5.16B, v5.16B, #12 \n" // permute elements left by three
+            "ROR w8, w8, #25 \n"
+            "EXT v6.16B, v6.16B, v6.16B, #8 \n" // permute elements left by two
+            "EXT v7.16B, v7.16B, v7.16B, #4 \n" // permute elements left by one
+            "ROR w5, w5, #25 \n"
+
+            "EXT v9.16B, v9.16B, v9.16B, #12 \n" // permute elements left by three
+            "EXT v10.16B, v10.16B, v10.16B, #8 \n" // permute elements left by two
+            "EXT v11.16B, v11.16B, v11.16B, #4 \n" // permute elements left by one
+
+            "CBNZ x0, loop_256 \n"
+
+            "LD1 { v24.4S-v27.4S }, [%[input]] \n"
+
+            // counter
+            "MOV w0, v27.S[0] \n"
+            "ADD w0, w0, 1 \n"
+            "LD1 { v28.4S-v31.4S }, [%[m]] \n"
+            "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
+
+            "ADD v0.4S, v0.4S, v24.4S \n"
+            "ADD v1.4S, v1.4S, v25.4S \n"
+            "ADD v2.4S, v2.4S, v26.4S \n"
+            "ADD v3.4S, v3.4S, v27.4S \n"
+            "EOR v0.16B, v0.16B, v28.16B \n"
+            "EOR v1.16B, v1.16B, v29.16B \n"
+            "EOR v2.16B, v2.16B, v30.16B \n"
+            "EOR v3.16B, v3.16B, v31.16B \n"
+            "ST1 { v0.4S-v3.4S }, [%[c]] \n"
+            "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
+            "LD1 { v28.4S-v31.4S }, [%[m]] \n"
+            "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
+
+            // increment counter
+            "MOV v27.S[0], w0 \n"
+            "ADD w0, w0, 1 \n"
+            "ADD v4.4S, v4.4S, v24.4S \n"
+            "ADD v5.4S, v5.4S, v25.4S \n"
+            "ADD v6.4S, v6.4S, v26.4S \n"
+            "ADD v7.4S, v7.4S, v27.4S \n"
+            "EOR v4.16B, v4.16B, v28.16B \n"
+            "EOR v5.16B, v5.16B, v29.16B \n"
+            "EOR v6.16B, v6.16B, v30.16B \n"
+            "EOR v7.16B, v7.16B, v31.16B \n"
+            "ST1 { v4.4S-v7.4S }, [%[c]] \n"
+            "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
+            "LD1 { v28.4S-v31.4S }, [%[m]] \n"
+            "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
+
+            // increment counter
+            "MOV v27.S[0], w0 \n"
+            "ADD w0, w0, 1 \n"
+            "ADD v8.4S, v8.4S, v24.4S \n"
+            "ADD v9.4S, v9.4S, v25.4S \n"
+            "ADD v10.4S, v10.4S, v26.4S \n"
+            "ADD v11.4S, v11.4S, v27.4S \n"
+            "EOR v8.16B, v8.16B, v28.16B \n"
+            "EOR v9.16B, v9.16B, v29.16B \n"
+            "EOR v10.16B, v10.16B, v30.16B \n"
+            "EOR v11.16B, v11.16B, v31.16B \n"
+            "ST1 { v8.4S-v11.4S }, [%[c]] \n"
+            "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
+            "LD1 { v28.4S-v31.4S }, [%[m]] \n"
+
+            // increment counter
+            "MOV v27.S[0], w0 \n"
+            // move block from regular arm registers to v0-v3
+            "ORR x1, x1, x2, LSL #32 \n"
+            "ORR x3, x3, x4, LSL #32 \n"
+            "MOV v0.D[0], x1 \n"
+            "MOV v0.D[1], x3 \n"
+            "ORR x5, x5, x6, LSL #32 \n"
+            "ORR x7, x7, x8, LSL #32 \n"
+            "MOV v1.D[0], x5 \n"
+            "MOV v1.D[1], x7 \n"
+            "ORR x9, x9, x10, LSL #32 \n"
+            "ORR x11, x11, x12, LSL #32 \n"
+            "MOV v2.D[0], x9 \n"
+            "MOV v2.D[1], x11 \n"
+            "ORR x13, x13, x14, LSL #32 \n"
+            "ORR x15, x15, x16, LSL #32 \n"
+            "MOV v3.D[0], x13 \n"
+            "MOV v3.D[1], x15 \n"
+
+            "ADD v0.4S, v0.4S, v24.4S \n"
+            "ADD v1.4S, v1.4S, v25.4S \n"
+            "ADD v2.4S, v2.4S, v26.4S \n"
+            "ADD v3.4S, v3.4S, v27.4S \n"
+            "EOR v0.16B, v0.16B, v28.16B \n"
+            "EOR v1.16B, v1.16B, v29.16B \n"
+            "EOR v2.16B, v2.16B, v30.16B \n"
+            "EOR v3.16B, v3.16B, v31.16B \n"
+            "ST1 { v0.4S-v3.4S }, [%[c]] \n"
+
+            : [c] "=r" (c), [m] "=r" (m)
+            : "0" (c), "1" (m), [rounds] "I" (ROUNDS/2), [input] "r" (input), [chacha_chunk_bytes] "I" (CHACHA_CHUNK_BYTES)
+            : "memory",
+              "x0",
+              "x1",  "x2",  "x3",  "x4",
+              "x5",  "x6",  "x7",  "x8",
+              "x9",  "x10", "x11", "x12",
+              "x13", "x14", "x15", "x16",
+              "x17", "x18", "x19", "x20",
+              "v0",  "v1",  "v2",  "v3",  "v4",
+              "v5",  "v6",  "v7",  "v8",  "v9",
+              "v10", "v11", "v12", "v13", "v14",
+              "v15", "v16", "v17", "v18", "v19",
+              "v20", "v21", "v22", "v23", "v24",
+              "v25", "v26", "v27", "v28", "v29", "v30", "v31"
+    );
+
+    return CHACHA_CHUNK_BYTES * 4;
+}
+
+
 static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WORDS], const byte* m, byte* c) {
     __asm__ __volatile__ (
             // The paper NEON crypto by Daniel J. Bernstein and Peter Schwabe was used to optimize for ARM
@@ -658,19 +1074,20 @@ static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WO
             // v0-v3 - first block
             // v12 first block helper
 
-            "LD1 { v28.4S-v31.4S }, [%[m]] \n"
-            "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
             "LD1 { v24.4S-v27.4S }, [%[input]] \n"
             // get counter value
             "MOV w17, v27.S[0] \n"
             "ADD w17, w17, #1 \n"
+
+            "LD1 { v28.4S-v31.4S }, [%[m]] \n"
+            "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
+
 
             // v0  0  1  2  3
             // v1  4  5  6  7
             // v2  8  9 10 11
             // v3 12 13 14 15
             // load CHACHA state as shown above
-            "MOV v7.16B, v27.16B \n"
             "MOV v0.16B, v24.16B \n"
             "MOV v1.16B, v25.16B \n"
             "MOV v2.16B, v26.16B \n"
@@ -678,15 +1095,13 @@ static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WO
             "MOV v4.16B, v24.16B \n"
             "MOV v5.16B, v25.16B \n"
             "MOV v6.16B, v26.16B \n"
+            "MOV v7.16B, v27.16B \n"
             "MOV v7.S[0], w17 \n"
 
-            "MOV x0, %[rounds] \n" // Load loop counter
-
             "loop_128_%=: \n"
-            "SUB x0, x0, #1 \n"
+            "SUB %[rounds], %[rounds], #1 \n"
 
             // ODD ROUND
-
             "ADD v0.4S, v0.4S, v1.4S \n"
             "ADD v4.4S, v4.4S, v5.4S \n"
             "EOR v12.16B, v3.16B, v0.16B \n"
@@ -741,6 +1156,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WO
             "EXT v6.16B, v6.16B, v6.16B, #8 \n" // permute elements left by two
             "EXT v7.16B, v7.16B, v7.16B, #12 \n" // permute elements left by three
 
+
             "ADD v0.4S, v0.4S, v1.4S \n"
             "ADD v4.4S, v4.4S, v5.4S \n"
             "EOR v12.16B, v3.16B, v0.16B \n"
@@ -787,7 +1203,9 @@ static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WO
             "EXT v6.16B, v6.16B, v6.16B, #8 \n" // permute elements left by two
             "EXT v7.16B, v7.16B, v7.16B, #4 \n" // permute elements left by one
 
-            "CBNZ x0, loop_128_%= \n"
+            "EXT v11.16B, v11.16B, v11.16B, #4 \n" // permute elements left by one
+
+            "CBNZ %[rounds], loop_128_%= \n"
 
             "ADD v0.4S, v0.4S, v24.4S \n"
             "ADD v1.4S, v1.4S, v25.4S \n"
@@ -812,10 +1230,11 @@ static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WO
             "EOR v7.16B, v7.16B, v31.16B \n"
             "ST1 { v4.4S-v7.4S }, [%[c]] \n"
 
+
             : [c] "=r" (c), [m] "=r" (m)
-            : "0" (c), "1" (m), [rounds] "I" (ROUNDS/2), [input] "r" (input), [chacha_chunk_bytes] "I" (CHACHA_CHUNK_BYTES)
+            : "0" (c), "1" (m), [rounds] "r" (ROUNDS/2), [input] "r" (input), [chacha_chunk_bytes] "I" (CHACHA_CHUNK_BYTES)
             : "memory",
-              "x0", "x17",
+              "x17",
               "v0",  "v1",  "v2",  "v3",  "v4",
               "v5",  "v6",  "v7",
               "v12", "v13",
@@ -828,31 +1247,209 @@ static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WO
 static WC_INLINE void wc_Chacha_wordtobyte_64(word32 output[CHACHA_CHUNK_WORDS],
     const word32 input[CHACHA_CHUNK_WORDS])
 {
-    word32 x[CHACHA_CHUNK_WORDS];
-    word32 i;
+//    word32 x[CHACHA_CHUNK_WORDS];
+//    word32 i;
 
-    for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
-        x[i] = input[i];
-    }
+//    for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
+//        x[i] = input[i];
+//    }
+//    memcpy(x, input, CHACHA_CHUNK_BYTES);
 
-    for (i = (ROUNDS); i > 0; i -= 2) {
-        QUARTERROUND(0, 4,  8, 12)
-        QUARTERROUND(1, 5,  9, 13)
-        QUARTERROUND(2, 6, 10, 14)
-        QUARTERROUND(3, 7, 11, 15)
-        QUARTERROUND(0, 5, 10, 15)
-        QUARTERROUND(1, 6, 11, 12)
-        QUARTERROUND(2, 7,  8, 13)
-        QUARTERROUND(3, 4,  9, 14)
-    }
+    __asm__ __volatile__ (
+            "LDP x1, x3, [%[input]], #16 \n"
+            "LDP x5, x7, [%[input]], #16 \n"
+            "LDP x9, x11, [%[input]], #16 \n"
+            "LDP x13, x15, [%[input]], #16 \n"
 
-    for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
-        x[i] = PLUS(x[i], input[i]);
-    }
+            "MOV x17, x1 \n"
+            "LSR x2, x1, #32 \n"
+            "MOV x18, x3 \n"
+            "LSR x4, x3, #32 \n"
+            "MOV x19, x5 \n"
+            "LSR x6, x5, #32 \n"
+            "MOV x20, x7 \n"
+            "LSR x8, x7, #32 \n"
+            "MOV x21, x9 \n"
+            "LSR x10, x9, #32 \n"
+            "MOV x22, x11 \n"
+            "LSR x12, x11, #32 \n"
+            "MOV x23, x13 \n"
+            "LSR x14, x13, #32 \n"
+            "MOV x24, x15 \n"
+            "LSR x16, x15, #32 \n"
 
-    for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
-        output[i] = LITTLE32(x[i]);
-    }
+            "loop_64_%=:"
+            "SUB %[rounds], %[rounds], #1 \n"
+
+            // odd
+
+            "ADD w1, w1, w5 \n"
+            "ADD w2, w2, w6 \n"
+            "ADD w3, w3, w7 \n"
+            "ADD w4, w4, w8 \n"
+
+            "EOR w13, w13, w1 \n"
+            "EOR w14, w14, w2 \n"
+            "EOR w15, w15, w3 \n"
+            "EOR w16, w16, w4 \n"
+
+            "ROR w13, w13, #16 \n"
+            "ROR w14, w14, #16 \n"
+            "ROR w15, w15, #16 \n"
+            "ROR w16, w16, #16 \n"
+
+            "ADD w9, w9, w13 \n"
+            "ADD w10, w10, w14 \n"
+            "ADD w11, w11, w15 \n"
+            "ADD w12, w12, w16 \n"
+
+            "EOR w5, w5, w9 \n"
+            "EOR w6, w6, w10 \n"
+            "EOR w7, w7, w11 \n"
+            "EOR w8, w8, w12 \n"
+
+            "ROR w5, w5, #20 \n"
+            "ROR w6, w6, #20 \n"
+            "ROR w7, w7, #20 \n"
+            "ROR w8, w8, #20 \n"
+
+            "ADD w1, w1, w5 \n"
+            "ADD w2, w2, w6 \n"
+            "ADD w3, w3, w7 \n"
+            "ADD w4, w4, w8 \n"
+
+            "EOR w13, w13, w1 \n"
+            "EOR w14, w14, w2 \n"
+            "EOR w15, w15, w3 \n"
+            "EOR w16, w16, w4 \n"
+
+            "ROR w13, w13, #24 \n"
+            "ROR w14, w14, #24 \n"
+            "ROR w15, w15, #24 \n"
+            "ROR w16, w16, #24 \n"
+
+            "ADD w9, w9, w13 \n"
+            "ADD w10, w10, w14 \n"
+            "ADD w11, w11, w15 \n"
+            "ADD w12, w12, w16 \n"
+
+            "EOR w5, w5, w9 \n"
+            "EOR w6, w6, w10 \n"
+            "EOR w7, w7, w11 \n"
+            "EOR w8, w8, w12 \n"
+
+            "ROR w5, w5, #25 \n"
+            "ROR w6, w6, #25 \n"
+            "ROR w7, w7, #25 \n"
+            "ROR w8, w8, #25 \n"
+
+            // even
+
+            "ADD w1, w1, w6 \n"
+            "ADD w2, w2, w7 \n"
+            "ADD w3, w3, w8 \n"
+            "ADD w4, w4, w5 \n"
+
+            "EOR w16, w16, w1 \n"
+            "EOR w13, w13, w2 \n"
+            "EOR w14, w14, w3 \n"
+            "EOR w15, w15, w4 \n"
+
+            "ROR w16, w16, #16 \n"
+            "ROR w13, w13, #16 \n"
+            "ROR w14, w14, #16 \n"
+            "ROR w15, w15, #16 \n"
+
+            "ADD w11, w11, w16 \n"
+            "ADD w12, w12, w13 \n"
+            "ADD w9, w9, w14 \n"
+            "ADD w10, w10, w15 \n"
+
+            "EOR w6, w6, w11 \n"
+            "EOR w7, w7, w12 \n"
+            "EOR w8, w8, w9 \n"
+            "EOR w5, w5, w10 \n"
+
+            "ROR w6, w6, #20 \n"
+            "ROR w7, w7, #20 \n"
+            "ROR w8, w8, #20 \n"
+            "ROR w5, w5, #20 \n"
+
+            "ADD w1, w1, w6 \n"
+            "ADD w2, w2, w7 \n"
+            "ADD w3, w3, w8 \n"
+            "ADD w4, w4, w5 \n"
+
+            "EOR w16, w16, w1 \n"
+            "EOR w13, w13, w2 \n"
+            "EOR w14, w14, w3 \n"
+            "EOR w15, w15, w4 \n"
+
+            "ROR w16, w16, #24 \n"
+            "ROR w13, w13, #24 \n"
+            "ROR w14, w14, #24 \n"
+            "ROR w15, w15, #24 \n"
+
+            "ADD w11, w11, w16 \n"
+            "ADD w12, w12, w13 \n"
+            "ADD w9, w9, w14 \n"
+            "ADD w10, w10, w15 \n"
+
+            "EOR w6, w6, w11 \n"
+            "EOR w7, w7, w12 \n"
+            "EOR w8, w8, w9 \n"
+            "EOR w5, w5, w10 \n"
+
+            "ROR w6, w6, #25 \n"
+            "ROR w7, w7, #25 \n"
+            "ROR w8, w8, #25 \n"
+            "ROR w5, w5, #25 \n"
+
+            "CBNZ %[rounds], loop_64_%= \n"
+
+            "ADD w1, w1, w17 \n"
+            "ADD x2, x2, x17, LSR #32 \n"
+            "ADD w3, w3, w18 \n"
+            "ADD x4, x4, x18, LSR #32 \n"
+            "ADD w5, w5, w19 \n"
+            "ADD x6, x6, x19, LSR #32 \n"
+            "ADD w7, w7, w20 \n"
+            "ADD x8, x8, x20, LSR #32 \n"
+
+            "ADD w9, w9, w21 \n"
+            "ADD x10, x10, x21, LSR #32 \n"
+            "ADD w11, w11, w22 \n"
+            "ADD x12, x12, x22, LSR #32 \n"
+            "ADD w13, w13, w23 \n"
+            "ADD x14, x14, x23, LSR #32 \n"
+            "ADD w15, w15, w24 \n"
+            "ADD x16, x16, x24, LSR #32 \n"
+
+            "ORR x1, x1, x2, LSL #32 \n"
+            "ORR x3, x3, x4, LSL #32 \n"
+            "ORR x5, x5, x6, LSL #32 \n"
+            "ORR x7, x7, x8, LSL #32 \n"
+            "ORR x9, x9, x10, LSL #32 \n"
+            "ORR x11, x11, x12, LSL #32 \n"
+            "ORR x13, x13, x14, LSL #32 \n"
+            "ORR x15, x15, x16, LSL #32 \n"
+
+            "STP x1, x3, [%[x]], #16 \n"
+            "STP x5, x7, [%[x]], #16 \n"
+            "STP x9, x11, [%[x]], #16 \n"
+            "STP x13, x15, [%[x]], #16 \n"
+
+            : [x] "=r" (output), [input] "=r" (input)
+            : "0" (output), "1" (input), [rounds] "r" (ROUNDS/2)
+            : "memory",
+              "x1",  "x2",  "x3",  "x4",
+              "x5",  "x6",  "x7",  "x8",
+              "x9",  "x10", "x11", "x12",
+              "x13", "x14", "x15", "x16",
+              "x17", "x18", "x19", "x20",
+              "x21", "x22", "x23", "x24"
+    );
+
 }
 
 /**
@@ -875,6 +1472,14 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
         m += processed;
         ctx->X[CHACHA_IV_BYTES] = PLUS(ctx->X[CHACHA_IV_BYTES], processed / CHACHA_CHUNK_BYTES);
     }
+    if (bytes >= CHACHA_CHUNK_BYTES * 4) {
+        processed = wc_Chacha_wordtobyte_256(ctx->X, m, c);
+
+        bytes -= processed;
+        c += processed;
+        m += processed;
+        ctx->X[CHACHA_IV_BYTES] = PLUS(ctx->X[CHACHA_IV_BYTES], processed / CHACHA_CHUNK_BYTES);
+    }
     if (bytes >= CHACHA_CHUNK_BYTES * 2) {
         processed = wc_Chacha_wordtobyte_128(ctx->X, m, c);
 
@@ -888,17 +1493,88 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
     for (; bytes > 0;) {
         output = (byte*)temp;
         wc_Chacha_wordtobyte_64(temp, ctx->X);
-        processed = min(CHACHA_CHUNK_BYTES, bytes);
 
-        for (i = 0; i < processed; ++i) {
-            c[i] = m[i] ^ output[i];
+        if (bytes >= CHACHA_CHUNK_BYTES) {
+            // assume CHACHA_CHUNK_BYTES == 64
+            __asm__ __volatile__ (
+                    "LD1 { v0.16B-v3.16B }, [%[m]] \n"
+                    "LD1 { v4.16B-v7.16B }, [%[output]] \n"
+                    "EOR v0.16B, v0.16B, v4.16B \n"
+                    "EOR v1.16B, v1.16B, v5.16B \n"
+                    "EOR v2.16B, v2.16B, v6.16B \n"
+                    "EOR v3.16B, v3.16B, v7.16B \n"
+                    "ST1 { v0.16B-v3.16B }, [%[c]] \n"
+                    : [c] "=r" (c)
+                    : "0" (c), [m] "r" (m), [output] "r" (output)
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7"
+            );
+
+            bytes -= CHACHA_CHUNK_BYTES;
+            c += CHACHA_CHUNK_BYTES;
+            m += CHACHA_CHUNK_BYTES;
+            ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
+        } else {
+            while (bytes >= ARM_SIMD_LEN_BYTES * 2) {
+                __asm__ __volatile__ (
+                        "LD1 { v0.16B-v1.16B }, [%[m]] \n"
+                        "LD1 { v2.16B-v3.16B }, [%[output]] \n"
+                        "EOR v0.16B, v0.16B, v2.16B \n"
+                        "EOR v1.16B, v1.16B, v3.16B \n"
+                        "ST1 { v0.16B-v1.16B }, [%[c]] \n"
+                        : [c] "=r" (c)
+                        : "0" (c), [m] "r" (m), [output] "r" (output)
+                        : "memory", "v0", "v1"
+                );
+
+                bytes -= ARM_SIMD_LEN_BYTES * 2;
+                c += ARM_SIMD_LEN_BYTES * 2;
+                m += ARM_SIMD_LEN_BYTES * 2;
+                output += ARM_SIMD_LEN_BYTES * 2;
+            }
+            while (bytes >= ARM_SIMD_LEN_BYTES) {
+                __asm__ __volatile__ (
+                        "LD1 { v0.16B }, [%[m]] \n"
+                        "LD1 { v1.16B }, [%[output]] \n"
+                        "EOR v0.16B, v0.16B, v1.16B \n"
+                        "ST1 { v0.16B }, [%[c]] \n"
+                        : [c] "=r" (c)
+                        : "0" (c), [m] "r" (m), [output] "r" (output)
+                        : "memory", "v0", "v1"
+                );
+
+                bytes -= ARM_SIMD_LEN_BYTES;
+                c += ARM_SIMD_LEN_BYTES;
+                m += ARM_SIMD_LEN_BYTES;
+                output += ARM_SIMD_LEN_BYTES;
+            }
+
+            if (bytes >= ARM_SIMD_LEN_BYTES / 2) {
+                __asm__ __volatile__ (
+                        "LD1 { v0.8B }, [%[m]] \n"
+                        "LD1 { v1.8B }, [%[output]] \n"
+                        "EOR v0.8B, v0.8B, v1.8B \n"
+                        "ST1 { v0.8B }, [%[c]] \n"
+                        : [c] "=r" (c)
+                        : "0" (c), [m] "r" (m), [output] "r" (output)
+                        : "memory", "v0", "v1"
+                );
+
+                bytes -= ARM_SIMD_LEN_BYTES / 2;
+                c += ARM_SIMD_LEN_BYTES / 2;
+                m += ARM_SIMD_LEN_BYTES / 2;
+                output += ARM_SIMD_LEN_BYTES / 2;
+            }
+
+            for (i = 0; i < bytes; ++i) {
+                c[i] = m[i] ^ output[i];
+            }
+
+//            bytes -= bytes;
+//            c += bytes;
+//            m += bytes;
+            ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
+            return;
         }
-
-        bytes -= processed;
-        c += processed;
-        m += processed;
-        ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
-
     }
 }
 
