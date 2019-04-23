@@ -632,7 +632,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
             : [c] "=r" (c), [m] "=r" (m)
             : "0" (c), "1" (m), [rounds] "I" (ROUNDS/2), [input] "r" (input), [chacha_chunk_bytes] "I" (CHACHA_CHUNK_BYTES),
               [outer_rounds] "r" (bytes / (CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS))
-            : "memory",
+            : "memory", "cc",
               "x0",
               "x1",  "x2",  "x3",  "x4",
               "x5",  "x6",  "x7",  "x8",
@@ -1047,7 +1047,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
 
             : [c] "=r" (c), [m] "=r" (m)
             : "0" (c), "1" (m), [rounds] "I" (ROUNDS/2), [input] "r" (input), [chacha_chunk_bytes] "I" (CHACHA_CHUNK_BYTES)
-            : "memory",
+            : "memory", "cc",
               "x0",
               "x1",  "x2",  "x3",  "x4",
               "x5",  "x6",  "x7",  "x8",
@@ -1233,7 +1233,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WO
 
             : [c] "=r" (c), [m] "=r" (m)
             : "0" (c), "1" (m), [rounds] "r" (ROUNDS/2), [input] "r" (input), [chacha_chunk_bytes] "I" (CHACHA_CHUNK_BYTES)
-            : "memory",
+            : "memory", "cc",
               "x17",
               "v0",  "v1",  "v2",  "v3",  "v4",
               "v5",  "v6",  "v7",
@@ -1247,14 +1247,6 @@ static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WO
 static WC_INLINE void wc_Chacha_wordtobyte_64(word32 output[CHACHA_CHUNK_WORDS],
     const word32 input[CHACHA_CHUNK_WORDS])
 {
-//    word32 x[CHACHA_CHUNK_WORDS];
-//    word32 i;
-
-//    for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
-//        x[i] = input[i];
-//    }
-//    memcpy(x, input, CHACHA_CHUNK_BYTES);
-
     __asm__ __volatile__ (
             "LDP x1, x3, [%[input]], #16 \n"
             "LDP x5, x7, [%[input]], #16 \n"
@@ -1463,7 +1455,6 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
     word32 i;
     int    processed;
 
-#ifndef BIG_ENDIAN_ORDER
     if (bytes >= CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS) {
         processed = wc_Chacha_wordtobyte_320(ctx->X, m, c, bytes);
 
@@ -1479,8 +1470,7 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
         c += processed;
         m += processed;
         ctx->X[CHACHA_IV_BYTES] = PLUS(ctx->X[CHACHA_IV_BYTES], processed / CHACHA_CHUNK_BYTES);
-    }
-    if (bytes >= CHACHA_CHUNK_BYTES * 2) {
+    } else if (bytes >= CHACHA_CHUNK_BYTES * 2) {
         processed = wc_Chacha_wordtobyte_128(ctx->X, m, c);
 
         bytes -= processed;
@@ -1488,7 +1478,6 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
         m += processed;
         ctx->X[CHACHA_IV_BYTES] = PLUS(ctx->X[CHACHA_IV_BYTES], processed / CHACHA_CHUNK_BYTES);
     }
-#endif /* BIG_ENDIAN_ORDER */
 
     for (; bytes > 0;) {
         output = (byte*)temp;
@@ -1531,7 +1520,7 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                 m += ARM_SIMD_LEN_BYTES * 2;
                 output += ARM_SIMD_LEN_BYTES * 2;
             }
-            while (bytes >= ARM_SIMD_LEN_BYTES) {
+            if (bytes >= ARM_SIMD_LEN_BYTES) {
                 __asm__ __volatile__ (
                         "LD1 { v0.16B }, [%[m]] \n"
                         "LD1 { v1.16B }, [%[output]] \n"
@@ -1547,7 +1536,6 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                 m += ARM_SIMD_LEN_BYTES;
                 output += ARM_SIMD_LEN_BYTES;
             }
-
             if (bytes >= ARM_SIMD_LEN_BYTES / 2) {
                 __asm__ __volatile__ (
                         "LD1 { v0.8B }, [%[m]] \n"
@@ -1569,9 +1557,6 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                 c[i] = m[i] ^ output[i];
             }
 
-//            bytes -= bytes;
-//            c += bytes;
-//            m += bytes;
             ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
             return;
         }
