@@ -175,10 +175,10 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
 
             "LD1 { v24.4S-v27.4S }, [%[input]] \n"
 
-            "outer_loop: \n"
+            "outer_loop_320_%=: \n"
             "SUB %[outer_rounds], %[outer_rounds], #1 \n"
 
-            // final chacha block is stored in w1-w16 regular registers
+            // fifth chacha block is stored in w1-w16 regular registers
             "MOV x1, v24.D[0] \n"
             "MOV x3, v24.D[1] \n"
             "MOV x5, v25.D[0] \n"
@@ -188,6 +188,17 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
             "MOV x13, v27.D[0] \n"
             "MOV x15, v27.D[1] \n"
 
+            // the i'th element of the n'th block is the vi SIMD register
+            //
+            //     the first number is the i'th element
+            //     the second number is the n'th block
+            // v0  00  01  02  03
+            // v1  10  11  12  13
+            // v2  20  21  22  23
+            // v3  30  31  32  33
+            // ...
+            // v0-v15 4 blocks of chacha
+            // v16-v19 helper registers
             "MOV w0,  v27.S[0] \n"
             "DUP v0.4S,  v24.S[0] \n"
             "LSR x2, x1, #32 \n"
@@ -225,7 +236,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
 
             "MOV x0, %[rounds] \n" // Load loop counter
 
-            "loop: \n"
+            "loop_320_%=: \n"
             "SUB x0, x0, #1 \n"
 
             // odd round
@@ -478,16 +489,19 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
             "SRI v7.4S, v18.4S, #25 \n"
             "SRI v4.4S, v19.4S, #25 \n"
 
-            "CBNZ x0, loop \n"
+            "CBNZ x0, loop_320_%= \n"
 
             "LD1 { v28.4S-v31.4S }, [%[m]] \n"
             "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
 
             // Transpose to have words in the same registers
-            // v0 0 1 2 3
-            // v1 0 1 2 3
-            // v2 0 1 2 3
-            // v3 0 1 2 3
+            //
+            //    the first number is the i'th element
+            //    the second number is the n'th block
+            // v0 00 10 20 30
+            // v1 01 11 21 31
+            // v2 02 12 22 32
+            // v3 03 13 23 33
             // ...
             "TRN1 v16.4S, v0.4S, v1.4S \n"
             "TRN2 v17.4S, v0.4S, v1.4S \n"
@@ -619,7 +633,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
             "ADD w0, w20, #1 \n"
             "MOV v27.S[0], w0 \n"
 
-            "CBNZ %[outer_rounds], outer_loop \n"
+            "CBNZ %[outer_rounds], outer_loop_320_%= \n"
 
             : [c] "=r" (c), [m] "=r" (m)
             : "0" (c), "1" (m), [rounds] "I" (ROUNDS/2), [input] "r" (input), [chacha_chunk_bytes] "I" (CHACHA_CHUNK_BYTES),
@@ -714,7 +728,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
             "MOV x0, %[rounds] \n" // Load loop counter
 
 
-            "loop_256: \n"
+            "loop_256_%=: \n"
             "SUB x0, x0, #1 \n"
 
             // ODD ROUND
@@ -953,7 +967,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
             "EXT v10.16B, v10.16B, v10.16B, #8 \n" // permute elements left by two
             "EXT v11.16B, v11.16B, v11.16B, #4 \n" // permute elements left by one
 
-            "CBNZ x0, loop_256 \n"
+            "CBNZ x0, loop_256_%= \n"
 
             "LD1 { v24.4S-v27.4S }, [%[input]] \n"
 
@@ -1412,15 +1426,14 @@ static WC_INLINE void wc_Chacha_wordtobyte_64(word32 output[CHACHA_CHUNK_WORDS],
             "ORR x1, x1, x2, LSL #32 \n"
             "ORR x3, x3, x4, LSL #32 \n"
             "ORR x5, x5, x6, LSL #32 \n"
+            "STP x1, x3, [%[x]], #16 \n"
             "ORR x7, x7, x8, LSL #32 \n"
             "ORR x9, x9, x10, LSL #32 \n"
+            "STP x5, x7, [%[x]], #16 \n"
             "ORR x11, x11, x12, LSL #32 \n"
             "ORR x13, x13, x14, LSL #32 \n"
-            "ORR x15, x15, x16, LSL #32 \n"
-
-            "STP x1, x3, [%[x]], #16 \n"
-            "STP x5, x7, [%[x]], #16 \n"
             "STP x9, x11, [%[x]], #16 \n"
+            "ORR x15, x15, x16, LSL #32 \n"
             "STP x13, x15, [%[x]], #16 \n"
 
             : [x] "=r" (output), [input] "=r" (input)
