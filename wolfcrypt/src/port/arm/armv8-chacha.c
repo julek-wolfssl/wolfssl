@@ -59,16 +59,8 @@
 #define U32V(v) ((word32)(v) & U32C(0xFFFFFFFF))
 #define U8TO32_LITTLE(p) LITTLE32(((word32*)(p))[0])
 
-#define ROTATE(v,c) rotlFixed(v, c)
-#define XOR(v,w)    ((v) ^ (w))
 #define PLUS(v,w)   (U32V((v) + (w)))
 #define PLUSONE(v)  (PLUS((v),1))
-
-#define QUARTERROUND(a,b,c,d) \
-  x[a] = PLUS(x[a],x[b]); x[d] = ROTATE(XOR(x[d],x[a]),16); \
-  x[c] = PLUS(x[c],x[d]); x[b] = ROTATE(XOR(x[b],x[c]),12); \
-  x[a] = PLUS(x[a],x[b]); x[d] = ROTATE(XOR(x[d],x[a]), 8); \
-  x[c] = PLUS(x[c],x[d]); x[b] = ROTATE(XOR(x[b],x[c]), 7);
 
 #define ARM_SIMD_LEN_BYTES 16
 
