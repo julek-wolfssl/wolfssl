@@ -59,8 +59,16 @@
 #define U32V(v) ((word32)(v) & U32C(0xFFFFFFFF))
 #define U8TO32_LITTLE(p) LITTLE32(((word32*)(p))[0])
 
+#define ROTATE(v,c) rotlFixed(v, c)
+#define XOR(v,w)    ((v) ^ (w))
 #define PLUS(v,w)   (U32V((v) + (w)))
 #define PLUSONE(v)  (PLUS((v),1))
+
+#define QUARTERROUND(a,b,c,d) \
+  output[a] = PLUS(output[a],output[b]); output[d] = ROTATE(XOR(output[d],output[a]),16); \
+  output[c] = PLUS(output[c],output[d]); output[b] = ROTATE(XOR(output[b],output[c]),12); \
+  output[a] = PLUS(output[a],output[b]); output[d] = ROTATE(XOR(output[d],output[a]), 8); \
+  output[c] = PLUS(output[c],output[d]); output[b] = ROTATE(XOR(output[b],output[c]), 7);
 
 #define ARM_SIMD_LEN_BYTES 16
 
@@ -169,6 +177,7 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
   */
 static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WORDS], const byte* m, byte* c, word32 bytes)
 {
+#ifdef __aarch64__
     __asm__ __volatile__ (
             // The paper NEON crypto by Daniel J. Bernstein and Peter Schwabe was used to optimize for ARM
             // https://cryptojedi.org/papers/neoncrypto-20120320.pdf
@@ -652,6 +661,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
               "v20", "v21", "v22", "v23",
               "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
     );
+#endif /* __aarch64__ */
 
     return (bytes / (CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS)) * CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS;
 }
@@ -662,6 +672,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
   */
 static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WORDS], const byte* m, byte* c)
 {
+#ifdef __aarch64__
     __asm__ __volatile__ (
             // The paper NEON crypto by Daniel J. Bernstein and Peter Schwabe was used to optimize for ARM
             // https://cryptojedi.org/papers/neoncrypto-20120320.pdf
@@ -1069,10 +1080,13 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
     );
 
     return CHACHA_CHUNK_BYTES * 4;
+#endif /* __aarch64__ */
 }
 
 
-static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WORDS], const byte* m, byte* c) {
+static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WORDS], const byte* m, byte* c)
+{
+#ifdef __aarch64__
     __asm__ __volatile__ (
             // The paper NEON crypto by Daniel J. Bernstein and Peter Schwabe was used to optimize for ARM
             // https://cryptojedi.org/papers/neoncrypto-20120320.pdf
@@ -1248,11 +1262,13 @@ static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WO
     );
 
     return CHACHA_CHUNK_BYTES * 2;
+#endif /* __aarch64__ */
 }
 
 static WC_INLINE void wc_Chacha_wordtobyte_64(word32 output[CHACHA_CHUNK_WORDS],
     const word32 input[CHACHA_CHUNK_WORDS])
 {
+#ifdef __aarch64__
     __asm__ __volatile__ (
             "LDP x1, x3, [%[input]], #16 \n"
             "LDP x5, x7, [%[input]], #16 \n"
@@ -1446,7 +1462,156 @@ static WC_INLINE void wc_Chacha_wordtobyte_64(word32 output[CHACHA_CHUNK_WORDS],
               "x17", "x18", "x19", "x20",
               "x21", "x22", "x23", "x24"
     );
+#else
+    word32 i;
+    word32 temp0, temp1, temp2, temp3;
 
+    for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
+        output[i] = input[i];
+    }
+
+    for (i = (ROUNDS); i > 0; i -= 2) {
+
+        __asm__ __volatile__ (
+                // QUARTERROUND(0, 4,  8, 12)
+
+                "LDR r0, [%[output]] \n"
+                "LDR r1, [%[output], #16] \n"
+                "LDR r2, [%[output], #32] \n"
+                "LDR r3, [%[output], #48] \n"
+
+                "ADD r0, r0, r1 \n"
+                "EOR r3, r3, r0 \n"
+                "ROR r3, r3, #16 \n"
+
+                "ADD r2, r2, r3 \n"
+                "EOR r1, r1, r2 \n"
+                "ROR r1, r1, #20 \n"
+
+                "ADD r0, r0, r1 \n"
+                "EOR r3, r3, r0 \n"
+                "ROR r3, r3, #24 \n"
+
+                "ADD r2, r2, r3 \n"
+                "EOR r1, r1, r2 \n"
+                "ROR r1, r1, #25 \n"
+
+                "STR r0, [%[output]] \n"
+                "STR r1, [%[output], #16] \n"
+                "STR r2, [%[output], #32] \n"
+                "STR r3, [%[output], #48] \n"
+
+                // QUARTERROUND(1, 5,  9, 13)
+
+                "LDR r0, [%[output], #4] \n"
+                "LDR r1, [%[output], #20] \n"
+                "LDR r2, [%[output], #36] \n"
+                "LDR r3, [%[output], #52] \n"
+
+                "ADD r0, r0, r1 \n"
+                "EOR r3, r3, r0 \n"
+                "ROR r3, r3, #16 \n"
+
+                "ADD r2, r2, r3 \n"
+                "EOR r1, r1, r2 \n"
+                "ROR r1, r1, #20 \n"
+
+                "ADD r0, r0, r1 \n"
+                "EOR r3, r3, r0 \n"
+                "ROR r3, r3, #24 \n"
+
+                "ADD r2, r2, r3 \n"
+                "EOR r1, r1, r2 \n"
+                "ROR r1, r1, #25 \n"
+
+                "STR r0, [%[output], #4] \n"
+                "STR r1, [%[output], #20] \n"
+                "STR r2, [%[output], #36] \n"
+                "STR r3, [%[output], #52] \n"
+
+                // QUARTERROUND(2, 6, 10, 14)
+
+                "LDR r0, [%[output], #8] \n"
+                "LDR r1, [%[output], #24] \n"
+                "LDR r2, [%[output], #40] \n"
+                "LDR r3, [%[output], #56] \n"
+
+                "ADD r0, r0, r1 \n"
+                "EOR r3, r3, r0 \n"
+                "ROR r3, r3, #16 \n"
+
+                "ADD r2, r2, r3 \n"
+                "EOR r1, r1, r2 \n"
+                "ROR r1, r1, #20 \n"
+
+                "ADD r0, r0, r1 \n"
+                "EOR r3, r3, r0 \n"
+                "ROR r3, r3, #24 \n"
+
+                "ADD r2, r2, r3 \n"
+                "EOR r1, r1, r2 \n"
+                "ROR r1, r1, #25 \n"
+
+                "STR r0, [%[output], #8] \n"
+                "STR r1, [%[output], #24] \n"
+                "STR r2, [%[output], #40] \n"
+                "STR r3, [%[output], #56] \n"
+
+                // QUARTERROUND(3, 7, 11, 15)
+
+                "LDR r0, [%[output], #12] \n"
+                "LDR r1, [%[output], #28] \n"
+                "LDR r2, [%[output], #44] \n"
+                "LDR r3, [%[output], #60] \n"
+
+                "ADD r0, r0, r1 \n"
+                "EOR r3, r3, r0 \n"
+                "ROR r3, r3, #16 \n"
+
+                "ADD r2, r2, r3 \n"
+                "EOR r1, r1, r2 \n"
+                "ROR r1, r1, #20 \n"
+
+                "ADD r0, r0, r1 \n"
+                "EOR r3, r3, r0 \n"
+                "ROR r3, r3, #24 \n"
+
+                "ADD r2, r2, r3 \n"
+                "EOR r1, r1, r2 \n"
+                "ROR r1, r1, #25 \n"
+
+                "STR r0, [%[output], #12] \n"
+                "STR r1, [%[output], #28] \n"
+                "STR r2, [%[output], #44] \n"
+                "STR r3, [%[output], #60] \n"
+
+                :
+                [output] "=r" (output)
+//                [temp0] "+m" (temp0)
+                :
+                "0" (output)
+                : "memory",
+                "r0", "r1", "r2", "r3"
+        );
+
+//        QUARTERROUND(0, 4,  8, 12)
+//        QUARTERROUND(1, 5,  9, 13)
+//        QUARTERROUND(2, 6, 10, 14)
+//        QUARTERROUND(3, 7, 11, 15)
+        QUARTERROUND(0, 5, 10, 15)
+        QUARTERROUND(1, 6, 11, 12)
+        QUARTERROUND(2, 7,  8, 13)
+        QUARTERROUND(3, 4,  9, 14)
+    }
+
+    for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
+        output[i] = PLUS(output[i], input[i]);
+    }
+
+    for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
+        output[i] = LITTLE32(output[i]);
+    }
+#endif /* __aarch64__ */
 }
 
 /**
@@ -1460,6 +1625,7 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
     word32 i;
     int    processed;
 
+#ifdef __aarch64__
     if (bytes >= CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS) {
         processed = wc_Chacha_wordtobyte_320(ctx->X, m, c, bytes);
 
@@ -1566,6 +1732,25 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
             return;
         }
     }
+#else
+    output = (byte*)temp;
+    for (; bytes > 0;) {
+        wc_Chacha_wordtobyte_64(temp, ctx->X);
+        ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
+        if (bytes <= CHACHA_CHUNK_BYTES) {
+            for (i = 0; i < bytes; ++i) {
+                c[i] = m[i] ^ output[i];
+            }
+            return;
+        }
+        for (i = 0; i < CHACHA_CHUNK_BYTES; ++i) {
+            c[i] = m[i] ^ output[i];
+        }
+        bytes -= CHACHA_CHUNK_BYTES;
+        c += CHACHA_CHUNK_BYTES;
+        m += CHACHA_CHUNK_BYTES;
+    }
+#endif /*__aarch64__ */
 }
 
 /**
