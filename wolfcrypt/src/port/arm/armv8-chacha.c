@@ -1578,94 +1578,73 @@ static WC_INLINE void wc_Chacha_wordtobyte_64(word32 output[CHACHA_CHUNK_WORDS],
                 "EOR r5, r5, r10 \n"
                 "ROR r5, r5, #25 \n"
 
-                "STM %[output], { r0-r10 } \n"
-                "STR r11, [%[output], #44] \n"
                 "STR r12, [%[output], #60] \n"
+                "LDR r12, [%[output], #48] \n"
+                // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
+                //  0  1  2  3  4  5  6  7  8  9  10  11  12
 
                 // QUARTERROUND(1, 6, 11, 12)
 
-                "LDR r0, [%[output], #4] \n"
-                "LDR r1, [%[output], #24] \n"
-                "LDR r2, [%[output], #44] \n"
-                "LDR r3, [%[output], #48] \n"
+                "ADD r1, r1, r6 \n"
+                "EOR r12, r12, r1 \n"
+                "ROR r12, r12, #16 \n"
 
-                "ADD r0, r0, r1 \n"
-                "EOR r3, r3, r0 \n"
-                "ROR r3, r3, #16 \n"
+                "ADD r11, r11, r12 \n"
+                "EOR r6, r6, r11 \n"
+                "ROR r6, r6, #20 \n"
 
-                "ADD r2, r2, r3 \n"
-                "EOR r1, r1, r2 \n"
-                "ROR r1, r1, #20 \n"
+                "ADD r1, r1, r6 \n"
+                "EOR r12, r12, r1 \n"
+                "ROR r12, r12, #24 \n"
 
-                "ADD r0, r0, r1 \n"
-                "EOR r3, r3, r0 \n"
-                "ROR r3, r3, #24 \n"
+                "ADD r11, r11, r12 \n"
+                "EOR r6, r6, r11 \n"
+                "ROR r6, r6, #25 \n"
 
-                "ADD r2, r2, r3 \n"
-                "EOR r1, r1, r2 \n"
-                "ROR r1, r1, #25 \n"
-
-                "STR r0, [%[output], #4] \n"
-                "STR r1, [%[output], #24] \n"
-                "STR r2, [%[output], #44] \n"
-                "STR r3, [%[output], #48] \n"
+                "STRD r11, r12, [%[output], #44] \n"
+                "LDRD r11, r12, [%[output], #52] \n"
+                // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
+                //  0  1  2  3  4  5  6  7  8  9  10  13  14
 
                 // QUARTERROUND(2, 7,  8, 13)
 
-                "LDR r0, [%[output], #8] \n"
-                "LDR r1, [%[output], #28] \n"
-                "LDR r2, [%[output], #32] \n"
-                "LDR r3, [%[output], #52] \n"
+                "ADD r2, r2, r7 \n"
+                "EOR r11, r11, r2 \n"
+                "ROR r11, r11, #16 \n"
 
-                "ADD r0, r0, r1 \n"
-                "EOR r3, r3, r0 \n"
-                "ROR r3, r3, #16 \n"
+                "ADD r8, r8, r11 \n"
+                "EOR r7, r7, r8 \n"
+                "ROR r7, r7, #20 \n"
 
-                "ADD r2, r2, r3 \n"
-                "EOR r1, r1, r2 \n"
-                "ROR r1, r1, #20 \n"
+                "ADD r2, r2, r7 \n"
+                "EOR r11, r11, r2 \n"
+                "ROR r11, r11, #24 \n"
 
-                "ADD r0, r0, r1 \n"
-                "EOR r3, r3, r0 \n"
-                "ROR r3, r3, #24 \n"
+                "ADD r8, r8, r11 \n"
+                "EOR r7, r7, r8 \n"
+                "ROR r7, r7, #25 \n"
 
-                "ADD r2, r2, r3 \n"
-                "EOR r1, r1, r2 \n"
-                "ROR r1, r1, #25 \n"
-
-                "STR r0, [%[output], #8] \n"
-                "STR r1, [%[output], #28] \n"
-                "STR r2, [%[output], #32] \n"
-                "STR r3, [%[output], #52] \n"
 
                 // QUARTERROUND(3, 4,  9, 14)
 
-                "LDR r0, [%[output], #12] \n"
-                "LDR r1, [%[output], #16] \n"
-                "LDR r2, [%[output], #36] \n"
-                "LDR r3, [%[output], #56] \n"
+                "ADD r3, r3, r4 \n"
+                "EOR r12, r12, r3 \n"
+                "ROR r12, r12, #16 \n"
 
-                "ADD r0, r0, r1 \n"
-                "EOR r3, r3, r0 \n"
-                "ROR r3, r3, #16 \n"
+                "ADD r9, r9, r12 \n"
+                "EOR r4, r4, r9 \n"
+                "ROR r4, r4, #20 \n"
 
-                "ADD r2, r2, r3 \n"
-                "EOR r1, r1, r2 \n"
-                "ROR r1, r1, #20 \n"
+                "ADD r3, r3, r4 \n"
+                "EOR r12, r12, r3 \n"
+                "ROR r12, r12, #24 \n"
 
-                "ADD r0, r0, r1 \n"
-                "EOR r3, r3, r0 \n"
-                "ROR r3, r3, #24 \n"
+                "ADD r9, r9, r12 \n"
+                "EOR r4, r4, r9 \n"
+                "ROR r4, r4, #25 \n"
 
-                "ADD r2, r2, r3 \n"
-                "EOR r1, r1, r2 \n"
-                "ROR r1, r1, #25 \n"
-
-                "STR r0, [%[output], #12] \n"
-                "STR r1, [%[output], #16] \n"
-                "STR r2, [%[output], #36] \n"
-                "STR r3, [%[output], #56] \n"
-
+                "STM %[output], { r0-r10 } \n"
+                "STRD r11, r12, [%[output], #52] \n"
 
                 :
                 [output] "=r" (output)
