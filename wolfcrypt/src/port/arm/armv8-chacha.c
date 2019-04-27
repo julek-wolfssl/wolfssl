@@ -1464,7 +1464,6 @@ static WC_INLINE void wc_Chacha_wordtobyte_64(word32 output[CHACHA_CHUNK_WORDS],
     );
 #else
     word32 i;
-    word32 temp0, temp1, temp2, temp3;
 
     for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
         output[i] = input[i];
@@ -1476,8 +1475,11 @@ static WC_INLINE void wc_Chacha_wordtobyte_64(word32 output[CHACHA_CHUNK_WORDS],
                 // QUARTERROUND(0, 4,  8, 12)
 
                 "LDM %[output], { r0-r7 } \n"
+                "ADD %[output], %[output], #48 \n"
+                "LDM %[output], { r8-r11 } \n"
+                "SUB %[output], %[output], #48 \n"
                 // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
-                //  0  1  2  3  4  5  6  7
+                //  0  1  2  3  4  5  6  7 12 13  14  15
 
                 "ADD r0, r0, r4 \n" // 0 0 4
                 "ADD r1, r1, r5 \n" // 1 1 5
@@ -1485,12 +1487,6 @@ static WC_INLINE void wc_Chacha_wordtobyte_64(word32 output[CHACHA_CHUNK_WORDS],
                 "ADD r3, r3, r7 \n" // 3 3 7
 
                 // 0-7
-
-                "ADD %[output], %[output], #48 \n"
-                "LDM %[output], { r8-r11 } \n"
-                "SUB %[output], %[output], #48 \n"
-                // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
-                //  0  1  2  3  4  5  6  7 12 13  14  15
 
                 "EOR r8, r8, r0 \n" // 12 12 0
                 "EOR r9, r9, r1 \n" // 13 13 1
@@ -1588,111 +1584,136 @@ static WC_INLINE void wc_Chacha_wordtobyte_64(word32 output[CHACHA_CHUNK_WORDS],
                 "ROR r6, r6, #25 \n" // 6 6
                 "ROR r7, r7, #25 \n" // 7 7
 
+                // 4-7
+
                 "ADD %[output], %[output], #32 \n"
                 "STM %[output], { r0-r3 } \n"
                 "SUB %[output], %[output], #32 \n"
                 "LDM %[output], { r0-r3 } \n"
-
-                "ADD %[output], %[output], #48 \n"
-                "STM %[output], { r8-r11 } \n"
-                "SUB %[output], %[output], #16 \n"
-                "LDM %[output], { r8-r11 } \n"
-                "SUB %[output], %[output], #32 \n"
-                "LDR r12, [%[output], #60] \n"
                 // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
-                //  0  1  2  3  4  5  6  7  8  9  10  11  12
+                //  0  1  2  3  4  5  6  7 12 13  14  15
 
                 // ODD ROUND
 
-                // QUARTERROUND(0, 5, 10, 15)
+                "ADD r0, r0, r5 \n" // 0 0 5
+                "ADD r1, r1, r6 \n" // 1 1 6
+                "ADD r2, r2, r7 \n" // 2 2 7
+                "ADD r3, r3, r4 \n" // 3 3 4
 
-                "ADD r0, r0, r5 \n"
-                "EOR r12, r12, r0 \n"
-                "ROR r12, r12, #16 \n"
+                // 0-7
 
-                "ADD r10, r10, r12 \n"
-                "EOR r5, r5, r10 \n"
-                "ROR r5, r5, #20 \n"
+                "EOR r11, r11, r0 \n" // 15 15 0
+                "EOR r8, r8, r1 \n" // 12 12 1
+                "EOR r9, r9, r2 \n" // 13 13 2
+                "EOR r10, r10, r3 \n" // 14 14 3
 
-                "ADD r0, r0, r5 \n"
-                "EOR r12, r12, r0 \n"
-                "ROR r12, r12, #24 \n"
+                // 0-3 12-15
 
-                "ADD r10, r10, r12 \n"
-                "EOR r5, r5, r10 \n"
-                "ROR r5, r5, #25 \n"
+                "ROR r11, r11, #16 \n" // 15 15
+                "ROR r8, r8, #16 \n" // 12 12
+                "ROR r9, r9, #16 \n" // 13 13
+                "ROR r10, r10, #16 \n" // 14 14
 
-                "STR r12, [%[output], #60] \n"
-                "LDR r12, [%[output], #48] \n"
+                // 12-15
+
+                "STM %[output], { r0-r3 } \n"
+                "ADD %[output], %[output], #32 \n"
+                "LDM %[output], { r0-r3 } \n"
+                "SUB %[output], %[output], #32 \n"
                 // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
-                //  0  1  2  3  4  5  6  7  8  9  10  11  12
+                //  8  9 10 11  4  5  6  7 12 13  14  15
 
-                // QUARTERROUND(1, 6, 11, 12)
+                "ADD r2, r2, r11 \n" // 10 10 15
+                "ADD r3, r3, r8 \n" // 11 11 12
+                "ADD r0, r0, r9 \n" // 8 8 13
+                "ADD r1, r1, r10 \n" // 9 9 14
 
-                "ADD r1, r1, r6 \n"
-                "EOR r12, r12, r1 \n"
-                "ROR r12, r12, #16 \n"
+                // 8-15
 
-                "ADD r11, r11, r12 \n"
-                "EOR r6, r6, r11 \n"
-                "ROR r6, r6, #20 \n"
+                "EOR r5, r5, r2 \n" // 5 5 10
+                "EOR r6, r6, r3 \n" // 6 6 11
+                "EOR r7, r7, r0 \n" // 7 7 8
+                "EOR r4, r4, r1 \n" // 4 4 9
 
-                "ADD r1, r1, r6 \n"
-                "EOR r12, r12, r1 \n"
-                "ROR r12, r12, #24 \n"
+                // 4-11
 
-                "ADD r11, r11, r12 \n"
-                "EOR r6, r6, r11 \n"
-                "ROR r6, r6, #25 \n"
+                "ROR r5, r5, #20 \n" // 5 5
+                "ROR r6, r6, #20 \n" // 6 6
+                "ROR r7, r7, #20 \n" // 7 7
+                "ROR r4, r4, #20 \n" // 4 4
 
-                "STRD r11, r12, [%[output], #44] \n"
-                "LDRD r11, r12, [%[output], #52] \n"
+                // 4-7
+
+                "ADD %[output], %[output], #32 \n"
+                "STM %[output], { r0-r3 } \n"
+                "SUB %[output], %[output], #32 \n"
+                "LDM %[output], { r0-r3 } \n"
                 // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
-                //  0  1  2  3  4  5  6  7  8  9  10  13  14
+                //  0  1  2  3  4  5  6  7 12 13  14  15
 
-                // QUARTERROUND(2, 7,  8, 13)
+                "ADD r0, r0, r5 \n" // 0 0 5
+                "ADD r1, r1, r6 \n" // 1 1 6
+                "ADD r2, r2, r7 \n" // 2 2 7
+                "ADD r3, r3, r4 \n" // 3 3 4
 
-                "ADD r2, r2, r7 \n"
-                "EOR r11, r11, r2 \n"
-                "ROR r11, r11, #16 \n"
+                // 0-7
 
-                "ADD r8, r8, r11 \n"
-                "EOR r7, r7, r8 \n"
-                "ROR r7, r7, #20 \n"
+                "EOR r11, r11, r0 \n" // 15 15 0
+                "EOR r8, r8, r1 \n" // 12 12 1
+                "EOR r9, r9, r2 \n" // 13 13 2
+                "EOR r10, r10, r3 \n" // 14 14 3
 
-                "ADD r2, r2, r7 \n"
-                "EOR r11, r11, r2 \n"
-                "ROR r11, r11, #24 \n"
+                // 0-3 12-15
 
-                "ADD r8, r8, r11 \n"
-                "EOR r7, r7, r8 \n"
-                "ROR r7, r7, #25 \n"
+                "ROR r11, r11, #24 \n" // 15 15
+                "ROR r8, r8, #24 \n" // 12 12
+                "ROR r9, r9, #24 \n" // 13 13
+                "ROR r10, r10, #24 \n" // 14 14
 
+                // 12-15
 
-                // QUARTERROUND(3, 4,  9, 14)
+                "STM %[output], { r0-r3 } \n"
+                "ADD %[output], %[output], #32 \n"
+                "LDM %[output], { r0-r3 } \n"
+                "SUB %[output], %[output], #32 \n"
+                // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
+                //  8  9 10 11  4  5  6  7 12 13  14  15
 
-                "ADD r3, r3, r4 \n"
-                "EOR r12, r12, r3 \n"
-                "ROR r12, r12, #16 \n"
+                "ADD r2, r2, r11 \n" // 10 10 15
+                "ADD r3, r3, r8 \n" // 11 11 12
+                "ADD r0, r0, r9 \n" // 8 8 13
+                "ADD r1, r1, r10 \n" // 9 9 14
 
-                "ADD r9, r9, r12 \n"
-                "EOR r4, r4, r9 \n"
-                "ROR r4, r4, #20 \n"
+                // 8-15
 
-                "ADD r3, r3, r4 \n"
-                "EOR r12, r12, r3 \n"
-                "ROR r12, r12, #24 \n"
+                "EOR r5, r5, r2 \n" // 5 5 10
+                "EOR r6, r6, r3 \n" // 6 6 11
+                "EOR r7, r7, r0 \n" // 7 7 8
+                "EOR r4, r4, r1 \n" // 4 4 9
 
-                "ADD r9, r9, r12 \n"
-                "EOR r4, r4, r9 \n"
-                "ROR r4, r4, #25 \n"
+                // 4-11
 
-                "STM %[output], { r0-r10 } \n"
-                "STRD r11, r12, [%[output], #52] \n"
+                "ROR r5, r5, #25 \n" // 5 5
+                "ROR r6, r6, #25 \n" // 6 6
+                "ROR r7, r7, #25 \n" // 7 7
+                "ROR r4, r4, #25 \n" // 4 4
+
+                // 4-7
+
+                "ADD %[output], %[output], #32 \n"
+                "STM %[output], { r0-r3 } \n"
+                "SUB %[output], %[output], #32 \n"
+                "LDM %[output], { r0-r3 } \n"
+                // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
+                //  0  1  2  3  4  5  6  7 12 13  14  15
+
+                "STM %[output], { r0-r7 } \n"
+                "ADD %[output], %[output], #48 \n"
+                "STM %[output], { r8-r11 } \n"
+                "SUB %[output], %[output], #48 \n"
 
                 :
                 [output] "=r" (output)
-//                [temp0] "+m" (temp0)
                 :
                 "0" (output)
                 : "memory",
@@ -1701,15 +1722,6 @@ static WC_INLINE void wc_Chacha_wordtobyte_64(word32 output[CHACHA_CHUNK_WORDS],
                 "r8", "r9", "r10", "r11",
                 "r12"
         );
-
-//        QUARTERROUND(0, 4,  8, 12)
-//        QUARTERROUND(1, 5,  9, 13)
-//        QUARTERROUND(2, 6, 10, 14)
-//        QUARTERROUND(3, 7, 11, 15)
-//        QUARTERROUND(0, 5, 10, 15)
-//        QUARTERROUND(1, 6, 11, 12)
-//        QUARTERROUND(2, 7,  8, 13)
-//        QUARTERROUND(3, 4,  9, 14)
     }
 
     for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
