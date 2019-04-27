@@ -1469,260 +1469,258 @@ static WC_INLINE void wc_Chacha_wordtobyte_64(word32 output[CHACHA_CHUNK_WORDS],
         output[i] = input[i];
     }
 
-    for (i = (ROUNDS); i > 0; i -= 2) {
+    __asm__ __volatile__ (
+            "LDM %[output], { r0-r7 } \n"
+            "ADD %[output], %[output], #48 \n"
+            "LDM %[output], { r8-r11 } \n"
+            "SUB %[output], %[output], #48 \n"
+            // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11
+            //  0  1  2  3  4  5  6  7 12 13  14  15
 
-        __asm__ __volatile__ (
-                // QUARTERROUND(0, 4,  8, 12)
+            "loop_64_%=:"
+            "SUB %[rounds], %[rounds], #1 \n"
 
-                "LDM %[output], { r0-r7 } \n"
-                "ADD %[output], %[output], #48 \n"
-                "LDM %[output], { r8-r11 } \n"
-                "SUB %[output], %[output], #48 \n"
-                // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
-                //  0  1  2  3  4  5  6  7 12 13  14  15
+            "ADD r0, r0, r4 \n" // 0 0 4
+            "ADD r1, r1, r5 \n" // 1 1 5
+            "ADD r2, r2, r6 \n" // 2 2 6
+            "ADD r3, r3, r7 \n" // 3 3 7
 
-                "ADD r0, r0, r4 \n" // 0 0 4
-                "ADD r1, r1, r5 \n" // 1 1 5
-                "ADD r2, r2, r6 \n" // 2 2 6
-                "ADD r3, r3, r7 \n" // 3 3 7
+            // 0-7
 
-                // 0-7
+            "EOR r8, r8, r0 \n" // 12 12 0
+            "EOR r9, r9, r1 \n" // 13 13 1
+            "EOR r10, r10, r2 \n" // 14 14 2
+            "EOR r11, r11, r3 \n" // 15 15 3
 
-                "EOR r8, r8, r0 \n" // 12 12 0
-                "EOR r9, r9, r1 \n" // 13 13 1
-                "EOR r10, r10, r2 \n" // 14 14 2
-                "EOR r11, r11, r3 \n" // 15 15 3
+            // 0-3 12-15
 
-                // 0-3 12-15
+            "ROR r8, r8, #16 \n" // 12 12
+            "ROR r9, r9, #16 \n" // 13 13
+            "ROR r10, r10, #16 \n" // 14 14
+            "ROR r11, r11, #16 \n" // 15 15
 
-                "ROR r8, r8, #16 \n" // 12 12
-                "ROR r9, r9, #16 \n" // 13 13
-                "ROR r10, r10, #16 \n" // 14 14
-                "ROR r11, r11, #16 \n" // 15 15
+            // 12-15
 
-                // 12-15
+            "STM %[output], { r0-r3 } \n"
+            "ADD %[output], %[output], #32 \n"
+            "LDM %[output], { r0-r3 } \n"
+            "SUB %[output], %[output], #32 \n"
+            // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11
+            //  8  9 10 11  4  5  6  7 12 13  14  15
 
-                "STM %[output], { r0-r3 } \n"
-                "ADD %[output], %[output], #32 \n"
-                "LDM %[output], { r0-r3 } \n"
-                "SUB %[output], %[output], #32 \n"
-                // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
-                //  8  9 10 11  4  5  6  7 12 13  14  15
+            "ADD r0, r0, r8 \n" // 8 8 12
+            "ADD r1, r1, r9 \n" //  9 9 13
+            "ADD r2, r2, r10 \n" // 10 10 14
+            "ADD r3, r3, r11 \n" // 11 11 15
 
-                "ADD r0, r0, r8 \n" // 8 8 12
-                "ADD r1, r1, r9 \n" //  9 9 13
-                "ADD r2, r2, r10 \n" // 10 10 14
-                "ADD r3, r3, r11 \n" // 11 11 15
+            // 8-15
 
-                // 8-15
+            "EOR r4, r4, r0 \n" // 4 4 8
+            "EOR r5, r5, r1 \n" // 5 5 9
+            "EOR r6, r6, r2 \n" // 6 6 10
+            "EOR r7, r7, r3 \n" // 7 7 11
 
-                "EOR r4, r4, r0 \n" // 4 4 8
-                "EOR r5, r5, r1 \n" // 5 5 9
-                "EOR r6, r6, r2 \n" // 6 6 10
-                "EOR r7, r7, r3 \n" // 7 7 11
+            // 4-11
 
-                // 4-11
+            "ROR r4, r4, #20 \n" // 4 4
+            "ROR r5, r5, #20 \n" // 5 5
+            "ROR r6, r6, #20 \n" // 6 6
+            "ROR r7, r7, #20 \n" // 7 7
 
-                "ROR r4, r4, #20 \n" // 4 4
-                "ROR r5, r5, #20 \n" // 5 5
-                "ROR r6, r6, #20 \n" // 6 6
-                "ROR r7, r7, #20 \n" // 7 7
+            // 4-7
 
-                // 4-7
+            "ADD %[output], %[output], #32 \n"
+            "STM %[output], { r0-r3 } \n"
+            "SUB %[output], %[output], #32 \n"
+            "LDM %[output], { r0-r3 } \n"
+            // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11
+            //  0  1  2  3  4  5  6  7 12 13  14  15
 
-                "ADD %[output], %[output], #32 \n"
-                "STM %[output], { r0-r3 } \n"
-                "SUB %[output], %[output], #32 \n"
-                "LDM %[output], { r0-r3 } \n"
-                // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
-                //  0  1  2  3  4  5  6  7 12 13  14  15
+            "ADD r0, r0, r4 \n" // 0 0 4
+            "ADD r1, r1, r5 \n" // 1 1 5
+            "ADD r2, r2, r6 \n" // 2 2 6
+            "ADD r3, r3, r7 \n" // 3 3 7
 
-                "ADD r0, r0, r4 \n" // 0 0 4
-                "ADD r1, r1, r5 \n" // 1 1 5
-                "ADD r2, r2, r6 \n" // 2 2 6
-                "ADD r3, r3, r7 \n" // 3 3 7
+            // 0-7
 
-                // 0-7
+            "EOR r8, r8, r0 \n" // 12 12 0
+            "EOR r9, r9, r1 \n" // 13 13 1
+            "EOR r10, r10, r2 \n" // 14 14 2
+            "EOR r11, r11, r3 \n" // 15 15 3
 
-                "EOR r8, r8, r0 \n" // 12 12 0
-                "EOR r9, r9, r1 \n" // 13 13 1
-                "EOR r10, r10, r2 \n" // 14 14 2
-                "EOR r11, r11, r3 \n" // 15 15 3
+            // 0-3 12-15
 
-                // 0-3 12-15
+            "ROR r8, r8, #24 \n" // 12 12
+            "ROR r9, r9, #24 \n" // 13 13
+            "ROR r10, r10, #24 \n" // 14 14
+            "ROR r11, r11, #24 \n" // 15 15
 
-                "ROR r8, r8, #24 \n" // 12 12
-                "ROR r9, r9, #24 \n" // 13 13
-                "ROR r10, r10, #24 \n" // 14 14
-                "ROR r11, r11, #24 \n" // 15 15
+            // 12-15
 
-                // 12-15
+            "STM %[output], { r0-r3 } \n"
+            "ADD %[output], %[output], #32 \n"
+            "LDM %[output], { r0-r3 } \n"
+            "SUB %[output], %[output], #32 \n"
+            // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11
+            //  8  9 10 11  4  5  6  7 12 13  14  15
 
-                "STM %[output], { r0-r3 } \n"
-                "ADD %[output], %[output], #32 \n"
-                "LDM %[output], { r0-r3 } \n"
-                "SUB %[output], %[output], #32 \n"
-                // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
-                //  8  9 10 11  4  5  6  7 12 13  14  15
+            "ADD r0, r0, r8 \n" // 8 8 12
+            "ADD r1, r1, r9 \n" // 9 9 13
+            "ADD r2, r2, r10 \n" // 10 10 14
+            "ADD r3, r3, r11 \n" // 11 11 15
 
-                "ADD r0, r0, r8 \n" // 8 8 12
-                "ADD r1, r1, r9 \n" // 9 9 13
-                "ADD r2, r2, r10 \n" // 10 10 14
-                "ADD r3, r3, r11 \n" // 11 11 15
+            // 8-15
 
-                // 8-15
+            "EOR r4, r4, r0 \n" // 4 4 8
+            "EOR r5, r5, r1 \n" // 5 5 9
+            "EOR r6, r6, r2 \n" // 6 6 10
+            "EOR r7, r7, r3 \n" // 7 7 11
 
-                "EOR r4, r4, r0 \n" // 4 4 8
-                "EOR r5, r5, r1 \n" // 5 5 9
-                "EOR r6, r6, r2 \n" // 6 6 10
-                "EOR r7, r7, r3 \n" // 7 7 11
+            // 4-11
 
-                // 4-11
+            "ROR r4, r4, #25 \n" // 4 4
+            "ROR r5, r5, #25 \n" // 5 5
+            "ROR r6, r6, #25 \n" // 6 6
+            "ROR r7, r7, #25 \n" // 7 7
 
-                "ROR r4, r4, #25 \n" // 4 4
-                "ROR r5, r5, #25 \n" // 5 5
-                "ROR r6, r6, #25 \n" // 6 6
-                "ROR r7, r7, #25 \n" // 7 7
+            // 4-7
 
-                // 4-7
+            "ADD %[output], %[output], #32 \n"
+            "STM %[output], { r0-r3 } \n"
+            "SUB %[output], %[output], #32 \n"
+            "LDM %[output], { r0-r3 } \n"
+            // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11
+            //  0  1  2  3  4  5  6  7 12 13  14  15
 
-                "ADD %[output], %[output], #32 \n"
-                "STM %[output], { r0-r3 } \n"
-                "SUB %[output], %[output], #32 \n"
-                "LDM %[output], { r0-r3 } \n"
-                // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
-                //  0  1  2  3  4  5  6  7 12 13  14  15
+            // ODD ROUND
 
-                // ODD ROUND
+            "ADD r0, r0, r5 \n" // 0 0 5
+            "ADD r1, r1, r6 \n" // 1 1 6
+            "ADD r2, r2, r7 \n" // 2 2 7
+            "ADD r3, r3, r4 \n" // 3 3 4
 
-                "ADD r0, r0, r5 \n" // 0 0 5
-                "ADD r1, r1, r6 \n" // 1 1 6
-                "ADD r2, r2, r7 \n" // 2 2 7
-                "ADD r3, r3, r4 \n" // 3 3 4
+            // 0-7
 
-                // 0-7
+            "EOR r11, r11, r0 \n" // 15 15 0
+            "EOR r8, r8, r1 \n" // 12 12 1
+            "EOR r9, r9, r2 \n" // 13 13 2
+            "EOR r10, r10, r3 \n" // 14 14 3
 
-                "EOR r11, r11, r0 \n" // 15 15 0
-                "EOR r8, r8, r1 \n" // 12 12 1
-                "EOR r9, r9, r2 \n" // 13 13 2
-                "EOR r10, r10, r3 \n" // 14 14 3
+            // 0-3 12-15
 
-                // 0-3 12-15
+            "ROR r11, r11, #16 \n" // 15 15
+            "ROR r8, r8, #16 \n" // 12 12
+            "ROR r9, r9, #16 \n" // 13 13
+            "ROR r10, r10, #16 \n" // 14 14
 
-                "ROR r11, r11, #16 \n" // 15 15
-                "ROR r8, r8, #16 \n" // 12 12
-                "ROR r9, r9, #16 \n" // 13 13
-                "ROR r10, r10, #16 \n" // 14 14
+            // 12-15
 
-                // 12-15
+            "STM %[output], { r0-r3 } \n"
+            "ADD %[output], %[output], #32 \n"
+            "LDM %[output], { r0-r3 } \n"
+            "SUB %[output], %[output], #32 \n"
+            // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11
+            //  8  9 10 11  4  5  6  7 12 13  14  15
 
-                "STM %[output], { r0-r3 } \n"
-                "ADD %[output], %[output], #32 \n"
-                "LDM %[output], { r0-r3 } \n"
-                "SUB %[output], %[output], #32 \n"
-                // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
-                //  8  9 10 11  4  5  6  7 12 13  14  15
+            "ADD r2, r2, r11 \n" // 10 10 15
+            "ADD r3, r3, r8 \n" // 11 11 12
+            "ADD r0, r0, r9 \n" // 8 8 13
+            "ADD r1, r1, r10 \n" // 9 9 14
 
-                "ADD r2, r2, r11 \n" // 10 10 15
-                "ADD r3, r3, r8 \n" // 11 11 12
-                "ADD r0, r0, r9 \n" // 8 8 13
-                "ADD r1, r1, r10 \n" // 9 9 14
+            // 8-15
 
-                // 8-15
+            "EOR r5, r5, r2 \n" // 5 5 10
+            "EOR r6, r6, r3 \n" // 6 6 11
+            "EOR r7, r7, r0 \n" // 7 7 8
+            "EOR r4, r4, r1 \n" // 4 4 9
 
-                "EOR r5, r5, r2 \n" // 5 5 10
-                "EOR r6, r6, r3 \n" // 6 6 11
-                "EOR r7, r7, r0 \n" // 7 7 8
-                "EOR r4, r4, r1 \n" // 4 4 9
+            // 4-11
 
-                // 4-11
+            "ROR r5, r5, #20 \n" // 5 5
+            "ROR r6, r6, #20 \n" // 6 6
+            "ROR r7, r7, #20 \n" // 7 7
+            "ROR r4, r4, #20 \n" // 4 4
 
-                "ROR r5, r5, #20 \n" // 5 5
-                "ROR r6, r6, #20 \n" // 6 6
-                "ROR r7, r7, #20 \n" // 7 7
-                "ROR r4, r4, #20 \n" // 4 4
+            // 4-7
 
-                // 4-7
+            "ADD %[output], %[output], #32 \n"
+            "STM %[output], { r0-r3 } \n"
+            "SUB %[output], %[output], #32 \n"
+            "LDM %[output], { r0-r3 } \n"
+            // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11
+            //  0  1  2  3  4  5  6  7 12 13  14  15
 
-                "ADD %[output], %[output], #32 \n"
-                "STM %[output], { r0-r3 } \n"
-                "SUB %[output], %[output], #32 \n"
-                "LDM %[output], { r0-r3 } \n"
-                // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
-                //  0  1  2  3  4  5  6  7 12 13  14  15
+            "ADD r0, r0, r5 \n" // 0 0 5
+            "ADD r1, r1, r6 \n" // 1 1 6
+            "ADD r2, r2, r7 \n" // 2 2 7
+            "ADD r3, r3, r4 \n" // 3 3 4
 
-                "ADD r0, r0, r5 \n" // 0 0 5
-                "ADD r1, r1, r6 \n" // 1 1 6
-                "ADD r2, r2, r7 \n" // 2 2 7
-                "ADD r3, r3, r4 \n" // 3 3 4
+            // 0-7
 
-                // 0-7
+            "EOR r11, r11, r0 \n" // 15 15 0
+            "EOR r8, r8, r1 \n" // 12 12 1
+            "EOR r9, r9, r2 \n" // 13 13 2
+            "EOR r10, r10, r3 \n" // 14 14 3
 
-                "EOR r11, r11, r0 \n" // 15 15 0
-                "EOR r8, r8, r1 \n" // 12 12 1
-                "EOR r9, r9, r2 \n" // 13 13 2
-                "EOR r10, r10, r3 \n" // 14 14 3
+            // 0-3 12-15
 
-                // 0-3 12-15
+            "ROR r11, r11, #24 \n" // 15 15
+            "ROR r8, r8, #24 \n" // 12 12
+            "ROR r9, r9, #24 \n" // 13 13
+            "ROR r10, r10, #24 \n" // 14 14
 
-                "ROR r11, r11, #24 \n" // 15 15
-                "ROR r8, r8, #24 \n" // 12 12
-                "ROR r9, r9, #24 \n" // 13 13
-                "ROR r10, r10, #24 \n" // 14 14
+            // 12-15
 
-                // 12-15
+            "STM %[output], { r0-r3 } \n"
+            "ADD %[output], %[output], #32 \n"
+            "LDM %[output], { r0-r3 } \n"
+            "SUB %[output], %[output], #32 \n"
+            // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11
+            //  8  9 10 11  4  5  6  7 12 13  14  15
 
-                "STM %[output], { r0-r3 } \n"
-                "ADD %[output], %[output], #32 \n"
-                "LDM %[output], { r0-r3 } \n"
-                "SUB %[output], %[output], #32 \n"
-                // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
-                //  8  9 10 11  4  5  6  7 12 13  14  15
+            "ADD r2, r2, r11 \n" // 10 10 15
+            "ADD r3, r3, r8 \n" // 11 11 12
+            "ADD r0, r0, r9 \n" // 8 8 13
+            "ADD r1, r1, r10 \n" // 9 9 14
 
-                "ADD r2, r2, r11 \n" // 10 10 15
-                "ADD r3, r3, r8 \n" // 11 11 12
-                "ADD r0, r0, r9 \n" // 8 8 13
-                "ADD r1, r1, r10 \n" // 9 9 14
+            // 8-15
 
-                // 8-15
+            "EOR r5, r5, r2 \n" // 5 5 10
+            "EOR r6, r6, r3 \n" // 6 6 11
+            "EOR r7, r7, r0 \n" // 7 7 8
+            "EOR r4, r4, r1 \n" // 4 4 9
 
-                "EOR r5, r5, r2 \n" // 5 5 10
-                "EOR r6, r6, r3 \n" // 6 6 11
-                "EOR r7, r7, r0 \n" // 7 7 8
-                "EOR r4, r4, r1 \n" // 4 4 9
+            // 4-11
 
-                // 4-11
+            "ROR r5, r5, #25 \n" // 5 5
+            "ROR r6, r6, #25 \n" // 6 6
+            "ROR r7, r7, #25 \n" // 7 7
+            "ROR r4, r4, #25 \n" // 4 4
 
-                "ROR r5, r5, #25 \n" // 5 5
-                "ROR r6, r6, #25 \n" // 6 6
-                "ROR r7, r7, #25 \n" // 7 7
-                "ROR r4, r4, #25 \n" // 4 4
+            // 4-7
 
-                // 4-7
+            "ADD %[output], %[output], #32 \n"
+            "STM %[output], { r0-r3 } \n"
+            "SUB %[output], %[output], #32 \n"
+            "LDM %[output], { r0-r3 } \n"
+            // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11
+            //  0  1  2  3  4  5  6  7 12 13  14  15
 
-                "ADD %[output], %[output], #32 \n"
-                "STM %[output], { r0-r3 } \n"
-                "SUB %[output], %[output], #32 \n"
-                "LDM %[output], { r0-r3 } \n"
-                // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
-                //  0  1  2  3  4  5  6  7 12 13  14  15
+            "CMP %[rounds], #0 \n"
+            "BNE loop_64_%= \n"
 
-                "STM %[output], { r0-r7 } \n"
-                "ADD %[output], %[output], #48 \n"
-                "STM %[output], { r8-r11 } \n"
-                "SUB %[output], %[output], #48 \n"
+            "STM %[output], { r0-r7 } \n"
+            "ADD %[output], %[output], #48 \n"
+            "STM %[output], { r8-r11 } \n"
+            "SUB %[output], %[output], #48 \n"
 
-                :
-                [output] "=r" (output)
-                :
-                "0" (output)
-                : "memory",
-                "r0", "r1", "r2", "r3",
-                "r4", "r5", "r6", "r7",
-                "r8", "r9", "r10", "r11",
-                "r12"
-        );
-    }
+            : [output] "=r" (output)
+            : "0" (output), [rounds] "r" (ROUNDS/2)
+            : "memory",
+            "r0", "r1", "r2", "r3",
+            "r4", "r5", "r6", "r7",
+            "r8", "r9", "r10", "r11"
+    );
 
     for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
         output[i] = PLUS(output[i], input[i]);
@@ -1769,6 +1767,7 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
         m += processed;
         ctx->X[CHACHA_IV_BYTES] = PLUS(ctx->X[CHACHA_IV_BYTES], processed / CHACHA_CHUNK_BYTES);
     }
+#endif /*__aarch64__ */
 
     for (; bytes > 0;) {
         output = (byte*)temp;
@@ -1777,16 +1776,16 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
         if (bytes >= CHACHA_CHUNK_BYTES) {
             // assume CHACHA_CHUNK_BYTES == 64
             __asm__ __volatile__ (
-                    "LD1 { v0.16B-v3.16B }, [%[m]] \n"
-                    "LD1 { v4.16B-v7.16B }, [%[output]] \n"
-                    "EOR v0.16B, v0.16B, v4.16B \n"
-                    "EOR v1.16B, v1.16B, v5.16B \n"
-                    "EOR v2.16B, v2.16B, v6.16B \n"
-                    "EOR v3.16B, v3.16B, v7.16B \n"
-                    "ST1 { v0.16B-v3.16B }, [%[c]] \n"
+                    "VLDM %[m], { q0-q3 } \n"
+                    "VLDM %[output], { q4-q7 } \n"
+                    "VEOR q0, q0, q4 \n"
+                    "VEOR q1, q1, q5 \n"
+                    "VEOR q2, q2, q6 \n"
+                    "VEOR q3, q3, q7 \n"
+                    "VSTM %[c], { q0-q3 } \n"
                     : [c] "=r" (c)
                     : "0" (c), [m] "r" (m), [output] "r" (output)
-                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7"
+                    : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7"
             );
 
             bytes -= CHACHA_CHUNK_BYTES;
@@ -1796,14 +1795,14 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
         } else {
             while (bytes >= ARM_SIMD_LEN_BYTES * 2) {
                 __asm__ __volatile__ (
-                        "LD1 { v0.16B-v1.16B }, [%[m]] \n"
-                        "LD1 { v2.16B-v3.16B }, [%[output]] \n"
-                        "EOR v0.16B, v0.16B, v2.16B \n"
-                        "EOR v1.16B, v1.16B, v3.16B \n"
-                        "ST1 { v0.16B-v1.16B }, [%[c]] \n"
+                        "VLDM %[m], { q0-q1 } \n"
+                        "VLDM %[output], { q2-q3 } \n"
+                        "VEOR q0, q0, q2 \n"
+                        "VEOR q1, q1, q3 \n"
+                        "VSTM %[c], { q0-q1 } \n"
                         : [c] "=r" (c)
                         : "0" (c), [m] "r" (m), [output] "r" (output)
-                        : "memory", "v0", "v1"
+                        : "memory", "q0", "q1", "q2", "q3"
                 );
 
                 bytes -= ARM_SIMD_LEN_BYTES * 2;
@@ -1813,13 +1812,13 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
             }
             if (bytes >= ARM_SIMD_LEN_BYTES) {
                 __asm__ __volatile__ (
-                        "LD1 { v0.16B }, [%[m]] \n"
-                        "LD1 { v1.16B }, [%[output]] \n"
-                        "EOR v0.16B, v0.16B, v1.16B \n"
-                        "ST1 { v0.16B }, [%[c]] \n"
+                        "VLDM %[m], { q0 } \n"
+                        "VLDM %[output], { q1 } \n"
+                        "VEOR q0, q0, q1 \n"
+                        "VSTM %[c], { q0 } \n"
                         : [c] "=r" (c)
                         : "0" (c), [m] "r" (m), [output] "r" (output)
-                        : "memory", "v0", "v1"
+                        : "memory", "q0", "q1"
                 );
 
                 bytes -= ARM_SIMD_LEN_BYTES;
@@ -1829,13 +1828,13 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
             }
             if (bytes >= ARM_SIMD_LEN_BYTES / 2) {
                 __asm__ __volatile__ (
-                        "LD1 { v0.8B }, [%[m]] \n"
-                        "LD1 { v1.8B }, [%[output]] \n"
-                        "EOR v0.8B, v0.8B, v1.8B \n"
-                        "ST1 { v0.8B }, [%[c]] \n"
+                        "VLDR d0, [%[m]] \n"
+                        "VLDR d1, [%[output]] \n"
+                        "VEOR d0, d0, d1 \n"
+                        "VSTR d0, [%[c]] \n"
                         : [c] "=r" (c)
                         : "0" (c), [m] "r" (m), [output] "r" (output)
-                        : "memory", "v0", "v1"
+                        : "memory", "d0", "d1"
                 );
 
                 bytes -= ARM_SIMD_LEN_BYTES / 2;
@@ -1852,25 +1851,6 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
             return;
         }
     }
-#else
-    output = (byte*)temp;
-    for (; bytes > 0;) {
-        wc_Chacha_wordtobyte_64(temp, ctx->X);
-        ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
-        if (bytes <= CHACHA_CHUNK_BYTES) {
-            for (i = 0; i < bytes; ++i) {
-                c[i] = m[i] ^ output[i];
-            }
-            return;
-        }
-        for (i = 0; i < CHACHA_CHUNK_BYTES; ++i) {
-            c[i] = m[i] ^ output[i];
-        }
-        bytes -= CHACHA_CHUNK_BYTES;
-        c += CHACHA_CHUNK_BYTES;
-        m += CHACHA_CHUNK_BYTES;
-    }
-#endif /*__aarch64__ */
 }
 
 /**
