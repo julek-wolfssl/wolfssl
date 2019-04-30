@@ -1265,7 +1265,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WO
 #endif /* __aarch64__ */
 }
 
-static WC_INLINE void wc_Chacha_wordtobyte_64(volatile word32 output[CHACHA_CHUNK_WORDS],
+static WC_INLINE void wc_Chacha_wordtobyte_64(word32 output[CHACHA_CHUNK_WORDS],
     const word32 input[CHACHA_CHUNK_WORDS])
 {
 #ifdef __aarch64__
@@ -1464,9 +1464,8 @@ static WC_INLINE void wc_Chacha_wordtobyte_64(volatile word32 output[CHACHA_CHUN
     );
 #else
     word32 i;
-    volatile word32 x[CHACHA_CHUNK_WORDS]; // volatile because the compiler likes to optimize it out even though its used in the inline assembly
-    word32 x_addr = (word32)x;
-    word32 input_addr = (word32)input;
+    word32 x[CHACHA_CHUNK_WORDS];
+    word32* x_addr = x;
 
     __asm__ __volatile__ (
             // copy input to x
@@ -1522,17 +1521,17 @@ static WC_INLINE void wc_Chacha_wordtobyte_64(volatile word32 output[CHACHA_CHUN
 
             "ADD r8, r8, r10 \n" // 8 8 12
             "ADD r9, r9, r11 \n" // 9 9 13
+            "STR r11, %[x_13] \n"
+            "LDR r11, %[x_15] \n"
             "EOR r4, r4, r8 \n" // 4 4 8
+            "STR r8, %[x_8] \n"
+            "LDR r8, %[x_10] \n"
             "EOR r5, r5, r9 \n" // 5 5 9
+            "STR r9, %[x_9] \n"
+            "LDR r9, %[x_11] \n"
             "ROR r4, r4, #25 \n" // 4 4
             "ROR r5, r5, #25 \n" // 5 5
 
-            "STR r8, %[x_8] \n"
-            "LDR r8, %[x_10] \n"
-            "STR r9, %[x_9] \n"
-            "LDR r9, %[x_11] \n"
-            "STR r11, %[x_13] \n"
-            "LDR r11, %[x_15] \n"
             // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
             //  0  1  2  3  4  5  6  7 10 11  12  15  14
 
@@ -1592,18 +1591,18 @@ static WC_INLINE void wc_Chacha_wordtobyte_64(volatile word32 output[CHACHA_CHUN
             "ROR r10, r10, #24 \n" // 12 12
 
             "ADD r8, r8, r11 \n" // 10 10 15
+            "STR r11, %[x_15] \n"
+            "LDR r11, %[x_13] \n"
             "ADD r9, r9, r10 \n" // 11 11 12
             "EOR r5, r5, r8 \n" // 5 5 10
+            "STR r8, %[x_10] \n"
+            "LDR r8, %[x_8] \n"
             "EOR r6, r6, r9 \n" // 6 6 11
+            "STR r9, %[x_11] \n"
+            "LDR r9, %[x_9] \n"
             "ROR r5, r5, #25 \n" // 5 5
             "ROR r6, r6, #25 \n" // 6 6
 
-            "STR r8, %[x_10] \n"
-            "LDR r8, %[x_8] \n"
-            "STR r9, %[x_11] \n"
-            "LDR r9, %[x_9] \n"
-            "STR r11, %[x_15] \n"
-            "LDR r11, %[x_13] \n"
             // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
             //  0  1  2  3  4  5  6  7  8  9  12  13  14
 
@@ -1638,17 +1637,72 @@ static WC_INLINE void wc_Chacha_wordtobyte_64(volatile word32 output[CHACHA_CHUN
             "ROR r7, r7, #25 \n" // 7 7
             "ROR r4, r4, #25 \n" // 4 4
 
-            "CMP r14, #0 \n"
             "BNE loop_64_%= \n"
 
-            "LDR r14, %[x_addr] \n" // load address of x to r12
+            "LDR r14, %[x_addr] \n" // load address of x to r14
+
+//            "STM r14, { r0-r9 } \n"
+//            "ADD r14, r14, #4*12 \n"
+//            "STM r14, { r10-r12 } \n"
+
             // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
             //  0  1  2  3  4  5  6  7  8  9  12  13  14
             "STM r14, { r0-r9 } \n"
-            "ADD r14, r14, #4*12 \n"
-            "STM r14, { r10-r12 } \n"
+            "STR r12, [r14, #4*14] \n"
+            "LDR r12, %[input_addr] \n" // load address of input to r12
+            // r12 = &input[0];
 
-            : [output] "+m" (output),
+            "STRD r10, r11, [r14, #4*12] \n"
+            "LDRD r10, r11, [r12], #4*2 \n"
+            // r12 = &input[2]
+            "ADD r14, r14, #4*10 \n"
+            // r14 = &x[10]
+
+            "ADD r1, r1, r11 \n"
+            "LDR r11, %[output_addr] \n" // load address of output to r11
+            // r11 = &output[0]
+            "ADD r0, r0, r10 \n"
+
+            "STRD r0, r1, [r11], #4*2 \n"
+            // r11 = &output[2]
+            "LDRD r0, r1, [r12], #4*2 \n"
+            // r12 = &input[4]
+
+            "ADD r2, r2, r0 \n"
+            "ADD r3, r3, r1 \n"
+            "STRD r2, r3, [r11], #4*2 \n"
+            // r11 = &output[4]
+
+            "LDM r12!, { r0-r3,r10 } \n"
+            // r12 = &input[9]
+
+            "ADD r4, r4, r0 \n"
+            "ADD r5, r5, r1 \n"
+            "ADD r6, r6, r2 \n"
+            "ADD r7, r7, r3 \n"
+            "ADD r8, r8, r10 \n"
+            "STM r11!, { r4-r8 } \n"
+            // r11 = &output[9]
+            "LDM r14!, { r0-r3 } \n"
+            // r14 = &x[14]
+
+            "LDM r12!, { r4-r8 } \n"
+            // r12 = &input[14]
+            "ADD r4, r4, r9 \n"
+            "ADD r5, r5, r0 \n"
+            "ADD r6, r6, r1 \n"
+            "ADD r7, r7, r2 \n"
+            "ADD r8, r8, r3 \n"
+            "STM r11!, { r4-r8 } \n"
+            // r11 = &output[14]
+
+            "LDRD r0, r1, [r14] \n"
+            "LDRD r4, r5, [r12] \n"
+            "ADD r4, r4, r0 \n"
+            "ADD r5, r5, r1 \n"
+            "STRD r4, r5, [r11] \n"
+
+            : [output_addr] "+m" (output),
               [x_0] "=m" (x),
               [x_8] "=m" (x[8]),
               [x_9] "=m" (x[9]),
@@ -1658,21 +1712,12 @@ static WC_INLINE void wc_Chacha_wordtobyte_64(volatile word32 output[CHACHA_CHUN
               [x_15] "=m" (x[15])
             : [rounds] "I" (ROUNDS/2),
               [x_addr] "m" (x_addr),
-              [input_addr] "m" (input_addr),
-              [input] "m" (input)
+              [input_addr] "m" (input)
             : "memory", "cc",
             "r0", "r1", "r2", "r3",
             "r4", "r5", "r6", "r7",
             "r8", "r9", "r10", "r11", "r12", "r14"
     );
-
-    for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
-        x[i] = PLUS(x[i], input[i]);
-    }
-
-    for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
-        output[i] = LITTLE32(x[i]);
-    }
 #endif /* __aarch64__ */
 }
 
@@ -1683,7 +1728,7 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                                     word32 bytes)
 {
     byte*  output;
-    volatile word32 temp[CHACHA_CHUNK_WORDS]; /* used to make sure aligned */
+    word32 temp[CHACHA_CHUNK_WORDS]; /* used to make sure aligned */
     word32 i;
 
 #ifdef __aarch64__
