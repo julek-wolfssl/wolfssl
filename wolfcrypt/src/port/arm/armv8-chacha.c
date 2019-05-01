@@ -1097,7 +1097,6 @@ static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WO
             "LD1 { v24.4S-v27.4S }, [%[input]] \n"
             // get counter value
             "MOV w17, v27.S[0] \n"
-            "ADD w17, w17, #1 \n"
 
             "LD1 { v28.4S-v31.4S }, [%[m]] \n"
             "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
@@ -1115,6 +1114,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WO
             "MOV v4.16B, v24.16B \n"
             "MOV v5.16B, v25.16B \n"
             "MOV v6.16B, v26.16B \n"
+            "ADD w17, w17, #1 \n"
             "MOV v7.16B, v27.16B \n"
             "MOV v7.S[0], w17 \n"
 
@@ -1260,9 +1260,153 @@ static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WO
               "v12", "v13",
               "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
     );
+#else
+    int i;
+    word32 x[CHACHA_CHUNK_WORDS * 2];
 
-    return CHACHA_CHUNK_BYTES * 2;
+    __asm__ __volatile__ (
+            "MOV r12, #1 \n"
+            "VLDM %[input], { q0-q3 } \n"
+            "VMOV.I32 q8, #0 \n"
+            "VMOV q4, q0 \n"
+            "VMOV.I32 d16[0], r12 \n"
+            "VMOV q5, q1 \n"
+            "VMOV q6, q2 \n"
+            "VADD.I32 q7, q3, q8 \n" // add one to counter
+
+            "loop_128_%=: \n"
+            "SUBS %[rounds], %[rounds], #1 \n"
+
+            // ODD ROUND
+            "VADD.I32 q0, q0, q1 \n"
+            "VADD.I32 q4, q4, q5 \n"
+            "VEOR q8, q3, q0 \n"
+            "VEOR q9, q7, q4 \n"
+            // rotation by 16 bits may be done by reversing the 16 bit elements in 32 bit words
+            "VREV32.16 q3, q8 \n"
+            "VREV32.16 q7, q9 \n"
+
+            "VADD.I32 q2, q2, q3 \n"
+            "VADD.I32 q6, q6, q7 \n"
+            "VEOR q8, q1, q2 \n"
+            "VEOR q9, q5, q6 \n"
+            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
+            "VSHL.I32 q1, q8, #12 \n"
+            "VSHL.I32 q5, q9, #12 \n"
+            "VSRI.I32 q1, q8, #20 \n"
+            "VSRI.I32 q5, q9, #20 \n"
+
+            "VADD.I32 q0, q0, q1 \n"
+            "VADD.I32 q4, q4, q5 \n"
+            "VEOR q8, q3, q0 \n"
+            "VEOR q9, q7, q4 \n"
+            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
+            "VSHL.I32 q3, q8, #8 \n"
+            "VSHL.I32 q7, q9, #8 \n"
+            "VSRI.I32 q3, q8, #24 \n"
+            "VSRI.I32 q7, q9, #24 \n"
+
+            "VADD.I32 q2, q2, q3 \n"
+            "VADD.I32 q6, q6, q7 \n"
+            "VEOR q8, q1, q2 \n"
+            "VEOR q9, q5, q6 \n"
+            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
+            "VSHL.I32 q1, q8, #7 \n"
+            "VSHL.I32 q5, q9, #7 \n"
+            "VSRI.I32 q1, q8, #25 \n"
+            "VSRI.I32 q5, q9, #25 \n"
+
+            // EVEN ROUND
+
+            "VEXT.8 q1, q1, q1, #4 \n" // permute elements left by one
+            "VEXT.8 q2, q2, q2, #8 \n" // permute elements left by two
+            "VEXT.8 q3, q3, q3, #12 \n" // permute elements left by three
+
+            "VEXT.8 q5, q5, q5, #4 \n" // permute elements left by one
+            "VEXT.8 q6, q6, q6, #8 \n" // permute elements left by two
+            "VEXT.8 q7, q7, q7, #12 \n" // permute elements left by three
+
+
+            "VADD.I32 q0, q0, q1 \n"
+            "VADD.I32 q4, q4, q5 \n"
+            "VEOR q8, q3, q0 \n"
+            "VEOR q9, q7, q4 \n"
+            // rotation by 16 bits may be done by reversing the 16 bit elements in 32 bit words
+            "VREV32.16 q3, q8 \n"
+            "VREV32.16 q7, q9 \n"
+
+            "VADD.I32 q2, q2, q3 \n"
+            "VADD.I32 q6, q6, q7 \n"
+            "VEOR q8, q1, q2 \n"
+            "VEOR q9, q5, q6 \n"
+            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
+            "VSHL.I32 q1, q8, #12 \n"
+            "VSHL.I32 q5, q9, #12 \n"
+            "VSRI.I32 q1, q8, #20 \n"
+            "VSRI.I32 q5, q9, #20 \n"
+
+            "VADD.I32 q0, q0, q1 \n"
+            "VADD.I32 q4, q4, q5 \n"
+            "VEOR q8, q3, q0 \n"
+            "VEOR q9, q7, q4 \n"
+            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
+            "VSHL.I32 q3, q8, #8 \n"
+            "VSHL.I32 q7, q9, #8 \n"
+            "VSRI.I32 q3, q8, #24 \n"
+            "VSRI.I32 q7, q9, #24 \n"
+
+            "VADD.I32 q2, q2, q3 \n"
+            "VADD.I32 q6, q6, q7 \n"
+            "VEOR q8, q1, q2 \n"
+            "VEOR q9, q5, q6 \n"
+            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
+            "VSHL.I32 q1, q8, #7 \n"
+            "VSHL.I32 q5, q9, #7 \n"
+            "VSRI.I32 q1, q8, #25 \n"
+            "VSRI.I32 q5, q9, #25 \n"
+
+            "VEXT.8 q1, q1, q1, #12 \n" // permute elements left by three
+            "VEXT.8 q2, q2, q2, #8 \n" // permute elements left by two
+            "VEXT.8 q3, q3, q3, #4 \n" // permute elements left by one
+
+            "VEXT.8 q5, q5, q5, #12 \n" // permute elements left by three
+            "VEXT.8 q6, q6, q6, #8 \n" // permute elements left by two
+            "VEXT.8 q7, q7, q7, #4 \n" // permute elements left by one
+
+            "VEXT.8 q11, q11, q11, #4 \n" // permute elements left by one
+
+            "BNE loop_128_%= \n"
+
+            "VSTM %[x_addr], { q0-q7 } \n"
+
+            : [c] "+r" (c), [m] "+r" (m)
+            : [rounds] "r" (ROUNDS/2), [input] "r" (input),
+              [chacha_chunk_bytes] "I" (CHACHA_CHUNK_BYTES),
+              [x_addr] "r" (&x)
+            : "memory", "cc",
+              "r11", "r12",
+              "q0",  "q1",  "q2", "q3", "q4",
+              "q5",  "q6",  "q7", "q8", "q9"
+    );
+
+    byte*  output;
+    output = (byte*)x;
+
+    for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
+        x[i] = PLUS(x[i], input[i]);
+    }
+    for (i = CHACHA_CHUNK_WORDS; i < CHACHA_CHUNK_WORDS*2; i++) {
+        if (i-CHACHA_CHUNK_WORDS != 12) {
+            x[i] = PLUS(x[i], input[i-CHACHA_CHUNK_WORDS]);
+        } else {
+            x[i] = PLUS(x[i], input[i-CHACHA_CHUNK_WORDS]) + 1;
+        }
+    }
+    for (i = 0; i < CHACHA_CHUNK_BYTES * 2; ++i) {
+        c[i] = m[i] ^ output[i];
+    }
 #endif /* __aarch64__ */
+    return CHACHA_CHUNK_BYTES * 2;
 }
 
 static WC_INLINE void wc_Chacha_wordtobyte_64(word32 output[CHACHA_CHUNK_WORDS],
@@ -1730,9 +1874,9 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
     byte*  output;
     word32 temp[CHACHA_CHUNK_WORDS]; /* used to make sure aligned */
     word32 i;
+    int    processed;
 
 #ifdef __aarch64__
-    int    processed;
     if (bytes >= CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS) {
         processed = wc_Chacha_wordtobyte_320(ctx->X, m, c, bytes);
 
@@ -1749,6 +1893,15 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
         m += processed;
         ctx->X[CHACHA_IV_BYTES] = PLUS(ctx->X[CHACHA_IV_BYTES], processed / CHACHA_CHUNK_BYTES);
     } else if (bytes >= CHACHA_CHUNK_BYTES * 2) {
+        processed = wc_Chacha_wordtobyte_128(ctx->X, m, c);
+
+        bytes -= processed;
+        c += processed;
+        m += processed;
+        ctx->X[CHACHA_IV_BYTES] = PLUS(ctx->X[CHACHA_IV_BYTES], processed / CHACHA_CHUNK_BYTES);
+    }
+#else
+    if (bytes >= CHACHA_CHUNK_BYTES * 2) {
         processed = wc_Chacha_wordtobyte_128(ctx->X, m, c);
 
         bytes -= processed;
