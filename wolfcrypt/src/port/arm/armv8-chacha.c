@@ -1391,7 +1391,17 @@ static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WO
             "VADD.I32 q6, q6, q12 \n"
             "VADD.I32 q7, q7, q13 \n"
 
-            "VSTM %[x_addr], { q0-q7 } \n"
+            "VLDM %[m], { q8-q15 } \n"
+            "VEOR q0, q0, q8 \n"
+            "VEOR q1, q1, q9 \n"
+            "VEOR q2, q2, q10 \n"
+            "VEOR q3, q3, q11 \n"
+            "VEOR q4, q4, q12 \n"
+            "VEOR q5, q5, q13 \n"
+            "VEOR q6, q6, q14 \n"
+            "VEOR q7, q7, q15 \n"
+
+            "VSTM %[c], { q0-q7 } \n"
 
             : [c] "+r" (c), [m] "+r" (m)
             : [rounds] "r" (ROUNDS/2), [input] "r" (input),
@@ -1403,13 +1413,6 @@ static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WO
               "q5",  "q6",  "q7", "q8", "q9",
               "q10", "q11", "q12", "q13"
     );
-
-    byte*  output;
-    output = (byte*)x;
-
-    for (i = 0; i < CHACHA_CHUNK_BYTES * 2; ++i) {
-        c[i] = m[i] ^ output[i];
-    }
 #endif /* __aarch64__ */
     return CHACHA_CHUNK_BYTES * 2;
 }
