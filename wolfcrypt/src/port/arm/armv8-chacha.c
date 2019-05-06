@@ -1079,15 +1079,14 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
               "v25", "v26", "v27", "v28", "v29", "v30", "v31"
     );
 #else
-    word32 x[CHACHA_CHUNK_WORDS * 4];
+    word32 x[CHACHA_CHUNK_WORDS];
     word32* x_addr = x;
     __asm__ __volatile__ (
             // The paper NEON crypto by Daniel J. Bernstein and Peter Schwabe was used to optimize for ARM
             // https://cryptojedi.org/papers/neoncrypto-20120320.pdf
 
-            // TODO interleave NEON with ARM
-
             "LDR r14, %[input] \n" // load input address
+            "LDR r12, %[x_addr] \n" // load address of x to r12
 
             "MOV r11, #1 \n"
             "VLDM r14, { q0-q3 } \n"
@@ -1102,10 +1101,172 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
             "VMOV q10, q2 \n"
             "VADD.I32 q11, q7, q12 \n" // add two to counter
 
+            "LDM r14!, { r0-r11 } \n"
+            "STM r12!, { r0-r11 } \n"
+            // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
+            //  0  1  2  3  4  5  6  7  8  9  10  11  &x
+            "LDM r14, { r8-r11 } \n"
+            "STM r12, { r8-r11 } \n"
+            // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
+            //  0  1  2  3  4  5  6  7 12 13  14  15  &x
+
+            // set registers to correct values
+            "MOV r12, r10 \n"
+            "MOV r11, r9 \n"
+            "MOV r10, r8 \n"
+            // r14 is set to &x[12]
+            "LDR r8, [r14, #4*-4] \n"
+            "LDR r9, [r14, #4*-3] \n"
+            // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
+            //  0  1  2  3  4  5  6  7  8  9  12  13  14
+            "ADD r10, r10, #3 \n" // ARM calculates the fourth block
+
             "MOV r14, %[rounds] \n"
 
             "loop_256_%=: \n"
             "SUBS r14, r14, #1 \n"
+
+            // 0, 4,  8, 12
+            // 1, 5,  9, 13
+
+            "ADD r0, r0, r4 \n" // 0 0 4
+            "ADD r1, r1, r5 \n" // 1 1 5
+            "EOR r10, r10, r0 \n" // 12 12 0
+            "EOR r11, r11, r1 \n" // 13 13 1
+            "ROR r10, r10, #16 \n" // 12 12
+            "ROR r11, r11, #16 \n" // 13 13
+
+            "ADD r8, r8, r10 \n" // 8 8 12
+            "ADD r9, r9, r11 \n" //  9 9 13
+            "EOR r4, r4, r8 \n" // 4 4 8
+            "EOR r5, r5, r9 \n" // 5 5 9
+            "ROR r4, r4, #20 \n" // 4 4
+            "ROR r5, r5, #20 \n" // 5 5
+
+            "ADD r0, r0, r4 \n" // 0 0 4
+            "ADD r1, r1, r5 \n" // 1 1 5
+            "EOR r10, r10, r0 \n" // 12 12 0
+            "EOR r11, r11, r1 \n" // 13 13 1
+            "ROR r10, r10, #24 \n" // 12 12
+            "ROR r11, r11, #24 \n" // 13 13
+
+            "ADD r8, r8, r10 \n" // 8 8 12
+            "ADD r9, r9, r11 \n" // 9 9 13
+            "STR r11, %[x_13] \n"
+            "LDR r11, %[x_15] \n"
+            "EOR r4, r4, r8 \n" // 4 4 8
+            "STR r8, %[x_8] \n"
+            "LDR r8, %[x_10] \n"
+            "EOR r5, r5, r9 \n" // 5 5 9
+            "STR r9, %[x_9] \n"
+            "LDR r9, %[x_11] \n"
+            "ROR r4, r4, #25 \n" // 4 4
+            "ROR r5, r5, #25 \n" // 5 5
+
+            // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
+            //  0  1  2  3  4  5  6  7 10 11  12  15  14
+
+            // 2, 6, 10, 14
+            // 3, 7, 11, 15
+
+            "ADD r2, r2, r6 \n" // 2 2 6
+            "ADD r3, r3, r7 \n" // 3 3 7
+            "EOR r12, r12, r2 \n" // 14 14 2
+            "EOR r11, r11, r3 \n" // 15 15 3
+            "ROR r12, r12, #16 \n" // 14 14
+            "ROR r11, r11, #16 \n" // 15 15
+
+            "ADD r8, r8, r12 \n" // 10 10 14
+            "ADD r9, r9, r11 \n" // 11 11 15
+            "EOR r6, r6, r8 \n" // 6 6 10
+            "EOR r7, r7, r9 \n" // 7 7 11
+            "ROR r6, r6, #20 \n" // 6 6
+            "ROR r7, r7, #20 \n" // 7 7
+
+            "ADD r2, r2, r6 \n" // 2 2 6
+            "ADD r3, r3, r7 \n" // 3 3 7
+            "EOR r12, r12, r2 \n" // 14 14 2
+            "EOR r11, r11, r3 \n" // 15 15 3
+            "ROR r12, r12, #24 \n" // 14 14
+            "ROR r11, r11, #24 \n" // 15 15
+
+            "ADD r8, r8, r12 \n" // 10 10 14
+            "ADD r9, r9, r11 \n" // 11 11 15
+            "EOR r6, r6, r8 \n" // 6 6 10
+            "EOR r7, r7, r9 \n" // 7 7 11
+            "ROR r6, r6, #25 \n" // 6 6
+            "ROR r7, r7, #25 \n" // 7 7
+
+            // 0, 5, 10, 15
+            // 1, 6, 11, 12
+
+            "ADD r0, r0, r5 \n" // 0 0 5
+            "ADD r1, r1, r6 \n" // 1 1 6
+            "EOR r11, r11, r0 \n" // 15 15 0
+            "EOR r10, r10, r1 \n" // 12 12 1
+            "ROR r11, r11, #16 \n" // 15 15
+            "ROR r10, r10, #16 \n" // 12 12
+
+            "ADD r8, r8, r11 \n" // 10 10 15
+            "ADD r9, r9, r10 \n" // 11 11 12
+            "EOR r5, r5, r8 \n" // 5 5 10
+            "EOR r6, r6, r9 \n" // 6 6 11
+            "ROR r5, r5, #20 \n" // 5 5
+            "ROR r6, r6, #20 \n" // 6 6
+
+            "ADD r0, r0, r5 \n" // 0 0 5
+            "ADD r1, r1, r6 \n" // 1 1 6
+            "EOR r11, r11, r0 \n" // 15 15 0
+            "EOR r10, r10, r1 \n" // 12 12 1
+            "ROR r11, r11, #24 \n" // 15 15
+            "ROR r10, r10, #24 \n" // 12 12
+
+            "ADD r8, r8, r11 \n" // 10 10 15
+            "STR r11, %[x_15] \n"
+            "LDR r11, %[x_13] \n"
+            "ADD r9, r9, r10 \n" // 11 11 12
+            "EOR r5, r5, r8 \n" // 5 5 10
+            "STR r8, %[x_10] \n"
+            "LDR r8, %[x_8] \n"
+            "EOR r6, r6, r9 \n" // 6 6 11
+            "STR r9, %[x_11] \n"
+            "LDR r9, %[x_9] \n"
+            "ROR r5, r5, #25 \n" // 5 5
+            "ROR r6, r6, #25 \n" // 6 6
+
+            // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
+            //  0  1  2  3  4  5  6  7  8  9  12  13  14
+
+            // 2, 7,  8, 13
+            // 3, 4,  9, 14
+
+            "ADD r2, r2, r7 \n" // 2 2 7
+            "ADD r3, r3, r4 \n" // 3 3 4
+            "EOR r11, r11, r2 \n" // 13 13 2
+            "EOR r12, r12, r3 \n" // 14 14 3
+            "ROR r11, r11, #16 \n" // 13 13
+            "ROR r12, r12, #16 \n" // 14 14
+
+            "ADD r8, r8, r11 \n" // 8 8 13
+            "ADD r9, r9, r12 \n" // 9 9 14
+            "EOR r7, r7, r8 \n" // 7 7 8
+            "EOR r4, r4, r9 \n" // 4 4 9
+            "ROR r7, r7, #20 \n" // 7 7
+            "ROR r4, r4, #20 \n" // 4 4
+
+            "ADD r2, r2, r7 \n" // 2 2 7
+            "ADD r3, r3, r4 \n" // 3 3 4
+            "EOR r11, r11, r2 \n" // 13 13 2
+            "EOR r12, r12, r3 \n" // 14 14 3
+            "ROR r11, r11, #24 \n" // 13 13
+            "ROR r12, r12, #24 \n" // 14 14
+
+            "ADD r8, r8, r11 \n" // 8 8 13
+            "ADD r9, r9, r12 \n" // 9 9 14
+            "EOR r7, r7, r8 \n" // 7 7 8
+            "EOR r4, r4, r9 \n" // 4 4 9
+            "ROR r7, r7, #25 \n" // 7 7
+            "ROR r4, r4, #25 \n" // 4 4
 
             // ODD ROUND
             "VADD.I32 q0, q0, q1 \n"
@@ -1242,9 +1403,18 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
 
             "BNE loop_256_%= \n"
 
-            "LDR r12, %[input] \n" // load input address
+            "LDR r14, %[x_addr] \n" // load address of x to r14
+            // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
+            //  0  1  2  3  4  5  6  7  8  9  12  13  14
+            "ADD r10, r10, #3 \n" // add three here to make later NEON easier
+            "STM r14, { r0-r9 } \n"
+            "STRD r10, r11, [r14, #4*12] \n"
+            "STR r12, [r14, #4*14] \n"
+            "MOV r10, r14 \n"
+
+            "LDR r9, %[input] \n" // load input address
             "LDR r14, %[c] \n" // load c address
-            "VLDM r12, { q12-q15 } \n"
+            "VLDM r9, { q12-q15 } \n"
             "LDR r12, %[m] \n" // load m address
 
             "VADD.I32 q0, q0, q12 \n"
@@ -1262,6 +1432,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
             "VADD.I32 q10, q10, q14 \n"
             "VADD.I32 q11, q11, q15 \n"
 
+            "MOV r11, #1 \n"
             "VMOV.I32 q12, #0 \n"
             "VMOV.I32 d24[0], r11 \n"
             "VADD.I32 q11, q11, q12 \n" // add one to counter
@@ -1289,23 +1460,41 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
             "VEOR q11, q11, q15 \n"
             "VSTM r14!, { q8-q11 } \n" // store to c
 
-//
-//            "VSTM r14!, { q0-q7 } \n"
-//            "VSTM r14!, { q8-q11 } \n"
+            "VLDM r10, { q0-q3 } \n " // load final block from x
+            "VLDM r9, { q4-q7 } \n" // load input
+            "VLDM r12!, { q12-q15 } \n" // load m
+            "VADD.I32 q0, q0, q4 \n"
+            "VADD.I32 q1, q1, q5 \n"
+            "VADD.I32 q2, q2, q6 \n"
+            "VADD.I32 q3, q3, q7 \n"
+            "VEOR q0, q0, q12 \n"
+            "VEOR q1, q1, q13 \n"
+            "VEOR q2, q2, q14 \n"
+            "VEOR q3, q3, q15 \n"
+            "VSTM r14!, { q0-q3 } \n" // store to c
 
-            : [c] "+m" (c), [m] "+m" (m)
+            : [c] "+m" (c),
+              [x_0] "=m" (x),
+              [x_8] "=m" (x[8]),
+              [x_9] "=m" (x[9]),
+              [x_10] "=m" (x[10]),
+              [x_11] "=m" (x[11]),
+              [x_13] "=m" (x[13]),
+              [x_15] "=m" (x[15])
             : [rounds] "I" (ROUNDS/2), [input] "m" (input),
               [chacha_chunk_bytes] "I" (CHACHA_CHUNK_BYTES),
-              [x_addr] "m" (x_addr)
+              [m] "m" (m), [x_addr] "m" (x_addr)
             : "memory", "cc",
-              "r11", "r12", "r14",
+              "r0", "r1", "r2", "r3",
+              "r4", "r5", "r6", "r7",
+              "r8", "r9", "r10", "r11", "r12", "r14",
               "q0",  "q1",  "q2", "q3", "q4",
               "q5",  "q6",  "q7", "q8", "q9",
               "q10", "q11", "q12", "q13", "q14"
     );
 
 #endif /* __aarch64__ */
-    return CHACHA_CHUNK_BYTES * 3;
+    return CHACHA_CHUNK_BYTES * 4;
 }
 
 
@@ -2130,7 +2319,7 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
         ctx->X[CHACHA_IV_BYTES] = PLUS(ctx->X[CHACHA_IV_BYTES], processed / CHACHA_CHUNK_BYTES);
     }
 #else
-    if (bytes >= CHACHA_CHUNK_BYTES * 3) {
+    if (bytes >= CHACHA_CHUNK_BYTES * 4) {
         processed = wc_Chacha_wordtobyte_256(ctx->X, m, c);
 
         bytes -= processed;
