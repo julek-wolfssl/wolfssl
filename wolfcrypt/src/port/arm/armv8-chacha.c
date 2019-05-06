@@ -1086,42 +1086,39 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
             // https://cryptojedi.org/papers/neoncrypto-20120320.pdf
 
             "LDR r14, %[input] \n" // load input address
+            "MOV r11, #1 \n"
             "LDR r12, %[x_addr] \n" // load address of x to r12
 
-            "MOV r11, #1 \n"
-            "VLDM r14, { q0-q3 } \n"
             "VMOV.I32 q12, #0 \n"
+            "VLDM r14, { q0-q3 } \n"
             "VMOV q4, q0 \n"
             "VMOV.I32 d24[0], r11 \n"
-            "VMOV q5, q1 \n"
-            "VMOV q6, q2 \n"
-            "VADD.I32 q7, q3, q12 \n" // add one to counter
-            "VMOV q8, q0 \n"
-            "VMOV q9, q1 \n"
-            "VMOV q10, q2 \n"
-            "VADD.I32 q11, q7, q12 \n" // add two to counter
-
             "LDM r14!, { r0-r11 } \n"
+            "VMOV q5, q1 \n"
             "STM r12!, { r0-r11 } \n"
             // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
             //  0  1  2  3  4  5  6  7  8  9  10  11  &x
+            "VMOV q6, q2 \n"
             "LDM r14, { r8-r11 } \n"
+            "VADD.I32 q7, q3, q12 \n" // add one to counter
             "STM r12, { r8-r11 } \n"
             // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
             //  0  1  2  3  4  5  6  7 12 13  14  15  &x
-
-            // set registers to correct values
+            "VMOV q8, q0 \n"
             "MOV r12, r10 \n"
+            "VMOV q9, q1 \n"
             "MOV r11, r9 \n"
+            "VMOV q10, q2 \n"
             "MOV r10, r8 \n"
+            "VADD.I32 q11, q7, q12 \n" // add two to counter
+
             // r14 is set to &x[12]
             "LDR r8, [r14, #4*-4] \n"
             "LDR r9, [r14, #4*-3] \n"
             // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
             //  0  1  2  3  4  5  6  7  8  9  12  13  14
-            "ADD r10, r10, #3 \n" // ARM calculates the fourth block
-
             "MOV r14, %[rounds] \n"
+            "ADD r10, r10, #3 \n" // ARM calculates the fourth block
 
             "loop_256_%=: \n"
             "SUBS r14, r14, #1 \n"
@@ -1395,11 +1392,10 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
             "ADD r10, r10, #3 \n" // add three here to make later NEON easier
             "STM r14, { r0-r9 } \n"
             "STRD r10, r11, [r14, #4*12] \n"
-            "STR r12, [r14, #4*14] \n"
-            "MOV r10, r14 \n"
-
             "LDR r9, %[input] \n" // load input address
-            "LDR r14, %[c] \n" // load c address
+            "STR r12, [r14, #4*14] \n"
+            "LDR r10, %[c] \n" // load c address
+
             "VLDM r9, { q12-q15 } \n"
             "LDR r12, %[m] \n" // load m address
 
@@ -1413,14 +1409,15 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
             "VADD.I32 q6, q6, q14 \n"
             "VADD.I32 q7, q7, q15 \n"
 
+            "MOV r11, #1 \n"
+
             "VADD.I32 q8, q8, q12 \n"
+            "VMOV.I32 q12, #0 \n"
             "VADD.I32 q9, q9, q13 \n"
+            "VMOV.I32 d24[0], r11 \n"
             "VADD.I32 q10, q10, q14 \n"
             "VADD.I32 q11, q11, q15 \n"
 
-            "MOV r11, #1 \n"
-            "VMOV.I32 q12, #0 \n"
-            "VMOV.I32 d24[0], r11 \n"
             "VADD.I32 q11, q11, q12 \n" // add one to counter
             "VADD.I32 q7, q7, q12 \n" // add one to counter
             "VADD.I32 q11, q11, q12 \n" // add one to counter
@@ -1430,24 +1427,26 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
             "VEOR q1, q1, q13 \n"
             "VEOR q2, q2, q14 \n"
             "VEOR q3, q3, q15 \n"
-            "VSTM r14!, { q0-q3 } \n" // store to c
+            "VSTM r10!, { q0-q3 } \n" // store to c
+
+            "VLDM r14, { q0-q3 } \n " // load final block from x
 
             "VLDM r12!, { q12-q15 } \n" // load m
             "VEOR q4, q4, q12 \n"
             "VEOR q5, q5, q13 \n"
             "VEOR q6, q6, q14 \n"
             "VEOR q7, q7, q15 \n"
-            "VSTM r14!, { q4-q7 } \n" // store to c
+            "VSTM r10!, { q4-q7 } \n" // store to c
+
+            "VLDM r9, { q4-q7 } \n" // load input
 
             "VLDM r12!, { q12-q15 } \n" // load m
             "VEOR q8, q8, q12 \n"
             "VEOR q9, q9, q13 \n"
             "VEOR q10, q10, q14 \n"
             "VEOR q11, q11, q15 \n"
-            "VSTM r14!, { q8-q11 } \n" // store to c
+            "VSTM r10!, { q8-q11 } \n" // store to c
 
-            "VLDM r10, { q0-q3 } \n " // load final block from x
-            "VLDM r9, { q4-q7 } \n" // load input
             "VLDM r12!, { q12-q15 } \n" // load m
             "VADD.I32 q0, q0, q4 \n"
             "VADD.I32 q1, q1, q5 \n"
@@ -1457,7 +1456,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
             "VEOR q1, q1, q13 \n"
             "VEOR q2, q2, q14 \n"
             "VEOR q3, q3, q15 \n"
-            "VSTM r14!, { q0-q3 } \n" // store to c
+            "VSTM r10!, { q0-q3 } \n" // store to c
 
             : [c] "+m" (c),
               [x_0] "=m" (x),
@@ -1476,7 +1475,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
               "r8", "r9", "r10", "r11", "r12", "r14",
               "q0",  "q1",  "q2", "q3", "q4",
               "q5",  "q6",  "q7", "q8", "q9",
-              "q10", "q11", "q12", "q13", "q14"
+              "q10", "q11", "q12", "q13", "q14", "q15"
     );
 
 #endif /* __aarch64__ */
@@ -1808,7 +1807,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WO
               "r11", "r12",
               "q0",  "q1",  "q2", "q3", "q4",
               "q5",  "q6",  "q7", "q8", "q9",
-              "q10", "q11", "q12", "q13"
+              "q10", "q11", "q12", "q13", "q14", "q15"
     );
 #endif /* __aarch64__ */
     return CHACHA_CHUNK_BYTES * 2;
