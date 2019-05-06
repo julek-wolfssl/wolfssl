@@ -1129,39 +1129,72 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
             // 0, 4,  8, 12
             // 1, 5,  9, 13
 
+            // ODD ROUND
             "ADD r0, r0, r4 \n" // 0 0 4
+            "VADD.I32 q0, q0, q1 \n"
             "ADD r1, r1, r5 \n" // 1 1 5
+            "VADD.I32 q4, q4, q5 \n"
             "EOR r10, r10, r0 \n" // 12 12 0
+            "VADD.I32 q8, q8, q9 \n"
             "EOR r11, r11, r1 \n" // 13 13 1
+            "VEOR q12, q3, q0 \n"
             "ROR r10, r10, #16 \n" // 12 12
+            "VEOR q13, q7, q4 \n"
             "ROR r11, r11, #16 \n" // 13 13
-
+            "VEOR q14, q11, q8 \n"
             "ADD r8, r8, r10 \n" // 8 8 12
+            // rotation by 16 bits may be done by reversing the 16 bit elements in 32 bit words
+            "VREV32.16 q3, q12 \n"
             "ADD r9, r9, r11 \n" //  9 9 13
+            "VREV32.16 q7, q13 \n"
             "EOR r4, r4, r8 \n" // 4 4 8
+            "VREV32.16 q11, q14 \n"
+
             "EOR r5, r5, r9 \n" // 5 5 9
+            "VADD.I32 q2, q2, q3 \n"
             "ROR r4, r4, #20 \n" // 4 4
+            "VADD.I32 q6, q6, q7 \n"
             "ROR r5, r5, #20 \n" // 5 5
-
+            "VADD.I32 q10, q10, q11 \n"
             "ADD r0, r0, r4 \n" // 0 0 4
+            "VEOR q12, q1, q2 \n"
             "ADD r1, r1, r5 \n" // 1 1 5
+            "VEOR q13, q5, q6 \n"
             "EOR r10, r10, r0 \n" // 12 12 0
+            "VEOR q14, q9, q10 \n"
             "EOR r11, r11, r1 \n" // 13 13 1
+            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
+            "VSHL.I32 q1, q12, #12 \n"
             "ROR r10, r10, #24 \n" // 12 12
+            "VSHL.I32 q5, q13, #12 \n"
             "ROR r11, r11, #24 \n" // 13 13
-
+            "VSHL.I32 q9, q14, #12 \n"
             "ADD r8, r8, r10 \n" // 8 8 12
+            "VSRI.I32 q1, q12, #20 \n"
             "ADD r9, r9, r11 \n" // 9 9 13
+            "VSRI.I32 q5, q13, #20 \n"
             "STR r11, %[x_13] \n"
+            "VSRI.I32 q9, q14, #20 \n"
+
             "LDR r11, %[x_15] \n"
+            "VADD.I32 q0, q0, q1 \n"
             "EOR r4, r4, r8 \n" // 4 4 8
+            "VADD.I32 q4, q4, q5 \n"
             "STR r8, %[x_8] \n"
+            "VADD.I32 q8, q8, q9 \n"
             "LDR r8, %[x_10] \n"
+            "VEOR q12, q3, q0 \n"
             "EOR r5, r5, r9 \n" // 5 5 9
+            "VEOR q13, q7, q4 \n"
             "STR r9, %[x_9] \n"
+            "VEOR q14, q11, q8 \n"
             "LDR r9, %[x_11] \n"
+            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
+            "VSHL.I32 q3, q12, #8 \n"
             "ROR r4, r4, #25 \n" // 4 4
+            "VSHL.I32 q7, q13, #8 \n"
             "ROR r5, r5, #25 \n" // 5 5
+            "VSHL.I32 q11, q14, #8 \n"
 
             // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
             //  0  1  2  3  4  5  6  7 10 11  12  15  14
@@ -1170,69 +1203,129 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
             // 3, 7, 11, 15
 
             "ADD r2, r2, r6 \n" // 2 2 6
+            "VSRI.I32 q3, q12, #24 \n"
             "ADD r3, r3, r7 \n" // 3 3 7
+            "VSRI.I32 q7, q13, #24 \n"
             "EOR r12, r12, r2 \n" // 14 14 2
+            "VSRI.I32 q11, q14, #24 \n"
+
             "EOR r11, r11, r3 \n" // 15 15 3
+            "VADD.I32 q2, q2, q3 \n"
             "ROR r12, r12, #16 \n" // 14 14
+            "VADD.I32 q6, q6, q7 \n"
             "ROR r11, r11, #16 \n" // 15 15
-
+            "VADD.I32 q10, q10, q11 \n"
             "ADD r8, r8, r12 \n" // 10 10 14
+            "VEOR q12, q1, q2 \n"
             "ADD r9, r9, r11 \n" // 11 11 15
+            "VEOR q13, q5, q6 \n"
             "EOR r6, r6, r8 \n" // 6 6 10
+            "VEOR q14, q9, q10 \n"
             "EOR r7, r7, r9 \n" // 7 7 11
+            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
+            "VSHL.I32 q1, q12, #7 \n"
             "ROR r6, r6, #20 \n" // 6 6
+            "VSHL.I32 q5, q13, #7 \n"
             "ROR r7, r7, #20 \n" // 7 7
-
+            "VSHL.I32 q9, q14, #7 \n"
             "ADD r2, r2, r6 \n" // 2 2 6
+            "VSRI.I32 q1, q12, #25 \n"
             "ADD r3, r3, r7 \n" // 3 3 7
+            "VSRI.I32 q5, q13, #25 \n"
             "EOR r12, r12, r2 \n" // 14 14 2
+            "VSRI.I32 q9, q14, #25 \n"
+
+            // EVEN ROUND
+
             "EOR r11, r11, r3 \n" // 15 15 3
+            "VEXT.8 q1, q1, q1, #4 \n" // permute elements left by one
             "ROR r12, r12, #24 \n" // 14 14
+            "VEXT.8 q2, q2, q2, #8 \n" // permute elements left by two
             "ROR r11, r11, #24 \n" // 15 15
+            "VEXT.8 q3, q3, q3, #12 \n" // permute elements left by three
 
             "ADD r8, r8, r12 \n" // 10 10 14
+            "VEXT.8 q5, q5, q5, #4 \n" // permute elements left by one
             "ADD r9, r9, r11 \n" // 11 11 15
+            "VEXT.8 q6, q6, q6, #8 \n" // permute elements left by two
             "EOR r6, r6, r8 \n" // 6 6 10
+            "VEXT.8 q7, q7, q7, #12 \n" // permute elements left by three
+
             "EOR r7, r7, r9 \n" // 7 7 11
+            "VEXT.8 q9, q9, q9, #4 \n" // permute elements left by one
             "ROR r6, r6, #25 \n" // 6 6
+            "VEXT.8 q10, q10, q10, #8 \n" // permute elements left by two
             "ROR r7, r7, #25 \n" // 7 7
+            "VEXT.8 q11, q11, q11, #12 \n" // permute elements left by three
 
             // 0, 5, 10, 15
             // 1, 6, 11, 12
 
             "ADD r0, r0, r5 \n" // 0 0 5
+            "VADD.I32 q0, q0, q1 \n"
             "ADD r1, r1, r6 \n" // 1 1 6
+            "VADD.I32 q4, q4, q5 \n"
             "EOR r11, r11, r0 \n" // 15 15 0
+            "VADD.I32 q8, q8, q9 \n"
             "EOR r10, r10, r1 \n" // 12 12 1
+            "VEOR q12, q3, q0 \n"
             "ROR r11, r11, #16 \n" // 15 15
+            "VEOR q13, q7, q4 \n"
             "ROR r10, r10, #16 \n" // 12 12
-
+            "VEOR q14, q11, q8 \n"
             "ADD r8, r8, r11 \n" // 10 10 15
+            // rotation by 16 bits may be done by reversing the 16 bit elements in 32 bit words
+            "VREV32.16 q3, q12 \n"
             "ADD r9, r9, r10 \n" // 11 11 12
+            "VREV32.16 q7, q13 \n"
             "EOR r5, r5, r8 \n" // 5 5 10
+            "VREV32.16 q11, q14 \n"
+
             "EOR r6, r6, r9 \n" // 6 6 11
+            "VADD.I32 q2, q2, q3 \n"
             "ROR r5, r5, #20 \n" // 5 5
+            "VADD.I32 q6, q6, q7 \n"
             "ROR r6, r6, #20 \n" // 6 6
-
+            "VADD.I32 q10, q10, q11 \n"
             "ADD r0, r0, r5 \n" // 0 0 5
+            "VEOR q12, q1, q2 \n"
             "ADD r1, r1, r6 \n" // 1 1 6
+            "VEOR q13, q5, q6 \n"
             "EOR r11, r11, r0 \n" // 15 15 0
+            "VEOR q14, q9, q10 \n"
             "EOR r10, r10, r1 \n" // 12 12 1
+            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
+            "VSHL.I32 q1, q12, #12 \n"
             "ROR r11, r11, #24 \n" // 15 15
+            "VSHL.I32 q5, q13, #12 \n"
             "ROR r10, r10, #24 \n" // 12 12
-
+            "VSHL.I32 q9, q14, #12 \n"
             "ADD r8, r8, r11 \n" // 10 10 15
+            "VSRI.I32 q1, q12, #20 \n"
             "STR r11, %[x_15] \n"
+            "VSRI.I32 q5, q13, #20 \n"
             "LDR r11, %[x_13] \n"
+            "VSRI.I32 q9, q14, #20 \n"
+
             "ADD r9, r9, r10 \n" // 11 11 12
+            "VADD.I32 q0, q0, q1 \n"
             "EOR r5, r5, r8 \n" // 5 5 10
+            "VADD.I32 q4, q4, q5 \n"
             "STR r8, %[x_10] \n"
+            "VADD.I32 q8, q8, q9 \n"
             "LDR r8, %[x_8] \n"
+            "VEOR q12, q3, q0 \n"
             "EOR r6, r6, r9 \n" // 6 6 11
+            "VEOR q13, q7, q4 \n"
             "STR r9, %[x_11] \n"
+            "VEOR q14, q11, q8 \n"
             "LDR r9, %[x_9] \n"
+            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
+            "VSHL.I32 q3, q12, #8 \n"
             "ROR r5, r5, #25 \n" // 5 5
+            "VSHL.I32 q7, q13, #8 \n"
             "ROR r6, r6, #25 \n" // 6 6
+            "VSHL.I32 q11, q14, #8 \n"
 
             // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
             //  0  1  2  3  4  5  6  7  8  9  12  13  14
@@ -1241,164 +1334,57 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
             // 3, 4,  9, 14
 
             "ADD r2, r2, r7 \n" // 2 2 7
+            "VSRI.I32 q3, q12, #24 \n"
             "ADD r3, r3, r4 \n" // 3 3 4
+            "VSRI.I32 q7, q13, #24 \n"
             "EOR r11, r11, r2 \n" // 13 13 2
+            "VSRI.I32 q11, q14, #24 \n"
+
             "EOR r12, r12, r3 \n" // 14 14 3
+            "VADD.I32 q2, q2, q3 \n"
             "ROR r11, r11, #16 \n" // 13 13
+            "VADD.I32 q6, q6, q7 \n"
             "ROR r12, r12, #16 \n" // 14 14
-
+            "VADD.I32 q10, q10, q11 \n"
             "ADD r8, r8, r11 \n" // 8 8 13
+            "VEOR q12, q1, q2 \n"
             "ADD r9, r9, r12 \n" // 9 9 14
+            "VEOR q13, q5, q6 \n"
             "EOR r7, r7, r8 \n" // 7 7 8
+            "VEOR q14, q9, q10 \n"
             "EOR r4, r4, r9 \n" // 4 4 9
+            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
+            "VSHL.I32 q1, q12, #7 \n"
             "ROR r7, r7, #20 \n" // 7 7
+            "VSHL.I32 q5, q13, #7 \n"
             "ROR r4, r4, #20 \n" // 4 4
-
+            "VSHL.I32 q9, q14, #7 \n"
             "ADD r2, r2, r7 \n" // 2 2 7
+            "VSRI.I32 q1, q12, #25 \n"
             "ADD r3, r3, r4 \n" // 3 3 4
+            "VSRI.I32 q5, q13, #25 \n"
             "EOR r11, r11, r2 \n" // 13 13 2
+            "VSRI.I32 q9, q14, #25 \n"
+
             "EOR r12, r12, r3 \n" // 14 14 3
-            "ROR r11, r11, #24 \n" // 13 13
-            "ROR r12, r12, #24 \n" // 14 14
-
-            "ADD r8, r8, r11 \n" // 8 8 13
-            "ADD r9, r9, r12 \n" // 9 9 14
-            "EOR r7, r7, r8 \n" // 7 7 8
-            "EOR r4, r4, r9 \n" // 4 4 9
-            "ROR r7, r7, #25 \n" // 7 7
-            "ROR r4, r4, #25 \n" // 4 4
-
-            // ODD ROUND
-            "VADD.I32 q0, q0, q1 \n"
-            "VADD.I32 q4, q4, q5 \n"
-            "VADD.I32 q8, q8, q9 \n"
-            "VEOR q12, q3, q0 \n"
-            "VEOR q13, q7, q4 \n"
-            "VEOR q14, q11, q8 \n"
-            // rotation by 16 bits may be done by reversing the 16 bit elements in 32 bit words
-            "VREV32.16 q3, q12 \n"
-            "VREV32.16 q7, q13 \n"
-            "VREV32.16 q11, q14 \n"
-
-            "VADD.I32 q2, q2, q3 \n"
-            "VADD.I32 q6, q6, q7 \n"
-            "VADD.I32 q10, q10, q11 \n"
-            "VEOR q12, q1, q2 \n"
-            "VEOR q13, q5, q6 \n"
-            "VEOR q14, q9, q10 \n"
-            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
-            "VSHL.I32 q1, q12, #12 \n"
-            "VSHL.I32 q5, q13, #12 \n"
-            "VSHL.I32 q9, q14, #12 \n"
-            "VSRI.I32 q1, q12, #20 \n"
-            "VSRI.I32 q5, q13, #20 \n"
-            "VSRI.I32 q9, q14, #20 \n"
-
-            "VADD.I32 q0, q0, q1 \n"
-            "VADD.I32 q4, q4, q5 \n"
-            "VADD.I32 q8, q8, q9 \n"
-            "VEOR q12, q3, q0 \n"
-            "VEOR q13, q7, q4 \n"
-            "VEOR q14, q11, q8 \n"
-            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
-            "VSHL.I32 q3, q12, #8 \n"
-            "VSHL.I32 q7, q13, #8 \n"
-            "VSHL.I32 q11, q14, #8 \n"
-            "VSRI.I32 q3, q12, #24 \n"
-            "VSRI.I32 q7, q13, #24 \n"
-            "VSRI.I32 q11, q14, #24 \n"
-
-            "VADD.I32 q2, q2, q3 \n"
-            "VADD.I32 q6, q6, q7 \n"
-            "VADD.I32 q10, q10, q11 \n"
-            "VEOR q12, q1, q2 \n"
-            "VEOR q13, q5, q6 \n"
-            "VEOR q14, q9, q10 \n"
-            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
-            "VSHL.I32 q1, q12, #7 \n"
-            "VSHL.I32 q5, q13, #7 \n"
-            "VSHL.I32 q9, q14, #7 \n"
-            "VSRI.I32 q1, q12, #25 \n"
-            "VSRI.I32 q5, q13, #25 \n"
-            "VSRI.I32 q9, q14, #25 \n"
-
-            // EVEN ROUND
-
-            "VEXT.8 q1, q1, q1, #4 \n" // permute elements left by one
-            "VEXT.8 q2, q2, q2, #8 \n" // permute elements left by two
-            "VEXT.8 q3, q3, q3, #12 \n" // permute elements left by three
-
-            "VEXT.8 q5, q5, q5, #4 \n" // permute elements left by one
-            "VEXT.8 q6, q6, q6, #8 \n" // permute elements left by two
-            "VEXT.8 q7, q7, q7, #12 \n" // permute elements left by three
-
-            "VEXT.8 q9, q9, q9, #4 \n" // permute elements left by one
-            "VEXT.8 q10, q10, q10, #8 \n" // permute elements left by two
-            "VEXT.8 q11, q11, q11, #12 \n" // permute elements left by three
-
-            "VADD.I32 q0, q0, q1 \n"
-            "VADD.I32 q4, q4, q5 \n"
-            "VADD.I32 q8, q8, q9 \n"
-            "VEOR q12, q3, q0 \n"
-            "VEOR q13, q7, q4 \n"
-            "VEOR q14, q11, q8 \n"
-            // rotation by 16 bits may be done by reversing the 16 bit elements in 32 bit words
-            "VREV32.16 q3, q12 \n"
-            "VREV32.16 q7, q13 \n"
-            "VREV32.16 q11, q14 \n"
-
-            "VADD.I32 q2, q2, q3 \n"
-            "VADD.I32 q6, q6, q7 \n"
-            "VADD.I32 q10, q10, q11 \n"
-            "VEOR q12, q1, q2 \n"
-            "VEOR q13, q5, q6 \n"
-            "VEOR q14, q9, q10 \n"
-            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
-            "VSHL.I32 q1, q12, #12 \n"
-            "VSHL.I32 q5, q13, #12 \n"
-            "VSHL.I32 q9, q14, #12 \n"
-            "VSRI.I32 q1, q12, #20 \n"
-            "VSRI.I32 q5, q13, #20 \n"
-            "VSRI.I32 q9, q14, #20 \n"
-
-            "VADD.I32 q0, q0, q1 \n"
-            "VADD.I32 q4, q4, q5 \n"
-            "VADD.I32 q8, q8, q9 \n"
-            "VEOR q12, q3, q0 \n"
-            "VEOR q13, q7, q4 \n"
-            "VEOR q14, q11, q8 \n"
-            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
-            "VSHL.I32 q3, q12, #8 \n"
-            "VSHL.I32 q7, q13, #8 \n"
-            "VSHL.I32 q11, q14, #8 \n"
-            "VSRI.I32 q3, q12, #24 \n"
-            "VSRI.I32 q7, q13, #24 \n"
-            "VSRI.I32 q11, q14, #24 \n"
-
-            "VADD.I32 q2, q2, q3 \n"
-            "VADD.I32 q6, q6, q7 \n"
-            "VADD.I32 q10, q10, q11 \n"
-            "VEOR q12, q1, q2 \n"
-            "VEOR q13, q5, q6 \n"
-            "VEOR q14, q9, q10 \n"
-            // SIMD instructions don't support rotation so we have to cheat using shifts and a help register
-            "VSHL.I32 q1, q12, #7 \n"
-            "VSHL.I32 q5, q13, #7 \n"
-            "VSHL.I32 q9, q14, #7 \n"
-            "VSRI.I32 q1, q12, #25 \n"
-            "VSRI.I32 q5, q13, #25 \n"
-            "VSRI.I32 q9, q14, #25 \n"
-
             "VEXT.8 q1, q1, q1, #12 \n" // permute elements left by three
+            "ROR r11, r11, #24 \n" // 13 13
             "VEXT.8 q2, q2, q2, #8 \n" // permute elements left by two
+            "ROR r12, r12, #24 \n" // 14 14
             "VEXT.8 q3, q3, q3, #4 \n" // permute elements left by one
 
+            "ADD r8, r8, r11 \n" // 8 8 13
             "VEXT.8 q5, q5, q5, #12 \n" // permute elements left by three
+            "ADD r9, r9, r12 \n" // 9 9 14
             "VEXT.8 q6, q6, q6, #8 \n" // permute elements left by two
+            "EOR r7, r7, r8 \n" // 7 7 8
             "VEXT.8 q7, q7, q7, #4 \n" // permute elements left by one
 
+            "EOR r4, r4, r9 \n" // 4 4 9
             "VEXT.8 q9, q9, q9, #12 \n" // permute elements left by three
+            "ROR r7, r7, #25 \n" // 7 7
             "VEXT.8 q10, q10, q10, #8 \n" // permute elements left by two
+            "ROR r4, r4, #25 \n" // 4 4
             "VEXT.8 q11, q11, q11, #4 \n" // permute elements left by one
 
             "BNE loop_256_%= \n"
