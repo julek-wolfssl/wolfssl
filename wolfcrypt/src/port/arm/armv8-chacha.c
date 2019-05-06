@@ -661,9 +661,86 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
               "v20", "v21", "v22", "v23",
               "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
     );
+    return (bytes / (CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS)) * CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS;
+#else
+    int outer_rounds = bytes / (CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS);
+    word32 x[CHACHA_CHUNK_WORDS];
+    word32* x_addr = x;
+
+    __asm__ __volatile__ (
+            "LDR r14, %[input] \n" // load address of input to r14
+            "LDR r12, %[x_addr] \n" // load address of x to r12
+            "LDM r14!, { r0-r11 } \n"
+            "STM r12!, { r0-r11 } \n"
+            // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
+            //  0  1  2  3  4  5  6  7  8  9  10  11  &x
+
+            "VDUP.32 q0, r0 \n"
+            "VDUP.32 q1, r1 \n"
+            "VDUP.32 q2, r2 \n"
+            "VDUP.32 q3, r3 \n"
+            "VDUP.32 q4, r4 \n"
+            "VDUP.32 q5, r5 \n"
+            "VDUP.32 q6, r6 \n"
+            "VDUP.32 q7, r7 \n"
+            "VDUP.32 q8, r8 \n"
+            "VDUP.32 q9, r9 \n"
+            "VDUP.32 q10, r10 \n"
+            "VDUP.32 q11, r11 \n"
+
+            "LDM r14, { r8-r11 } \n"
+            "STM r12, { r8-r11 } \n"
+            // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
+            //  0  1  2  3  4  5  6  7 12 13  14  15  &x
+
+            "VDUP.32 q12, r8 \n"
+            "VDUP.32 q13, r9 \n"
+            "VDUP.32 q14, r10 \n"
+            "VDUP.32 q15, r11 \n"
+
+            "ADD r12, r8, #1 \n"
+            "ADD r11, r8, #2 \n"
+            "VMOV d24[1], r12 \n"
+            "ADD r12, r8, #3 \n"
+            "VMOV d25[0], r11 \n"
+            "VMOV d25[1], r12 \n"
+
+            // set registers to correct values
+            "MOV r12, r10 \n"
+            "MOV r11, r9 \n"
+            "MOV r10, r8 \n"
+            // r14 is set to &x[12]
+            "LDR r8, [r14, #4*-4] \n"
+            "LDR r9, [r14, #4*-3] \n"
+            // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
+            //  0  1  2  3  4  5  6  7  8  9  12  13  14
+
+
+
+            : [c] "+m" (c),
+              [x_0] "=m" (x),
+              [x_8] "=m" (x[8]),
+              [x_9] "=m" (x[9]),
+              [x_10] "=m" (x[10]),
+              [x_11] "=m" (x[11]),
+              [x_13] "=m" (x[13]),
+              [x_15] "=m" (x[15])
+            : [rounds] "I" (ROUNDS/2), [input] "m" (input),
+              [chacha_chunk_bytes] "I" (CHACHA_CHUNK_BYTES),
+              [m] "m" (m), [x_addr] "m" (x_addr),
+              [outer_rounds] "m" (outer_rounds)
+            : "memory", "cc",
+              "r0", "r1", "r2", "r3",
+              "r4", "r5", "r6", "r7",
+              "r8", "r9", "r10", "r11", "r12", "r14",
+              "q0",  "q1",  "q2", "q3", "q4",
+              "q5",  "q6",  "q7", "q8", "q9",
+              "q10", "q11", "q12", "q13", "q14", "q15"
+
+    );
+    return CHACHA_CHUNK_BYTES * 4;
 #endif /* __aarch64__ */
 
-    return (bytes / (CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS)) * CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS;
 }
 
 
@@ -2288,38 +2365,22 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
         m += processed;
         ctx->X[CHACHA_IV_BYTES] = PLUS(ctx->X[CHACHA_IV_BYTES], processed / CHACHA_CHUNK_BYTES);
     }
-    if (bytes >= CHACHA_CHUNK_BYTES * 4) {
-        processed = wc_Chacha_wordtobyte_256(ctx->X, m, c);
-
-        bytes -= processed;
-        c += processed;
-        m += processed;
-        ctx->X[CHACHA_IV_BYTES] = PLUS(ctx->X[CHACHA_IV_BYTES], processed / CHACHA_CHUNK_BYTES);
-    } else if (bytes >= CHACHA_CHUNK_BYTES * 2) {
-        processed = wc_Chacha_wordtobyte_128(ctx->X, m, c);
-
-        bytes -= processed;
-        c += processed;
-        m += processed;
-        ctx->X[CHACHA_IV_BYTES] = PLUS(ctx->X[CHACHA_IV_BYTES], processed / CHACHA_CHUNK_BYTES);
-    }
-#else
-    if (bytes >= CHACHA_CHUNK_BYTES * 4) {
-        processed = wc_Chacha_wordtobyte_256(ctx->X, m, c);
-
-        bytes -= processed;
-        c += processed;
-        m += processed;
-        ctx->X[CHACHA_IV_BYTES] = PLUS(ctx->X[CHACHA_IV_BYTES], processed / CHACHA_CHUNK_BYTES);
-    } else if (bytes >= CHACHA_CHUNK_BYTES * 2) {
-        processed = wc_Chacha_wordtobyte_128(ctx->X, m, c);
-
-        bytes -= processed;
-        c += processed;
-        m += processed;
-        ctx->X[CHACHA_IV_BYTES] = PLUS(ctx->X[CHACHA_IV_BYTES], processed / CHACHA_CHUNK_BYTES);
-    }
 #endif /*__aarch64__ */
+    if (bytes >= CHACHA_CHUNK_BYTES * 4) {
+        processed = wc_Chacha_wordtobyte_256(ctx->X, m, c);
+
+        bytes -= processed;
+        c += processed;
+        m += processed;
+        ctx->X[CHACHA_IV_BYTES] = PLUS(ctx->X[CHACHA_IV_BYTES], processed / CHACHA_CHUNK_BYTES);
+    } else if (bytes >= CHACHA_CHUNK_BYTES * 2) {
+        processed = wc_Chacha_wordtobyte_128(ctx->X, m, c);
+
+        bytes -= processed;
+        c += processed;
+        m += processed;
+        ctx->X[CHACHA_IV_BYTES] = PLUS(ctx->X[CHACHA_IV_BYTES], processed / CHACHA_CHUNK_BYTES);
+    }
 
     output = (byte*)temp;
 
