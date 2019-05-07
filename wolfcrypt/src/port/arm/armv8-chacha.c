@@ -1465,7 +1465,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
             "VADD.I32 q0, q0, q4 \n"
             "VADD.I32 q1, q1, q5 \n"
             "VADD.I32 q2, q2, q6 \n"
-            "VADD.I32 q3, q3, q7 \n"
+            "VADD.I32 q3, q3, q7 \n" // three was added earlier
             "VEOR q0, q0, q12 \n"
             "VEOR q1, q1, q13 \n"
             "VEOR q2, q2, q14 \n"
@@ -1683,6 +1683,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WO
             "VMOV q6, q2 \n"
             "VADD.I32 q7, q3, q8 \n" // add one to counter
 
+            // store input
             "VMOV q10, q0 \n"
             "VMOV q11, q1 \n"
             "VMOV q12, q2 \n"
@@ -1788,13 +1789,13 @@ static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WO
 
             "BNE loop_128_%= \n"
 
+            "VMOV.I32 q8, #0 \n"
             "VADD.I32 q0, q0, q10 \n"
             "VADD.I32 q1, q1, q11 \n"
+            "VMOV.I32 d16[0], r12 \n"
             "VADD.I32 q2, q2, q12 \n"
             "VADD.I32 q3, q3, q13 \n"
 
-            "VMOV.I32 q8, #0 \n"
-            "VMOV.I32 d16[0], r12 \n"
             "VADD.I32 q13, q13, q8 \n" // add one to counter
 
             "VADD.I32 q4, q4, q10 \n"
@@ -1811,7 +1812,6 @@ static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WO
             "VEOR q5, q5, q13 \n"
             "VEOR q6, q6, q14 \n"
             "VEOR q7, q7, q15 \n"
-
             "VSTM %[c], { q0-q7 } \n"
 
             : [c] "+r" (c), [m] "+r" (m)
@@ -2201,10 +2201,6 @@ static WC_INLINE void wc_Chacha_wordtobyte_64(word32 output[CHACHA_CHUNK_WORDS],
             "BNE loop_64_%= \n"
 
             "LDR r14, %[x_addr] \n" // load address of x to r14
-
-//            "STM r14, { r0-r9 } \n"
-//            "ADD r14, r14, #4*12 \n"
-//            "STM r14, { r10-r12 } \n"
 
             // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
             //  0  1  2  3  4  5  6  7  8  9  12  13  14
