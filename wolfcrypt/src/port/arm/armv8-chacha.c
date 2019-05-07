@@ -2331,6 +2331,20 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
 
         if (bytes >= CHACHA_CHUNK_BYTES) {
             // assume CHACHA_CHUNK_BYTES == 64
+#ifdef __aarch64__
+            __asm__ __volatile__ (
+                    "LD1 { v0.16B-v3.16B }, [%[m]] \n"
+                    "LD1 { v4.16B-v7.16B }, [%[output]] \n"
+                    "EOR v0.16B, v0.16B, v4.16B \n"
+                    "EOR v1.16B, v1.16B, v5.16B \n"
+                    "EOR v2.16B, v2.16B, v6.16B \n"
+                    "EOR v3.16B, v3.16B, v7.16B \n"
+                    "ST1 { v0.16B-v3.16B }, [%[c]] \n"
+                    : [c] "=r" (c)
+                    : "0" (c), [m] "r" (m), [output] "r" (output)
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7"
+            );
+#else
             __asm__ __volatile__ (
                     "VLDM %[m], { q0-q3 } \n"
                     "VLDM %[output], { q4-q7 } \n"
@@ -2343,6 +2357,7 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                     : "0" (c), [m] "r" (m), [output] "r" (output)
                     : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7"
             );
+#endif /*__aarch64__ */
 
             bytes -= CHACHA_CHUNK_BYTES;
             c += CHACHA_CHUNK_BYTES;
@@ -2350,6 +2365,18 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
             ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
         } else {
             while (bytes >= ARM_SIMD_LEN_BYTES * 2) {
+#ifdef __aarch64__
+                __asm__ __volatile__ (
+                        "LD1 { v0.16B-v1.16B }, [%[m]] \n"
+                        "LD1 { v2.16B-v3.16B }, [%[output]] \n"
+                        "EOR v0.16B, v0.16B, v2.16B \n"
+                        "EOR v1.16B, v1.16B, v3.16B \n"
+                        "ST1 { v0.16B-v1.16B }, [%[c]] \n"
+                        : [c] "=r" (c)
+                        : "0" (c), [m] "r" (m), [output] "r" (output)
+                        : "memory", "v0", "v1"
+                );
+#else
                 __asm__ __volatile__ (
                         "VLDM %[m], { q0-q1 } \n"
                         "VLDM %[output], { q2-q3 } \n"
@@ -2360,6 +2387,7 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                         : "0" (c), [m] "r" (m), [output] "r" (output)
                         : "memory", "q0", "q1", "q2", "q3"
                 );
+#endif /*__aarch64__ */
 
                 bytes -= ARM_SIMD_LEN_BYTES * 2;
                 c += ARM_SIMD_LEN_BYTES * 2;
@@ -2367,6 +2395,17 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                 output += ARM_SIMD_LEN_BYTES * 2;
             }
             if (bytes >= ARM_SIMD_LEN_BYTES) {
+#ifdef __aarch64__
+                __asm__ __volatile__ (
+                        "LD1 { v0.16B }, [%[m]] \n"
+                        "LD1 { v1.16B }, [%[output]] \n"
+                        "EOR v0.16B, v0.16B, v1.16B \n"
+                        "ST1 { v0.16B }, [%[c]] \n"
+                        : [c] "=r" (c)
+                        : "0" (c), [m] "r" (m), [output] "r" (output)
+                        : "memory", "v0", "v1"
+                );
+#else
                 __asm__ __volatile__ (
                         "VLDM %[m], { q0 } \n"
                         "VLDM %[output], { q1 } \n"
@@ -2376,6 +2415,7 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                         : "0" (c), [m] "r" (m), [output] "r" (output)
                         : "memory", "q0", "q1"
                 );
+#endif /*__aarch64__ */
 
                 bytes -= ARM_SIMD_LEN_BYTES;
                 c += ARM_SIMD_LEN_BYTES;
@@ -2383,6 +2423,17 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                 output += ARM_SIMD_LEN_BYTES;
             }
             if (bytes >= ARM_SIMD_LEN_BYTES / 2) {
+#ifdef __aarch64__
+                __asm__ __volatile__ (
+                        "LD1 { v0.8B }, [%[m]] \n"
+                        "LD1 { v1.8B }, [%[output]] \n"
+                        "EOR v0.8B, v0.8B, v1.8B \n"
+                        "ST1 { v0.8B }, [%[c]] \n"
+                        : [c] "=r" (c)
+                        : "0" (c), [m] "r" (m), [output] "r" (output)
+                        : "memory", "v0", "v1"
+                );
+#else
                 __asm__ __volatile__ (
                         "VLDR d0, [%[m]] \n"
                         "VLDR d1, [%[output]] \n"
@@ -2392,6 +2443,7 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                         : "0" (c), [m] "r" (m), [output] "r" (output)
                         : "memory", "d0", "d1"
                 );
+#endif /*__aarch64__ */
 
                 bytes -= ARM_SIMD_LEN_BYTES / 2;
                 c += ARM_SIMD_LEN_BYTES / 2;
