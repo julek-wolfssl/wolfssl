@@ -1085,53 +1085,44 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
 
             "LDR r14, %[input] \n" // load input address
             "MOV r11, #1 \n"
-            "LDR r12, %[x_addr] \n" // load address of x to r12
 
-            "LDM r14!, { r0-r11 } \n"
-            "STM r12!, { r0-r11 } \n"
+            "LDM r14, { r0-r12 } \n"
+            "STRD r10, r11, %[x_10] \n"
             // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
-            //  0  1  2  3  4  5  6  7  8  9  10  11  &x
+            //  0  1  2  3  4  5  6  7  8  9  10  11  12
             "VMOV d0, r0, r1 \n"
             "VMOV d1, r2, r3 \n"
             "VMOV d2, r4, r5 \n"
             "VMOV d3, r6, r7 \n"
             "VMOV d4, r8, r9 \n"
             "VMOV d5, r10, r11 \n"
-            "VMOV d8, r0, r1 \n"
-            "VMOV d9, r2, r3 \n"
-            "VMOV d10, r4, r5 \n"
-            "VMOV d11, r6, r7 \n"
-            "VMOV d12, r8, r9 \n"
-            "VMOV d13, r10, r11 \n"
-            "VMOV d16, r0, r1 \n"
-            "VMOV d17, r2, r3 \n"
-            "VMOV d18, r4, r5 \n"
-            "VMOV d19, r6, r7 \n"
-            "VMOV d20, r8, r9 \n"
-            "VMOV d21, r10, r11 \n"
-            "LDM r14, { r8-r11 } \n"
-            "STM r12, { r8-r11 } \n"
+            "VMOV q4, q0 \n"
+            "VMOV q5, q1 \n"
+            "VMOV q6, q2 \n"
+            "VMOV q8, q0 \n"
+            "VMOV q9, q1 \n"
+            "VMOV q10, q2 \n"
+            "LDRD r11, r10, [r14, #4*14] \n"
             // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
-            //  0  1  2  3  4  5  6  7 12 13  14  15  &x
-            "VMOV d6, r8, r9 \n"
-            "ADD r8, r8, #1 \n"
-            "VMOV d7, r10, r11 \n"
-            "VMOV d14, r8, r9 \n"
-            "ADD r8, r8, #1 \n"
-            "VMOV d15, r10, r11 \n"
-            "VMOV d22, r8, r9 \n"
-            "VMOV d23, r10, r11 \n"
-
-            // set registers to correct values
-            "MOV r12, r10 \n"
-            "MOV r11, r9 \n"
-            "ADD r10, r8, #1 \n" // ARM calculates the fourth block (two was already added earlier)
-            // r14 is set to &x[12]
-            "LDR r8, [r14, #4*-4] \n"
-            "LDR r9, [r14, #4*-3] \n"
+            //  0  1  2  3  4  5  6  7  8  9  15  14  12
+            "VMOV d7, r11, r10 \n"
+            "STR r10, %[x_15] \n"
+            "VMOV d15, r11, r10 \n"
+            "VMOV d23, r11, r10 \n"
+            "MOV r10, r12 \n"
+            "MOV r12, r11 \n"
+            "LDR r11, [r14, #4*13] \n"
             // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
             //  0  1  2  3  4  5  6  7  8  9  12  13  14
+
             "MOV r14, %[rounds] \n"
+
+            "VMOV d6, r10, r11 \n"
+            "ADD r10, r10, #1 \n"
+            "VMOV d14, r10, r11 \n"
+            "ADD r10, r10, #1 \n"
+            "VMOV d22, r10, r11 \n"
+            "ADD r10, r10, #1 \n" // ARM calculates the fourth block (two was already added earlier)
 
             "loop_256_%=: \n"
             "SUBS r14, r14, #1 \n"
@@ -2028,34 +2019,26 @@ static WC_INLINE void wc_Chacha_wordtobyte_64(word32 output[CHACHA_CHUNK_WORDS],
     word32* x_addr = x;
 
     __asm__ __volatile__ (
-            // TODO not all of input has to be loaded to x. only 10 11 15
-
             // copy input to x
             "LDR r14, %[input_addr] \n" // load address of input to r14
-            "LDR r12, %[x_addr] \n" // load address of x to r12
-            "LDM r14!, { r0-r11 } \n"
-            "STM r12!, { r0-r11 } \n"
+            "LDM r14, { r0-r12 } \n"
+            // r14 is set to &input[12]
             // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
-            //  0  1  2  3  4  5  6  7  8  9  10  11  &x
-            "LDM r14, { r8-r11 } \n"
-            "STM r12, { r8-r11 } \n"
+            //  0  1  2  3  4  5  6  7  8  9  10  11  12
+            "STRD r10, r11, %[x_10] \n"
+            "LDR r11, [r14, #4*15] \n"
+            "STR r11, %[x_15] \n"
+            "MOV r10, r12 \n"
             // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
-            //  0  1  2  3  4  5  6  7 12 13  14  15  &x
+            //  0  1  2  3  4  5  6  7  8  9  12  15  12
 
-            // set registers to correct values
-            "MOV r12, r10 \n"
-            "MOV r11, r9 \n"
-            "MOV r10, r8 \n"
-            // r14 is set to &x[12]
-            "LDR r8, [r14, #4*-4] \n"
-            "LDR r9, [r14, #4*-3] \n"
+            "LDRD r11, r12, [r14, #4*13] \n"
             // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
             //  0  1  2  3  4  5  6  7  8  9  12  13  14
 
             "MOV r14, %[rounds] \n"
 
             "loop_64_%=: \n"
-            "SUBS r14, r14, #1 \n"
 
             // 0, 4,  8, 12
             // 1, 5,  9, 13
@@ -2066,6 +2049,8 @@ static WC_INLINE void wc_Chacha_wordtobyte_64(word32 output[CHACHA_CHUNK_WORDS],
             "EOR r11, r11, r1 \n" // 13 13 1
             "ROR r10, r10, #16 \n" // 12 12
             "ROR r11, r11, #16 \n" // 13 13
+
+            "SUBS r14, r14, #1 \n"
 
             "ADD r8, r8, r10 \n" // 8 8 12
             "ADD r9, r9, r11 \n" //  9 9 13
@@ -2201,20 +2186,15 @@ static WC_INLINE void wc_Chacha_wordtobyte_64(word32 output[CHACHA_CHUNK_WORDS],
 
             "BNE loop_64_%= \n"
 
-            "LDR r14, %[x_addr] \n" // load address of x to r14
-
             // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
             //  0  1  2  3  4  5  6  7  8  9  12  13  14
-            "STM r14, { r0-r9 } \n"
-            "STR r12, [r14, #4*14] \n"
+            "STR r12, %[x_14] \n"
             "LDR r12, %[input_addr] \n" // load address of input to r12
             // r12 = &input[0];
 
-            "STRD r10, r11, [r14, #4*12] \n"
+            "STRD r10, r11, %[x_12] \n"
             "LDRD r10, r11, [r12], #4*2 \n"
             // r12 = &input[2]
-            "ADD r14, r14, #4*10 \n"
-            // r14 = &x[10]
 
             "ADD r1, r1, r11 \n"
             "LDR r11, %[output_addr] \n" // load address of output to r11
@@ -2236,13 +2216,13 @@ static WC_INLINE void wc_Chacha_wordtobyte_64(word32 output[CHACHA_CHUNK_WORDS],
 
             "ADD r4, r4, r0 \n"
             "ADD r5, r5, r1 \n"
+            "LDRD r0, r1, %[x_10] \n"
             "ADD r6, r6, r2 \n"
             "ADD r7, r7, r3 \n"
+            "LDRD r2, r3, %[x_12] \n"
             "ADD r8, r8, r10 \n"
             "STM r11!, { r4-r8 } \n"
             // r11 = &output[9]
-            "LDM r14!, { r0-r3 } \n"
-            // r14 = &x[14]
 
             "LDM r12!, { r4-r8 } \n"
             // r12 = &input[14]
@@ -2254,7 +2234,7 @@ static WC_INLINE void wc_Chacha_wordtobyte_64(word32 output[CHACHA_CHUNK_WORDS],
             "STM r11!, { r4-r8 } \n"
             // r11 = &output[14]
 
-            "LDRD r0, r1, [r14] \n"
+            "LDRD r0, r1, %[x_14] \n"
             "LDRD r4, r5, [r12] \n"
             "ADD r4, r4, r0 \n"
             "ADD r5, r5, r1 \n"
@@ -2266,7 +2246,9 @@ static WC_INLINE void wc_Chacha_wordtobyte_64(word32 output[CHACHA_CHUNK_WORDS],
               [x_9] "=m" (x[9]),
               [x_10] "=m" (x[10]),
               [x_11] "=m" (x[11]),
+              [x_12] "=m" (x[12]),
               [x_13] "=m" (x[13]),
+              [x_14] "=m" (x[14]),
               [x_15] "=m" (x[15])
             : [rounds] "I" (ROUNDS/2),
               [x_addr] "m" (x_addr),
