@@ -668,7 +668,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
     word32 x[CHACHA_CHUNK_WORDS];
     word32* x_addr = x;
     word32 x_simd[8][4];
-    word32* x_simd_addr = x_simd;
+    word32* x_simd_addr = (word32*)x_simd;
 
     __asm__ __volatile__ (
             "LDR r14, %[input] \n" // load address of input to r14
@@ -731,294 +731,242 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
             "loop_320_%=: \n"
             "SUBS r14, r14, #1 \n"
 
-
-            // 0, 4,  8, 12
-            // 1, 5,  9, 13
-
+            "VADD.I32 q0, q0, q4 \n" // 0 0 4
             "ADD r0, r0, r4 \n" // 0 0 4
+            "VADD.I32 q1, q1, q5 \n" // 1 1 5
             "ADD r1, r1, r5 \n" // 1 1 5
+            "VEOR q12, q12, q0 \n" // 12 12 0
             "EOR r10, r10, r0 \n" // 12 12 0
+            "VEOR q13, q13, q1 \n" // 13 13 1
             "EOR r11, r11, r1 \n" // 13 13 1
+            "VREV32.16 q12, q12 \n" // 12 12
             "ROR r10, r10, #16 \n" // 12 12
+            "VREV32.16 q13, q13 \n" // 13 13
             "ROR r11, r11, #16 \n" // 13 13
-
+            "VADD.I32 q8, q8, q12 \n" // 8 8 12
             "ADD r8, r8, r10 \n" // 8 8 12
+            "VADD.I32 q9, q9, q13 \n" //  9 9 13
             "ADD r9, r9, r11 \n" //  9 9 13
+            "VEOR q10, q4, q8 \n" // 4 4 8
             "EOR r4, r4, r8 \n" // 4 4 8
+            "VEOR q11, q5, q9 \n" // 5 5 9
             "EOR r5, r5, r9 \n" // 5 5 9
+            "VSHL.I32 q4, q10, #12 \n" // 12 12
             "ROR r4, r4, #20 \n" // 4 4
+            "VSHL.I32 q5, q11, #12 \n" // 13 13
             "ROR r5, r5, #20 \n" // 5 5
-
+            "VSRI.I32 q4, q10, #20 \n" // 12 12
             "ADD r0, r0, r4 \n" // 0 0 4
+            "VSRI.I32 q5, q11, #20 \n" // 13 13
             "ADD r1, r1, r5 \n" // 1 1 5
+            "VADD.I32 q0, q0, q4 \n" // 0 0 4
             "EOR r10, r10, r0 \n" // 12 12 0
+            "VADD.I32 q1, q1, q5 \n" // 1 1 5
             "EOR r11, r11, r1 \n" // 13 13 1
+            "VEOR q10, q12, q0 \n" // 12 12 0
             "ROR r10, r10, #24 \n" // 12 12
+            "VEOR q11, q13, q1 \n" // 13 13 1
             "ROR r11, r11, #24 \n" // 13 13
-
+            "VSHL.I32 q12, q10, #8 \n" // 12 12
             "ADD r8, r8, r10 \n" // 8 8 12
+            "VSHL.I32 q13, q11, #8 \n" // 13 13
             "ADD r9, r9, r11 \n" // 9 9 13
+            "VSRI.I32 q12, q10, #24 \n" // 12 12
             "STR r11, %[x_13] \n"
+            "VSRI.I32 q13, q11, #24 \n" // 13 13
             "LDR r11, %[x_15] \n"
+            "VADD.I32 q8, q8, q12 \n" // 8 8 12
             "EOR r4, r4, r8 \n" // 4 4 8
+            "VADD.I32 q9, q9, q13 \n" // 9 9 13
             "STR r8, %[x_8] \n"
+            "VEOR q10, q4, q8 \n" // 4 4 8
             "LDR r8, %[x_10] \n"
+            "VSTR d16, %[x_simd_8] \n"
             "EOR r5, r5, r9 \n" // 5 5 9
+            "VLDR d16, %[x_simd_10] \n"
             "STR r9, %[x_9] \n"
+            "VEOR q11, q5, q9 \n" // 5 5 9
             "LDR r9, %[x_11] \n"
-            "ROR r4, r4, #25 \n" // 4 4
-            "ROR r5, r5, #25 \n" // 5 5
 
             // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
             //  0  1  2  3  4  5  6  7 10 11  12  15  14
 
-            // 2, 6, 10, 14
-            // 3, 7, 11, 15
-
-            "ADD r2, r2, r6 \n" // 2 2 6
-            "ADD r3, r3, r7 \n" // 3 3 7
-            "EOR r12, r12, r2 \n" // 14 14 2
-            "EOR r11, r11, r3 \n" // 15 15 3
-            "ROR r12, r12, #16 \n" // 14 14
-            "ROR r11, r11, #16 \n" // 15 15
-
-            "ADD r8, r8, r12 \n" // 10 10 14
-            "ADD r9, r9, r11 \n" // 11 11 15
-            "EOR r6, r6, r8 \n" // 6 6 10
-            "EOR r7, r7, r9 \n" // 7 7 11
-            "ROR r6, r6, #20 \n" // 6 6
-            "ROR r7, r7, #20 \n" // 7 7
-
-            "ADD r2, r2, r6 \n" // 2 2 6
-            "ADD r3, r3, r7 \n" // 3 3 7
-            "EOR r12, r12, r2 \n" // 14 14 2
-            "EOR r11, r11, r3 \n" // 15 15 3
-            "ROR r12, r12, #24 \n" // 14 14
-            "ROR r11, r11, #24 \n" // 15 15
-
-            "ADD r8, r8, r12 \n" // 10 10 14
-            "ADD r9, r9, r11 \n" // 11 11 15
-            "EOR r6, r6, r8 \n" // 6 6 10
-            "EOR r7, r7, r9 \n" // 7 7 11
-            "ROR r6, r6, #25 \n" // 6 6
-            "ROR r7, r7, #25 \n" // 7 7
-
-            // 0, 5, 10, 15
-            // 1, 6, 11, 12
-
-            "ADD r0, r0, r5 \n" // 0 0 5
-            "ADD r1, r1, r6 \n" // 1 1 6
-            "EOR r11, r11, r0 \n" // 15 15 0
-            "EOR r10, r10, r1 \n" // 12 12 1
-            "ROR r11, r11, #16 \n" // 15 15
-            "ROR r10, r10, #16 \n" // 12 12
-
-            "ADD r8, r8, r11 \n" // 10 10 15
-            "ADD r9, r9, r10 \n" // 11 11 12
-            "EOR r5, r5, r8 \n" // 5 5 10
-            "EOR r6, r6, r9 \n" // 6 6 11
-            "ROR r5, r5, #20 \n" // 5 5
-            "ROR r6, r6, #20 \n" // 6 6
-
-            "ADD r0, r0, r5 \n" // 0 0 5
-            "ADD r1, r1, r6 \n" // 1 1 6
-            "EOR r11, r11, r0 \n" // 15 15 0
-            "EOR r10, r10, r1 \n" // 12 12 1
-            "ROR r11, r11, #24 \n" // 15 15
-            "ROR r10, r10, #24 \n" // 12 12
-
-            "ADD r8, r8, r11 \n" // 10 10 15
-            "STR r11, %[x_15] \n"
-            "LDR r11, %[x_13] \n"
-            "ADD r9, r9, r10 \n" // 11 11 12
-            "EOR r5, r5, r8 \n" // 5 5 10
-            "STR r8, %[x_10] \n"
-            "LDR r8, %[x_8] \n"
-            "EOR r6, r6, r9 \n" // 6 6 11
-            "STR r9, %[x_11] \n"
-            "LDR r9, %[x_9] \n"
-            "ROR r5, r5, #25 \n" // 5 5
-            "ROR r6, r6, #25 \n" // 6 6
-
-            // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
-            //  0  1  2  3  4  5  6  7  8  9  12  13  14
-
-            // 2, 7,  8, 13
-            // 3, 4,  9, 14
-
-            "ADD r2, r2, r7 \n" // 2 2 7
-            "ADD r3, r3, r4 \n" // 3 3 4
-            "EOR r11, r11, r2 \n" // 13 13 2
-            "EOR r12, r12, r3 \n" // 14 14 3
-            "ROR r11, r11, #16 \n" // 13 13
-            "ROR r12, r12, #16 \n" // 14 14
-
-            "ADD r8, r8, r11 \n" // 8 8 13
-            "ADD r9, r9, r12 \n" // 9 9 14
-            "EOR r7, r7, r8 \n" // 7 7 8
-            "EOR r4, r4, r9 \n" // 4 4 9
-            "ROR r7, r7, #20 \n" // 7 7
-            "ROR r4, r4, #20 \n" // 4 4
-
-            "ADD r2, r2, r7 \n" // 2 2 7
-            "ADD r3, r3, r4 \n" // 3 3 4
-            "EOR r11, r11, r2 \n" // 13 13 2
-            "EOR r12, r12, r3 \n" // 14 14 3
-            "ROR r11, r11, #24 \n" // 13 13
-            "ROR r12, r12, #24 \n" // 14 14
-
-            "ADD r8, r8, r11 \n" // 8 8 13
-            "ADD r9, r9, r12 \n" // 9 9 14
-            "EOR r7, r7, r8 \n" // 7 7 8
-            "EOR r4, r4, r9 \n" // 4 4 9
-            "ROR r7, r7, #25 \n" // 7 7
-            "ROR r4, r4, #25 \n" // 4 4
-
-            // 0, 4,  8, 12
-            // 1, 5,  9, 13
-
-            "VADD.I32 q0, q0, q4 \n" // 0 0 4
-            "VADD.I32 q1, q1, q5 \n" // 1 1 5
-            "VEOR q12, q12, q0 \n" // 12 12 0
-            "VEOR q13, q13, q1 \n" // 13 13 1
-            "VREV32.16 q12, q12 \n" // 12 12
-            "VREV32.16 q13, q13 \n" // 13 13
-
-            "VADD.I32 q8, q8, q12 \n" // 8 8 12
-            "VADD.I32 q9, q9, q13 \n" //  9 9 13
-            "VEOR q10, q4, q8 \n" // 4 4 8
-            "VEOR q11, q5, q9 \n" // 5 5 9
-            "VSHL.I32 q4, q10, #12 \n" // 12 12
-            "VSHL.I32 q5, q11, #12 \n" // 13 13
-            "VSRI.I32 q4, q10, #20 \n" // 12 12
-            "VSRI.I32 q5, q11, #20 \n" // 13 13
-
-            "VADD.I32 q0, q0, q4 \n" // 0 0 4
-            "VADD.I32 q1, q1, q5 \n" // 1 1 5
-            "VEOR q10, q12, q0 \n" // 12 12 0
-            "VEOR q11, q13, q1 \n" // 13 13 1
-            "VSHL.I32 q12, q10, #8 \n" // 12 12
-            "VSHL.I32 q13, q11, #8 \n" // 13 13
-            "VSRI.I32 q12, q10, #24 \n" // 12 12
-            "VSRI.I32 q13, q11, #24 \n" // 13 13
-
-            "VADD.I32 q8, q8, q12 \n" // 8 8 12
-            "VADD.I32 q9, q9, q13 \n" // 9 9 13
-            "VEOR q10, q4, q8 \n" // 4 4 8
-            "VEOR q11, q5, q9 \n" // 5 5 9
-            "VSHL.I32 q4, q10, #7 \n" // 4 4
-            "VSHL.I32 q5, q11, #7 \n" // 5 5
-            "VSRI.I32 q4, q10, #25 \n" // 4 4
-            "VSRI.I32 q5, q11, #25 \n" // 5 5
-
-            "VSTR d16, %[x_simd_8] \n"
-            "VLDR d16, %[x_simd_10] \n"
             "VSTR d17, %[x_simd_8_2] \n"
+            "ROR r4, r4, #25 \n" // 4 4
             "VLDR d17, %[x_simd_10_2] \n"
+            "ROR r5, r5, #25 \n" // 5 5
+            "VSHL.I32 q4, q10, #7 \n" // 4 4
+            "ADD r2, r2, r6 \n" // 2 2 6
+            "VSHL.I32 q5, q11, #7 \n" // 5 5
+            "ADD r3, r3, r7 \n" // 3 3 7
             "VSTR d18, %[x_simd_9] \n"
+            "EOR r12, r12, r2 \n" // 14 14 2
             "VLDR d18, %[x_simd_11] \n"
+            "EOR r11, r11, r3 \n" // 15 15 3
+            "VSRI.I32 q4, q10, #25 \n" // 4 4
+            "ROR r12, r12, #16 \n" // 14 14
+            "VSRI.I32 q5, q11, #25 \n" // 5 5
+            "ROR r11, r11, #16 \n" // 15 15
             "VSTR d19, %[x_simd_9_2] \n"
+            "ADD r8, r8, r12 \n" // 10 10 14
             "VLDR d19, %[x_simd_11_2] \n"
 
             // q0 q1 q2 q3 q4 q5 q6 q7 q8 q9 q12 q13 q14 q15
             //  0  1  2  3  4  5  6  7 10 11  12  13  14  15
 
-            // 2, 6, 10, 14
-            // 3, 7, 11, 15
-
+            "ADD r9, r9, r11 \n" // 11 11 15
             "VADD.I32 q2, q2, q6 \n" // 2 2 6
+            "EOR r6, r6, r8 \n" // 6 6 10
             "VADD.I32 q3, q3, q7 \n" // 3 3 7
+            "EOR r7, r7, r9 \n" // 7 7 11
             "VEOR q14, q14, q2 \n" // 14 14 2
+            "ROR r6, r6, #20 \n" // 6 6
             "VEOR q15, q15, q3 \n" // 15 15 3
+            "ROR r7, r7, #20 \n" // 7 7
             "VREV32.16 q14, q14 \n" // 14 14
+            "ADD r2, r2, r6 \n" // 2 2 6
             "VREV32.16 q15, q15 \n" // 15 15
-
+            "ADD r3, r3, r7 \n" // 3 3 7
             "VADD.I32 q8, q8, q14 \n" // 10 10 14
+            "EOR r12, r12, r2 \n" // 14 14 2
             "VADD.I32 q9, q9, q15 \n" // 11 11 15
+            "EOR r11, r11, r3 \n" // 15 15 3
             "VEOR q10, q6, q8 \n" // 6 6 10
+            "ROR r12, r12, #24 \n" // 14 14
             "VEOR q11, q7, q9 \n" // 7 7 11
+            "ROR r11, r11, #24 \n" // 15 15
             "VSHL.I32 q6, q10, #12 \n" // 6 6
+            "ADD r8, r8, r12 \n" // 10 10 14
             "VSHL.I32 q7, q11, #12 \n" // 7 7
+            "ADD r9, r9, r11 \n" // 11 11 15
             "VSRI.I32 q6, q10, #20 \n" // 6 6
+            "EOR r6, r6, r8 \n" // 6 6 10
             "VSRI.I32 q7, q11, #20 \n" // 7 7
-
+            "EOR r7, r7, r9 \n" // 7 7 11
             "VADD.I32 q2, q2, q6 \n" // 2 2 6
+            "ROR r6, r6, #25 \n" // 6 6
             "VADD.I32 q3, q3, q7 \n" // 3 3 7
+            "ROR r7, r7, #25 \n" // 7 7
             "VEOR q10, q14, q2 \n" // 14 14 2
+            "ADD r0, r0, r5 \n" // 0 0 5
             "VEOR q11, q15, q3 \n" // 15 15 3
+            "ADD r1, r1, r6 \n" // 1 1 6
             "VSHL.I32 q14, q10, #8 \n" // 14 14
+            "EOR r11, r11, r0 \n" // 15 15 0
             "VSHL.I32 q15, q11, #8 \n" // 15 15
+            "EOR r10, r10, r1 \n" // 12 12 1
             "VSRI.I32 q14, q10, #24 \n" // 14 14
+            "ROR r11, r11, #16 \n" // 15 15
             "VSRI.I32 q15, q11, #24 \n" // 15 15
-
+            "ROR r10, r10, #16 \n" // 12 12
             "VADD.I32 q8, q8, q14 \n" // 10 10 14
+            "ADD r8, r8, r11 \n" // 10 10 15
             "VADD.I32 q9, q9, q15 \n" // 11 11 15
+            "ADD r9, r9, r10 \n" // 11 11 12
             "VEOR q10, q6, q8 \n" // 6 6 10
+            "EOR r5, r5, r8 \n" // 5 5 10
             "VEOR q11, q7, q9 \n" // 7 7 11
+            "EOR r6, r6, r9 \n" // 6 6 11
             "VSHL.I32 q6, q10, #7 \n" // 6 6
+            "ROR r5, r5, #20 \n" // 5 5
             "VSHL.I32 q7, q11, #7 \n" // 7 7
+            "ROR r6, r6, #20 \n" // 6 6
             "VSRI.I32 q6, q10, #25 \n" // 6 6
+            "ADD r0, r0, r5 \n" // 0 0 5
             "VSRI.I32 q7, q11, #25 \n" // 7 7
-
-            // 0, 5, 10, 15
-            // 1, 6, 11, 12
-
+            "ADD r1, r1, r6 \n" // 1 1 6
             "VADD.I32 q0, q0, q5 \n" // 0 0 5
+            "EOR r11, r11, r0 \n" // 15 15 0
             "VADD.I32 q1, q1, q6 \n" // 1 1 6
+            "EOR r10, r10, r1 \n" // 12 12 1
             "VEOR q15, q15, q0 \n" // 15 15 0
+            "ROR r11, r11, #24 \n" // 15 15
             "VEOR q12, q12, q1 \n" // 12 12 1
+            "ROR r10, r10, #24 \n" // 12 12
             "VREV32.16 q15, q15 \n" // 15 15
+            "ADD r8, r8, r11 \n" // 10 10 15
             "VREV32.16 q12, q12 \n" // 12 12
-
+            "STR r11, %[x_15] \n"
             "VADD.I32 q8, q8, q15 \n" // 10 10 15
+            "LDR r11, %[x_13] \n"
             "VADD.I32 q9, q9, q12 \n" // 11 11 12
+            "ADD r9, r9, r10 \n" // 11 11 12
             "VEOR q10, q5, q8 \n" // 5 5 10
+            "EOR r5, r5, r8 \n" // 5 5 10
             "VEOR q11, q6, q9 \n" // 6 6 11
+            "STR r8, %[x_10] \n"
             "VSHL.I32 q5, q10, #12 \n" // 5 5
+            "LDR r8, %[x_8] \n"
             "VSHL.I32 q6, q11, #12 \n" // 6 6
+            "EOR r6, r6, r9 \n" // 6 6 11
             "VSRI.I32 q5, q10, #20 \n" // 5 5
+            "STR r9, %[x_11] \n"
             "VSRI.I32 q6, q11, #20 \n" // 6 6
+            "LDR r9, %[x_9] \n"
+
+            // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
+            //  0  1  2  3  4  5  6  7  8  9  12  13  14
 
             "VADD.I32 q0, q0, q5 \n" // 0 0 5
+            "ROR r5, r5, #25 \n" // 5 5
             "VADD.I32 q1, q1, q6 \n" // 1 1 6
+            "ROR r6, r6, #25 \n" // 6 6
             "VEOR q10, q15, q0 \n" // 15 15 0
+            "ADD r2, r2, r7 \n" // 2 2 7
             "VEOR q11, q12, q1 \n" // 12 12 1
+            "ADD r3, r3, r4 \n" // 3 3 4
             "VSHL.I32 q15, q10, #8 \n" // 15 15
+            "EOR r11, r11, r2 \n" // 13 13 2
             "VSHL.I32 q12, q11, #8 \n" // 12 12
+            "EOR r12, r12, r3 \n" // 14 14 3
             "VSRI.I32 q15, q10, #24 \n" // 15 15
+            "ROR r11, r11, #16 \n" // 13 13
             "VSRI.I32 q12, q11, #24 \n" // 12 12
-
+            "ROR r12, r12, #16 \n" // 14 14
             "VADD.I32 q8, q8, q15 \n" // 10 10 15
+            "ADD r8, r8, r11 \n" // 8 8 13
             "VADD.I32 q9, q9, q12 \n" // 11 11 12
+            "ADD r9, r9, r12 \n" // 9 9 14
             "VEOR q10, q5, q8 \n" // 5 5 10
-            "VEOR q11, q6, q9 \n" // 6 6 11
-            "VSHL.I32 q5, q10, #7 \n" // 5 5
-            "VSHL.I32 q6, q11, #7 \n" // 6 6
-            "VSRI.I32 q5, q10, #25 \n" // 5 5
-            "VSRI.I32 q6, q11, #25 \n" // 6 6
-
+            "EOR r7, r7, r8 \n" // 7 7 8
             "VSTR d16, %[x_simd_10] \n"
+            "EOR r4, r4, r9 \n" // 4 4 9
             "VLDR d16, %[x_simd_8] \n"
+            "ROR r7, r7, #20 \n" // 7 7
+            "VEOR q11, q6, q9 \n" // 6 6 11
+            "ROR r4, r4, #20 \n" // 4 4
             "VSTR d17, %[x_simd_10_2] \n"
+            "ADD r2, r2, r7 \n" // 2 2 7
             "VLDR d17, %[x_simd_8_2] \n"
+            "ADD r3, r3, r4 \n" // 3 3 4
+            "VSHL.I32 q5, q10, #7 \n" // 5 5
+            "EOR r11, r11, r2 \n" // 13 13 2
+            "VSHL.I32 q6, q11, #7 \n" // 6 6
+            "EOR r12, r12, r3 \n" // 14 14 3
             "VSTR d18, %[x_simd_11] \n"
+            "ROR r11, r11, #24 \n" // 13 13
             "VLDR d18, %[x_simd_9] \n"
+            "ROR r12, r12, #24 \n" // 14 14
+            "VSRI.I32 q5, q10, #25 \n" // 5 5
+            "ADD r8, r8, r11 \n" // 8 8 13
+            "VSRI.I32 q6, q11, #25 \n" // 6 6
+            "ADD r9, r9, r12 \n" // 9 9 14
             "VSTR d19, %[x_simd_11_2] \n"
+            "EOR r7, r7, r8 \n" // 7 7 8
             "VLDR d19, %[x_simd_9_2] \n"
 
             // q0 q1 q2 q3 q4 q5 q6 q7 q8 q9 q12 q13 q14 q15
             //  0  1  2  3  4  5  6  7  8  9  12  13  14  15
 
-            // 2, 7,  8, 13
-            // 3, 4,  9, 14
-
+            "EOR r4, r4, r9 \n" // 4 4 9
             "VADD.I32 q2, q2, q7 \n" // 2 2 7
+            "ROR r7, r7, #25 \n" // 7 7
             "VADD.I32 q3, q3, q4 \n" // 3 3 4
+            "ROR r4, r4, #25 \n" // 4 4
             "VEOR q13, q13, q2 \n" // 13 13 2
             "VEOR q14, q14, q3 \n" // 14 14 3
             "VREV32.16 q13, q13 \n" // 13 13
             "VREV32.16 q14, q14 \n" // 14 14
-
             "VADD.I32 q8, q8, q13 \n" // 8 8 13
             "VADD.I32 q9, q9, q14 \n" // 9 9 14
             "VEOR q10, q7, q8 \n" // 7 7 8
@@ -1027,7 +975,6 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
             "VSHL.I32 q4, q11, #12 \n" // 4 4
             "VSRI.I32 q7, q10, #20 \n" // 7 7
             "VSRI.I32 q4, q11, #20 \n" // 4 4
-
             "VADD.I32 q2, q2, q7 \n" // 2 2 7
             "VADD.I32 q3, q3, q4 \n" // 3 3 4
             "VEOR q10, q13, q2 \n" // 13 13 2
@@ -1036,7 +983,6 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
             "VSHL.I32 q14, q11, #8 \n" // 14 14
             "VSRI.I32 q13, q10, #24 \n" // 13 13
             "VSRI.I32 q14, q11, #24 \n" // 14 14
-
             "VADD.I32 q8, q8, q13 \n" // 8 8 13
             "VADD.I32 q9, q9, q14 \n" // 9 9 14
             "VEOR q10, q7, q8 \n" // 7 7 8
@@ -1046,10 +992,11 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
             "VSRI.I32 q7, q10, #25 \n" // 7 7
             "VSRI.I32 q4, q11, #25 \n" // 4 4
 
+
             "BNE loop_320_%= \n"
 
-            "ADD r10, r10, #4 \n"
             "LDR r14, %[x_addr] \n" // load address of x to r14
+            "ADD r10, r10, #4 \n"
 
             // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
             //  0  1  2  3  4  5  6  7  8  9  12  13  14
@@ -1063,10 +1010,10 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
             "MOV r2, #3 \n"
             "VMOV d22[1], r0 \n"
             "VMOV d23, r1, r2 \n"
-            "VADD.I32 q12, q12, q11 \n" // increment counters here
 
             "VLDR d20, %[x_simd_10] \n"
             "VLDR d21, %[x_simd_10_2] \n"
+            "VADD.I32 q12, q12, q11 \n" // increment counters here
             "VLDR d22, %[x_simd_11] \n"
             "VLDR d23, %[x_simd_11_2] \n"
             // q0 q1 q2 q3 q4 q5 q6 q7 q8 q9 q10 q11 q12 q13 q14 q15
@@ -1131,11 +1078,12 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
             "VEOR q6, q6, q10 \n"
             "VEOR q7, q7, q11 \n"
             "VLDM r12!, { q8-q11 } \n"
+            "VLDM r11!, { q0-q3 } \n"
             "VSTM r10!, { q4-q7 } \n"
-            "VLDM r11, { q0-q7 } \n"
 
             "VADD.I32 q0, q0, q12 \n"
             "VADD.I32 q1, q1, q13 \n"
+            "VLDM r11, { q4-q7 } \n"
             "VADD.I32 q2, q2, q14 \n"
             "VADD.I32 q3, q3, q15 \n"
             "VADD.I32 q4, q4, q12 \n"
@@ -2828,7 +2776,11 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
     word32 i;
     int    processed;
 
+#ifdef __aarch64__
     if (bytes >= CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS) {
+#else
+    while (bytes >= CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS) {
+#endif /*__aarch64__ */
         processed = wc_Chacha_wordtobyte_320(ctx->X, m, c, bytes);
 
         bytes -= processed;
@@ -2836,11 +2788,7 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
         m += processed;
         ctx->X[CHACHA_IV_BYTES] = PLUS(ctx->X[CHACHA_IV_BYTES], processed / CHACHA_CHUNK_BYTES);
     }
-#ifdef __aarch64__
-    if (bytes >= CHACHA_CHUNK_BYTES * 4) {
-#else
     while (bytes >= CHACHA_CHUNK_BYTES * 4) {
-#endif /*__aarch64__ */
         processed = wc_Chacha_wordtobyte_256(ctx->X, m, c);
 
         bytes -= processed;
