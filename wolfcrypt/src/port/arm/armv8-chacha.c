@@ -667,7 +667,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
 //    int outer_rounds = bytes / (CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS);
     word32 x[CHACHA_CHUNK_WORDS];
     word32* x_addr = x;
-    word32 x_simd[4][4];
+    word32 x_simd[8][4];
     word32* x_simd_addr = x_simd;
 
     __asm__ __volatile__ (
@@ -905,6 +905,14 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
 
             "BNE loop_320_%= \n"
 
+            "MOV r0, #1 \n"
+            "VMOV.I32 q11, #0 \n"
+            "MOV r1, #2 \n"
+            "MOV r2, #3 \n"
+            "VMOV d22[1], r0 \n"
+            "VMOV d23, r1, r2 \n"
+            "VADD.I32 q12, q12, q11 \n" // increment counters here
+
             "VLDR d20, %[x_simd_10] \n"
             "VLDR d21, %[x_simd_10_2] \n"
             "VLDR d22, %[x_simd_11] \n"
@@ -930,6 +938,72 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
             "VSWP d25, d28 \n"
             "VSWP d27, d30 \n"
 
+            "VSWP q1, q4 \n"
+            "VSWP q2, q8 \n"
+            "VSWP q3, q12 \n"
+            "VSWP q6, q9 \n"
+            "VSWP q7, q13 \n"
+            "VSWP q11, q14 \n"
+
+            // q0-q3 first block
+            // q4-q7 second block
+            // q8-q11 third block
+            // q12-q15 fourth block
+
+            "LDR r11, %[x_simd_addr] \n" // load address of x to r11
+            "LDR r12, %[m] \n"
+            "LDR r14, %[input] \n" // load address of input to r14
+            "VSTM r11, { q8-q15 } \n"
+            "VLDM r12!, { q8-q11 } \n"
+            "VLDM r14, { q12-q15 } \n"
+            "LDR r14, %[c] \n"
+
+            "VADD.I32 q0, q0, q12 \n"
+            "VADD.I32 q1, q1, q13 \n"
+            "VADD.I32 q2, q2, q14 \n"
+            "VADD.I32 q3, q3, q15 \n"
+            "VADD.I32 q4, q4, q12 \n"
+            "VADD.I32 q5, q5, q13 \n"
+            "VADD.I32 q6, q6, q14 \n"
+            "VADD.I32 q7, q7, q15 \n"
+
+            "VEOR q0, q0, q8 \n"
+            "VEOR q1, q1, q9 \n"
+            "VEOR q2, q2, q10 \n"
+            "VEOR q3, q3, q11 \n"
+            "VLDM r12!, { q8-q11 } \n"
+            "VSTM r14!, { q0-q3 } \n"
+
+            "VEOR q4, q4, q8 \n"
+            "VEOR q5, q5, q9 \n"
+            "VEOR q6, q6, q10 \n"
+            "VEOR q7, q7, q11 \n"
+            "VLDM r12!, { q8-q11 } \n"
+            "VSTM r14!, { q4-q7 } \n"
+            "VLDM r11, { q0-q7 } \n"
+
+            "VADD.I32 q0, q0, q12 \n"
+            "VADD.I32 q1, q1, q13 \n"
+            "VADD.I32 q2, q2, q14 \n"
+            "VADD.I32 q3, q3, q15 \n"
+            "VADD.I32 q4, q4, q12 \n"
+            "VADD.I32 q5, q5, q13 \n"
+            "VADD.I32 q6, q6, q14 \n"
+            "VADD.I32 q7, q7, q15 \n"
+
+            "VEOR q0, q0, q8 \n"
+            "VEOR q1, q1, q9 \n"
+            "VEOR q2, q2, q10 \n"
+            "VEOR q3, q3, q11 \n"
+            "VLDM r12!, { q8-q11 } \n"
+            "VSTM r14!, { q0-q3 } \n"
+
+            "VEOR q4, q4, q8 \n"
+            "VEOR q5, q5, q9 \n"
+            "VEOR q6, q6, q10 \n"
+            "VEOR q7, q7, q11 \n"
+            "VLDM r12!, { q8-q11 } \n"
+            "VSTM r14!, { q4-q7 } \n"
 
 
             : [c] "+m" (c),
