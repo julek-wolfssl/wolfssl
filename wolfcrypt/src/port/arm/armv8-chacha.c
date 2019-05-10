@@ -185,8 +185,6 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
             "LD1 { v24.4S-v27.4S }, [%[input]] \n"
 
             "outer_loop_320_%=: \n"
-            "SUB %[outer_rounds], %[outer_rounds], #1 \n"
-
             // fifth chacha block is stored in w1-w16 regular registers
             "MOV x1, v24.D[0] \n"
             "MOV x3, v24.D[1] \n"
@@ -238,15 +236,16 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
             "DUP v14.4S, v27.S[2] \n"
             "DUP v15.4S, v27.S[3] \n"
 
+            "MOV x0, %[rounds] \n" // Load loop counter
+
             "MOV v12.S[1], w17 \n"
             "MOV v12.S[2], w18 \n"
             "MOV v12.S[3], w19 \n"
             "MOV w13, w20 \n"
 
-            "MOV x0, %[rounds] \n" // Load loop counter
 
             "loop_320_%=: \n"
-            "SUB x0, x0, #1 \n"
+            "SUBS x0, x0, #1 \n"
 
             // odd round
 
@@ -498,10 +497,9 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
             "SRI v7.4S, v18.4S, #25 \n"
             "SRI v4.4S, v19.4S, #25 \n"
 
-            "CBNZ x0, loop_320_%= \n"
+            "BNE loop_320_%= \n"
 
-            "LD1 { v28.4S-v31.4S }, [%[m]] \n"
-            "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
+            "LD1 { v28.4S-v31.4S }, [%[m]], #64 \n"
 
             // Transpose to have words in the same registers
             //
@@ -557,10 +555,8 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
             "EOR v17.16B, v17.16B, v29.16B \n"
             "EOR v18.16B, v18.16B, v30.16B \n"
             "EOR v19.16B, v19.16B, v31.16B \n"
-            "LD1 { v28.4S-v31.4S }, [%[m]] \n"
-            "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
-            "ST1 { v16.4S-v19.4S }, [%[c]] \n"
-            "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
+            "LD1 { v28.4S-v31.4S }, [%[m]], #64 \n"
+            "ST1 { v16.4S-v19.4S }, [%[c]], #64 \n"
 
             // increment counter
             "MOV v27.S[0], w17 \n"
@@ -572,10 +568,8 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
             "EOR v17.16B, v17.16B, v29.16B \n"
             "EOR v18.16B, v18.16B, v30.16B \n"
             "EOR v19.16B, v19.16B, v31.16B \n"
-            "LD1 { v28.4S-v31.4S }, [%[m]] \n"
-            "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
-            "ST1 { v16.4S-v19.4S }, [%[c]] \n"
-            "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
+            "LD1 { v28.4S-v31.4S }, [%[m]], #64 \n"
+            "ST1 { v16.4S-v19.4S }, [%[c]], #64 \n"
 
             // increment counter
             "MOV v27.S[0], w18 \n"
@@ -587,10 +581,8 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
             "EOR v17.16B, v17.16B, v29.16B \n"
             "EOR v18.16B, v18.16B, v30.16B \n"
             "EOR v19.16B, v19.16B, v31.16B \n"
-            "LD1 { v28.4S-v31.4S }, [%[m]] \n"
-            "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
-            "ST1 { v16.4S-v19.4S }, [%[c]] \n"
-            "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
+            "LD1 { v28.4S-v31.4S }, [%[m]], #64 \n"
+            "ST1 { v16.4S-v19.4S }, [%[c]], #64 \n"
 
             // increment counter
             "MOV v27.S[0], w19 \n"
@@ -602,10 +594,8 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
             "EOR v17.16B, v17.16B, v29.16B \n"
             "EOR v18.16B, v18.16B, v30.16B \n"
             "EOR v19.16B, v19.16B, v31.16B \n"
-            "LD1 { v28.4S-v31.4S }, [%[m]] \n"
-            "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
-            "ST1 { v16.4S-v19.4S }, [%[c]] \n"
-            "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
+            "LD1 { v28.4S-v31.4S }, [%[m]], #64 \n"
+            "ST1 { v16.4S-v19.4S }, [%[c]], #64 \n"
 
             // increment counter
             "MOV v27.S[0], w20 \n"
@@ -636,16 +626,18 @@ static WC_INLINE int wc_Chacha_wordtobyte_320(const word32 input[CHACHA_CHUNK_WO
             "EOR v21.16B, v21.16B, v29.16B \n"
             "EOR v22.16B, v22.16B, v30.16B \n"
             "EOR v23.16B, v23.16B, v31.16B \n"
-            "ST1 { v20.4S-v23.4S }, [%[c]] \n"
-            "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
+            "ST1 { v20.4S-v23.4S }, [%[c]], #64 \n"
+
+            "SUBS %[outer_rounds], %[outer_rounds], #1 \n"
 
             "ADD w0, w20, #1 \n"
             "MOV v27.S[0], w0 \n"
 
-            "CBNZ %[outer_rounds], outer_loop_320_%= \n"
+            "BNE outer_loop_320_%= \n"
 
-            : [c] "=r" (c), [m] "=r" (m)
-            : "0" (c), "1" (m), [rounds] "I" (ROUNDS/2), [input] "r" (input), [chacha_chunk_bytes] "I" (CHACHA_CHUNK_BYTES),
+            : [c] "+r" (c), [m] "+r" (m)
+            : [rounds] "I" (ROUNDS/2), [input] "r" (input),
+              [chacha_chunk_bytes] "I" (CHACHA_CHUNK_BYTES),
               [outer_rounds] "r" (bytes / (CHACHA_CHUNK_BYTES * MAX_CHACHA_BLOCKS))
             : "memory", "cc",
               "x0",
@@ -983,8 +975,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
             // counter
             "MOV w0, v27.S[0] \n"
             "ADD w0, w0, 1 \n"
-            "LD1 { v28.4S-v31.4S }, [%[m]] \n"
-            "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
+            "LD1 { v28.4S-v31.4S }, [%[m]], #64 \n"
 
             "ADD v0.4S, v0.4S, v24.4S \n"
             "ADD v1.4S, v1.4S, v25.4S \n"
@@ -994,10 +985,8 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
             "EOR v1.16B, v1.16B, v29.16B \n"
             "EOR v2.16B, v2.16B, v30.16B \n"
             "EOR v3.16B, v3.16B, v31.16B \n"
-            "ST1 { v0.4S-v3.4S }, [%[c]] \n"
-            "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
-            "LD1 { v28.4S-v31.4S }, [%[m]] \n"
-            "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
+            "ST1 { v0.4S-v3.4S }, [%[c]], #64 \n"
+            "LD1 { v28.4S-v31.4S }, [%[m]], #64 \n"
 
             // increment counter
             "MOV v27.S[0], w0 \n"
@@ -1010,10 +999,8 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
             "EOR v5.16B, v5.16B, v29.16B \n"
             "EOR v6.16B, v6.16B, v30.16B \n"
             "EOR v7.16B, v7.16B, v31.16B \n"
-            "ST1 { v4.4S-v7.4S }, [%[c]] \n"
-            "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
-            "LD1 { v28.4S-v31.4S }, [%[m]] \n"
-            "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
+            "ST1 { v4.4S-v7.4S }, [%[c]], #64 \n"
+            "LD1 { v28.4S-v31.4S }, [%[m]], #64 \n"
 
             // increment counter
             "MOV v27.S[0], w0 \n"
@@ -1026,8 +1013,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
             "EOR v9.16B, v9.16B, v29.16B \n"
             "EOR v10.16B, v10.16B, v30.16B \n"
             "EOR v11.16B, v11.16B, v31.16B \n"
-            "ST1 { v8.4S-v11.4S }, [%[c]] \n"
-            "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
+            "ST1 { v8.4S-v11.4S }, [%[c]], #64 \n"
             "LD1 { v28.4S-v31.4S }, [%[m]] \n"
 
             // increment counter
@@ -1060,8 +1046,9 @@ static WC_INLINE int wc_Chacha_wordtobyte_256(const word32 input[CHACHA_CHUNK_WO
             "EOR v3.16B, v3.16B, v31.16B \n"
             "ST1 { v0.4S-v3.4S }, [%[c]] \n"
 
-            : [c] "=r" (c), [m] "=r" (m)
-            : "0" (c), "1" (m), [rounds] "I" (ROUNDS/2), [input] "r" (input), [chacha_chunk_bytes] "I" (CHACHA_CHUNK_BYTES)
+            : [c] "+r" (c), [m] "+r" (m)
+            : [rounds] "I" (ROUNDS/2), [input] "r" (input),
+              [chacha_chunk_bytes] "I" (CHACHA_CHUNK_BYTES)
             : "memory", "cc",
               "x0",
               "x1",  "x2",  "x3",  "x4",
@@ -1501,8 +1488,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WO
             // get counter value
             "MOV w17, v27.S[0] \n"
 
-            "LD1 { v28.4S-v31.4S }, [%[m]] \n"
-            "ADD %[m], %[m], %[chacha_chunk_bytes] \n"
+            "LD1 { v28.4S-v31.4S }, [%[m]], #64 \n"
 
 
             // v0  0  1  2  3
@@ -1638,8 +1624,7 @@ static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WO
             "EOR v3.16B, v3.16B, v31.16B \n"
             "LD1 { v28.4S-v31.4S }, [%[m]] \n"
             "MOV v27.S[0], w17 \n"
-            "ST1 { v0.4S-v3.4S }, [%[c]] \n"
-            "ADD %[c], %[c], %[chacha_chunk_bytes] \n"
+            "ST1 { v0.4S-v3.4S }, [%[c]], #64 \n"
 
             "ADD v4.4S, v4.4S, v24.4S \n"
             "ADD v5.4S, v5.4S, v25.4S \n"
@@ -1652,8 +1637,9 @@ static WC_INLINE int wc_Chacha_wordtobyte_128(const word32 input[CHACHA_CHUNK_WO
             "ST1 { v4.4S-v7.4S }, [%[c]] \n"
 
 
-            : [c] "=r" (c), [m] "=r" (m)
-            : "0" (c), "1" (m), [rounds] "r" (ROUNDS/2), [input] "r" (input), [chacha_chunk_bytes] "I" (CHACHA_CHUNK_BYTES)
+            : [c] "+r" (c), [m] "+r" (m)
+            : [rounds] "r" (ROUNDS/2), [input] "r" (input),
+              [chacha_chunk_bytes] "I" (CHACHA_CHUNK_BYTES)
             : "memory", "cc",
               "x17",
               "v0",  "v1",  "v2",  "v3",  "v4",
@@ -1845,7 +1831,7 @@ static WC_INLINE void wc_Chacha_wordtobyte_64(word32 output[CHACHA_CHUNK_WORDS],
             "LSR x16, x15, #32 \n"
 
             "loop_64_%=:"
-            "SUB %[rounds], %[rounds], #1 \n"
+            "SUBS %[rounds], %[rounds], #1 \n"
 
             // odd
 
@@ -1971,7 +1957,7 @@ static WC_INLINE void wc_Chacha_wordtobyte_64(word32 output[CHACHA_CHUNK_WORDS],
             "ROR w8, w8, #25 \n"
             "ROR w5, w5, #25 \n"
 
-            "CBNZ %[rounds], loop_64_%= \n"
+            "BNE loop_64_%= \n"
 
             "ADD w1, w1, w17 \n"
             "ADD x2, x2, x17, LSR #32 \n"
@@ -2004,8 +1990,8 @@ static WC_INLINE void wc_Chacha_wordtobyte_64(word32 output[CHACHA_CHUNK_WORDS],
             "ORR x15, x15, x16, LSL #32 \n"
             "STP x13, x15, [%[x]], #16 \n"
 
-            : [x] "=r" (output), [input] "=r" (input)
-            : "0" (output), "1" (input), [rounds] "r" (ROUNDS/2)
+            : [x] "+r" (output), [input] "+r" (input)
+            : [rounds] "r" (ROUNDS/2)
             : "memory", "cc",
               "x1",  "x2",  "x3",  "x4",
               "x5",  "x6",  "x7",  "x8",
@@ -2317,8 +2303,8 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                     "EOR v2.16B, v2.16B, v6.16B \n"
                     "EOR v3.16B, v3.16B, v7.16B \n"
                     "ST1 { v0.16B-v3.16B }, [%[c]] \n"
-                    : [c] "=r" (c)
-                    : "0" (c), [m] "r" (m), [output] "r" (output)
+                    : [c] "+r" (c)
+                    : [m] "r" (m), [output] "r" (output)
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7"
             );
 #else
@@ -2330,8 +2316,8 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                     "VEOR q2, q2, q6 \n"
                     "VEOR q3, q3, q7 \n"
                     "VSTM %[c], { q0-q3 } \n"
-                    : [c] "=r" (c)
-                    : "0" (c), [m] "r" (m), [output] "r" (output)
+                    : [c] "+r" (c)
+                    : [m] "r" (m), [output] "r" (output)
                     : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7"
             );
 #endif /*__aarch64__ */
@@ -2349,8 +2335,8 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                         "EOR v0.16B, v0.16B, v2.16B \n"
                         "EOR v1.16B, v1.16B, v3.16B \n"
                         "ST1 { v0.16B-v1.16B }, [%[c]] \n"
-                        : [c] "=r" (c)
-                        : "0" (c), [m] "r" (m), [output] "r" (output)
+                        : [c] "+r" (c)
+                        : [m] "r" (m), [output] "r" (output)
                         : "memory", "v0", "v1"
                 );
 #else
@@ -2360,8 +2346,8 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                         "VEOR q0, q0, q2 \n"
                         "VEOR q1, q1, q3 \n"
                         "VSTM %[c], { q0-q1 } \n"
-                        : [c] "=r" (c)
-                        : "0" (c), [m] "r" (m), [output] "r" (output)
+                        : [c] "+r" (c)
+                        : [m] "r" (m), [output] "r" (output)
                         : "memory", "q0", "q1", "q2", "q3"
                 );
 #endif /*__aarch64__ */
@@ -2378,8 +2364,8 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                         "LD1 { v1.16B }, [%[output]] \n"
                         "EOR v0.16B, v0.16B, v1.16B \n"
                         "ST1 { v0.16B }, [%[c]] \n"
-                        : [c] "=r" (c)
-                        : "0" (c), [m] "r" (m), [output] "r" (output)
+                        : [c] "+r" (c)
+                        : [m] "r" (m), [output] "r" (output)
                         : "memory", "v0", "v1"
                 );
 #else
@@ -2388,8 +2374,8 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                         "VLDM %[output], { q1 } \n"
                         "VEOR q0, q0, q1 \n"
                         "VSTM %[c], { q0 } \n"
-                        : [c] "=r" (c)
-                        : "0" (c), [m] "r" (m), [output] "r" (output)
+                        : [c] "+r" (c)
+                        : [m] "r" (m), [output] "r" (output)
                         : "memory", "q0", "q1"
                 );
 #endif /*__aarch64__ */
@@ -2406,8 +2392,8 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                         "LD1 { v1.8B }, [%[output]] \n"
                         "EOR v0.8B, v0.8B, v1.8B \n"
                         "ST1 { v0.8B }, [%[c]] \n"
-                        : [c] "=r" (c)
-                        : "0" (c), [m] "r" (m), [output] "r" (output)
+                        : [c] "+r" (c)
+                        : [m] "r" (m), [output] "r" (output)
                         : "memory", "v0", "v1"
                 );
 #else
@@ -2416,8 +2402,8 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                         "VLDR d1, [%[output]] \n"
                         "VEOR d0, d0, d1 \n"
                         "VSTR d0, [%[c]] \n"
-                        : [c] "=r" (c)
-                        : "0" (c), [m] "r" (m), [output] "r" (output)
+                        : [c] "+r" (c)
+                        : [m] "r" (m), [output] "r" (output)
                         : "memory", "d0", "d1"
                 );
 #endif /*__aarch64__ */
