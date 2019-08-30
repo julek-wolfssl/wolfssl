@@ -28944,6 +28944,10 @@ void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
         XFREE(rsa->rng, NULL, DYNAMIC_TYPE_RNG);
     #endif
 
+        if (rsa->meth) {
+            wolfSSL_RSA_meth_free(rsa->meth);
+        }
+
         InitwolfSSL_Rsa(rsa);  /* set back to NULLs for safety */
 
         XFREE(rsa, NULL, DYNAMIC_TYPE_RSA);
@@ -30872,6 +30876,13 @@ const WOLFSSL_EVP_MD* wolfSSL_EVP_get_digestbynid(int id)
 
 
 #ifndef NO_RSA
+WOLFSSL_RSA* wolfSSL_EVP_PKEY_get0_RSA(WOLFSSL_EVP_PKEY *pkey) {
+    if (!pkey) {
+        return NULL;
+    }
+    return pkey->rsa;
+}
+
 WOLFSSL_RSA* wolfSSL_EVP_PKEY_get1_RSA(WOLFSSL_EVP_PKEY* key)
 {
     WOLFSSL_RSA* local;
@@ -33035,6 +33046,28 @@ int wolfSSL_EC_POINT_is_at_infinity(const WOLFSSL_EC_GROUP *group,
 
 /* End EC_POINT */
 
+size_t wolfSSL_EC_get_builtin_curves(EC_builtin_curve *r, size_t nitems) {
+    static size_t ecc_sets_count = 0;
+    size_t i, min;
+
+    if (ecc_sets_count == 0) {
+        for (i = 0; ecc_sets[i].size != 0; i++);
+        ecc_sets_count = i;
+    }
+
+    if (r == NULL || nitems == 0)
+        return ecc_sets_count;
+
+    min = nitems < ecc_sets_count ? nitems : ecc_sets_count;
+
+    for (i = 0; i < min; i++) {
+        r[i].nid = ecc_sets[i].id;
+        r[i].comment = ecc_sets[i].name;
+    }
+
+    return ecc_sets_count;
+}
+
 /* Start ECDSA_SIG */
 void wolfSSL_ECDSA_SIG_free(WOLFSSL_ECDSA_SIG *sig)
 {
@@ -34503,6 +34536,77 @@ int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
     rsa->inSet = 1;
 
     return WOLFSSL_SUCCESS;
+}
+
+WOLFSSL_RSA_METHOD *wolfSSL_RSA_meth_new(const char *name, int flags) {
+    int name_len;
+    WOLFSSL_RSA_METHOD* meth;
+    meth = (WOLFSSL_RSA_METHOD*) XMALLOC(sizeof(WOLFSSL_RSA_METHOD), NULL, DYNAMIC_TYPE_OPENSSL);
+    name_len = XSTRLEN(name);
+    if (!meth) {
+        return NULL;
+    }
+    meth->flags = flags;
+    meth->name = (char*) XMALLOC(name_len+1, NULL, DYNAMIC_TYPE_OPENSSL);
+    if (!meth->name) {
+        XFREE(meth, NULL, DYNAMIC_TYPE_OPENSSL);
+        return NULL;
+    }
+    XMEMCPY(meth->name, name, name_len+1);
+    WOLFSSL_MSG("RSA_METHOD is not implemented.");
+    return meth;
+}
+
+void wolfSSL_RSA_meth_free(WOLFSSL_RSA_METHOD *meth) {
+    if (meth) {
+        XFREE(meth->name, NULL, DYNAMIC_TYPE_OPENSSL);
+        XFREE(meth, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+}
+
+int wolfSSL_RSA_meth_set(WOLFSSL_RSA_METHOD *rsa, void* p) {
+    (void)rsa;
+    (void)p;
+    WOLFSSL_MSG("RSA_METHOD is not implemented.");
+    return 1;
+}
+
+int wolfSSL_RSA_set_method(WOLFSSL_RSA *rsa, WOLFSSL_RSA_METHOD *meth) {
+    rsa->meth = meth;
+    return 1;
+}
+
+void wolfSSL_RSA_get0_key(const WOLFSSL_RSA *r, const WOLFSSL_BIGNUM **n,
+                          const WOLFSSL_BIGNUM **e, const WOLFSSL_BIGNUM **d) {
+    if (n) *n = r->n;
+    if (e) *e = r->e;
+    if (d) *d = r->d;
+}
+
+int wolfSSL_RSA_set0_key(WOLFSSL_RSA *r, WOLFSSL_BIGNUM *n, WOLFSSL_BIGNUM *e,
+                         WOLFSSL_BIGNUM *d)
+{
+    /* If the fields n and e in r are NULL, the corresponding input
+     * parameters MUST be non-NULL for n and e.  d may be
+     * left NULL (in case only the public key is used).
+     */
+    if ((!r->n && !n) || (!r->e && !e))
+        return 0;
+
+    if (n) {
+        wolfSSL_BN_free(r->n);
+        r->n = n;
+    }
+    if (e) {
+        wolfSSL_BN_free(r->e);
+        r->e = e;
+    }
+    if (d) {
+        wolfSSL_BN_clear_free(r->d);
+        r->d = d;
+    }
+
+    return 1;
 }
 #endif /* NO_RSA */
 

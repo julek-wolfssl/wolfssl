@@ -410,6 +410,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_assign_RSA(WOLFSSL_EVP_PKEY* pkey,
                                             WOLFSSL_RSA* key);
 WOLFSSL_API int wolfSSL_EVP_PKEY_assign_EC_KEY(WOLFSSL_EVP_PKEY* pkey,
                                                WOLFSSL_EC_KEY* key);
+WOLFSSL_API WOLFSSL_RSA* wolfSSL_EVP_PKEY_get0_RSA(struct WOLFSSL_EVP_PKEY *pkey);
 WOLFSSL_API WOLFSSL_RSA* wolfSSL_EVP_PKEY_get1_RSA(WOLFSSL_EVP_PKEY*);
 WOLFSSL_API WOLFSSL_DSA* wolfSSL_EVP_PKEY_get1_DSA(WOLFSSL_EVP_PKEY*);
 WOLFSSL_API WOLFSSL_EC_KEY *wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY *key);
@@ -518,6 +519,7 @@ WOLFSSL_API int wolfSSL_PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
 #define WOLFSSL_EVP_CIPH_GCM_MODE           0x6
 #define WOLFSSL_EVP_CIPH_CCM_MODE           0x7
 #define WOLFSSL_EVP_CIPH_NO_PADDING       0x100
+#define EVP_CIPH_VARIABLE_LENGTH          0x200
 #define WOLFSSL_EVP_CIPH_TYPE_INIT         0xff
 
 /* end OpenSSH compat */
@@ -706,6 +708,14 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 
 #ifndef EVP_MAX_MD_SIZE
     #define EVP_MAX_MD_SIZE   64     /* sha512 */
+#endif
+
+#ifndef EVP_MAX_KEY_LENGTH
+#define EVP_MAX_KEY_LENGTH    64
+#endif
+
+#ifndef EVP_MAX_IV_LENGTH
+#define EVP_MAX_IV_LENGTH     16
 #endif
 
 #ifndef EVP_MAX_BLOCK_LENGTH
