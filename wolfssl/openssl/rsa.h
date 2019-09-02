@@ -119,6 +119,7 @@ WOLFSSL_API void wolfSSL_RSA_get0_key(const WOLFSSL_RSA *r, const WOLFSSL_BIGNUM
                                       const WOLFSSL_BIGNUM **e, const WOLFSSL_BIGNUM **d);
 WOLFSSL_API int wolfSSL_RSA_set0_key(WOLFSSL_RSA *r, WOLFSSL_BIGNUM *n, WOLFSSL_BIGNUM *e,
                                      WOLFSSL_BIGNUM *d);
+WOLFSSL_API int wolfSSL_RSA_flags(const WOLFSSL_RSA *r);
 
 WOLFSSL_API void wolfSSL_RSA_get0_key(const WOLFSSL_RSA *r,
                   const WOLFSSL_BIGNUM **n, const WOLFSSL_BIGNUM **e, const WOLFSSL_BIGNUM **d);
@@ -155,6 +156,7 @@ WOLFSSL_API void wolfSSL_RSA_get0_key(const WOLFSSL_RSA *r,
 #define RSA_set_method          wolfSSL_RSA_set_method
 #define RSA_get0_key            wolfSSL_RSA_get0_key
 #define RSA_set0_key            wolfSSL_RSA_set0_key
+#define RSA_flags               wolfSSL_RSA_flags
 
 #define RSA_get0_key       wolfSSL_RSA_get0_key
 

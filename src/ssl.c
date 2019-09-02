@@ -34608,6 +34608,14 @@ int wolfSSL_RSA_set0_key(WOLFSSL_RSA *r, WOLFSSL_BIGNUM *n, WOLFSSL_BIGNUM *e,
 
     return 1;
 }
+
+int wolfSSL_RSA_flags(const WOLFSSL_RSA *r) {
+    if (r && r->meth) {
+        return r->meth->flags;
+    } else {
+        return 0;
+    }
+}
 #endif /* NO_RSA */
 
 #ifdef OPENSSL_EXTRA

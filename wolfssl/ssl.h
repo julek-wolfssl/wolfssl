@@ -3183,6 +3183,9 @@ WOLFSSL_API int wolfSSL_PEM_get_EVP_CIPHER_INFO(char* header,
 WOLFSSL_API int wolfSSL_PEM_do_header(EncryptedInfo* cipher,
                                       unsigned char* data, long* len,
                                       pem_password_cb* callback, void* ctx);
+WOLF_STACK_OF(WOLFSSL_X509_INFO) *wolfSSL_PEM_X509_INFO_read_bio(WOLFSSL_BIO *bp,
+                                                                 WOLF_STACK_OF(WOLFSSL_X509_INFO) *sk,
+                                                                 pem_password_cb *cb, void *u);
 
 /*lighttp compatibility */
 

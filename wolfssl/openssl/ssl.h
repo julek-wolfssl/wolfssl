@@ -58,6 +58,10 @@
     #undef ASN1_INTEGER
 #endif
 
+typedef struct WOLFSSL_X509_INFO {
+    WOLFSSL_X509 *x509;
+    WOLFSSL_X509_CRL *crl;
+} WOLFSSL_X509_INFO;
 
 typedef WOLFSSL          SSL;
 typedef WOLFSSL_SESSION  SSL_SESSION;
@@ -69,6 +73,7 @@ typedef WOLFSSL_X509       X509_REQ;
 typedef WOLFSSL_X509_NAME  X509_NAME;
 typedef WOLFSSL_X509_INFO  X509_INFO;
 typedef WOLFSSL_X509_CHAIN X509_CHAIN;
+typedef WOLFSSL_X509_INFO  X509_INFO;
 
 typedef WOLFSSL_STACK      EXTENDED_KEY_USAGE;
 
@@ -307,6 +312,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define PEM_X509_INFO_read_bio          wolfSSL_PEM_X509_INFO_read_bio
 #define PEM_write_bio_X509              wolfSSL_PEM_write_bio_X509
 #define PEM_write_bio_X509_AUX          wolfSSL_PEM_write_bio_X509_AUX
+#define PEM_X509_INFO_read_bio          wolfSSL_PEM_X509_INFO_read_bio
 #define i2d_PrivateKey                  wolfSSL_i2d_PrivateKey
 
 #define i2d_X509_REQ                    wolfSSL_i2d_X509_REQ

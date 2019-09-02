@@ -3462,6 +3462,7 @@ struct WOLFSSL_STACK {
         void*                  generic;
         char*                  string;
         WOLFSSL_GENERAL_NAME* gn;
+        WOLFSSL_X509_INFO*   info;
     } data;
     void* heap; /* memory heap hint */
     WOLFSSL_STACK* next;
