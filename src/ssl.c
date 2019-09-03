@@ -38472,6 +38472,27 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
         return NULL;
     }
+
+    /* return index of found, or negative to indicate not found */
+    int wolfSSL_sk_X509_NAME_find(const WOLF_STACK_OF(WOLFSSL_X509_NAME) *st, WOLFSSL_X509_NAME *name) {
+        /* Return index of found name or -1 if not found */
+        int ret = -1;
+        int idx = 0;
+
+        WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_find");
+
+        if (st == NULL)
+            return BAD_FUNC_ARG;
+
+        for (; st; st = st->next, idx++) {
+            if (wolfSSL_X509_NAME_cmp(st->data.name, name) == 0) {
+                ret = idx;
+                break;
+            }
+        }
+        return ret;
+    }
+
     #endif
 
 #endif /* OPENSSL_ALL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || HAVE_STUNNEL || WOLFSSL_NGINX || HAVE_POCO_LIB || WOLFSSL_HAPROXY */
@@ -40297,25 +40318,6 @@ int wolfSSL_sk_X509_NAME_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk, WOLFSSL_X509
     sk->num        += 1;
 
     return 0;
-}
-
-/* return index of found, or negative to indicate not found */
-int wolfSSL_sk_X509_NAME_find(const WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk, WOLFSSL_X509_NAME* name)
-{
-    int i;
-
-    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_find");
-
-    if (sk == NULL)
-        return BAD_FUNC_ARG;
-
-    for (i=0; sk != NULL; i++, sk = sk->next) {
-        if (sk->data.name == name) {
-            return i;
-        }
-    }
-
-    return -1;
 }
 
 int wolfSSL_sk_X509_NAME_set_cmp_func(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk, wolf_sk_compare_cb cb)

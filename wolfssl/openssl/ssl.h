@@ -413,6 +413,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define X509_NAME_get_index_by_NID      wolfSSL_X509_NAME_get_index_by_NID
 #define X509_NAME_print_ex              wolfSSL_X509_NAME_print_ex
 #define X509_NAME_digest                wolfSSL_X509_NAME_digest
+#define X509_NAME_dup                   wolfSSL_X509_NAME_dup
 #define X509_cmp_current_time           wolfSSL_X509_cmp_current_time
 #define X509_cmp_time                   wolfSSL_X509_cmp_time
 #define X509_time_adj                   wolfSSL_X509_time_adj
@@ -793,6 +794,8 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define SHA1                            wolfSSL_SHA1
 
 #define SSL_dup_CA_list                 wolfSSL_dup_CA_list
+
+#define sk_X509_NAME_find               wolfSSL_sk_X509_NAME_find
 
 enum {
     GEN_DNS   = 0x02, /* ASN_DNS_TYPE */
