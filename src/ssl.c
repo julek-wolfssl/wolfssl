@@ -17445,7 +17445,6 @@ void wolfSSL_X509_free(WOLFSSL_X509* x509)
     ExternalFreeX509(x509);
 }
 
-
 /* copy name into in buffer, at most sz bytes, if buffer is null will
    malloc buffer, call responsible for freeing                     */
 char* wolfSSL_X509_NAME_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
@@ -17957,7 +17956,6 @@ void* wolfSSL_sk_X509_shift(WOLF_STACK_OF(WOLFSSL_X509)* sk)
     return wolfSSL_sk_X509_pop(sk);
 }
 
-
 /* Free's all nodes in X509 stack. This is different then wolfSSL_sk_X509_free
  * in that it allows for choosing the function to use when freeing an X509s.
  *
@@ -17991,7 +17989,6 @@ void wolfSSL_sk_X509_pop_free(STACK_OF(WOLFSSL_X509)* sk, void f (WOLFSSL_X509*)
     XFREE(sk, NULL, DYNAMIC_TYPE_X509);
 }
 
-
 /* free structure for x509 stack */
 void wolfSSL_sk_X509_free(WOLF_STACK_OF(WOLFSSL_X509)* sk) {
     WOLFSSL_STACK* node;
@@ -18019,7 +18016,6 @@ void wolfSSL_sk_X509_free(WOLF_STACK_OF(WOLFSSL_X509)* sk) {
     }
     XFREE(sk, NULL, DYNAMIC_TYPE_X509);
 }
-
 
 #endif /* NO_CERTS && OPENSSL_EXTRA */
 
@@ -25862,6 +25858,9 @@ void wolfSSL_sk_free(WOLFSSL_STACK* sk)
             break;
         case STACK_TYPE_OBJ:
             wolfSSL_sk_ASN1_OBJECT_free(sk);
+            break;
+        case STACK_TYPE_X509_INFO:
+            wolfSSL_sk_X509_INFO_free(sk);
             break;
         case STACK_TYPE_NULL:
             wolfSSL_sk_GENERIC_free(sk);
@@ -34576,13 +34575,6 @@ int wolfSSL_RSA_set_method(WOLFSSL_RSA *rsa, WOLFSSL_RSA_METHOD *meth) {
     return 1;
 }
 
-void wolfSSL_RSA_get0_key(const WOLFSSL_RSA *r, const WOLFSSL_BIGNUM **n,
-                          const WOLFSSL_BIGNUM **e, const WOLFSSL_BIGNUM **d) {
-    if (n) *n = r->n;
-    if (e) *e = r->e;
-    if (d) *d = r->d;
-}
-
 int wolfSSL_RSA_set0_key(WOLFSSL_RSA *r, WOLFSSL_BIGNUM *n, WOLFSSL_BIGNUM *e,
                          WOLFSSL_BIGNUM *d)
 {
@@ -36038,39 +36030,9 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             return NULL;
         }
 
-        if (bp->type == WOLFSSL_BIO_MEMORY) {
-            l = (long)wolfSSL_BIO_ctrl_pending(bp);
-            if (l <= 0) {
-                WOLFSSL_MSG("No pending data in WOLFSSL_BIO");
-                return NULL;
-            }
-        }
-        else if (bp->type == WOLFSSL_BIO_FILE) {
-#ifndef NO_FILESYSTEM
-            /* Read in next certificate from file but no more. */
-            i = XFTELL((XFILE)bp->ptr);
-            if (i < 0)
-                return NULL;
-            if (XFSEEK((XFILE)bp->ptr, 0, XSEEK_END) != 0)
-                return NULL;
-            l = XFTELL((XFILE)bp->ptr);
-            if (l < 0)
-                return NULL;
-            if (XFSEEK((XFILE)bp->ptr, i, SEEK_SET) != 0)
-                return NULL;
-
-            /* check calculated length */
-            if (l - i < 0)
-                return NULL;
-
-            l -= i;
-#else
-            WOLFSSL_MSG("Unable to read file with NO_FILESYSTEM defined");
+        if ((l = wolfSSL_BIO_get_len(bp)) <= 0) {
             return NULL;
-#endif /* !NO_FILESYSTEM */
         }
-        else
-            return NULL;
 
         pem = (unsigned char*)XMALLOC(l, 0, DYNAMIC_TYPE_PEM);
         if (pem == NULL)
@@ -40048,6 +40010,10 @@ void wolfSSL_X509_INFO_free(WOLFSSL_X509_INFO* info)
     if (info->x509) {
         wolfSSL_X509_free(info->x509);
         info->x509 = NULL;
+    }
+    if (info->crl) {
+        wolfSSL_X509_CRL_free(info->crl);
+        info->crl = NULL;
     }
     wolfSSL_X509_PKEY_free(info->x_pkey);
     info->x_pkey = NULL;

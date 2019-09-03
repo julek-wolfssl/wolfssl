@@ -58,11 +58,6 @@
     #undef ASN1_INTEGER
 #endif
 
-typedef struct WOLFSSL_X509_INFO {
-    WOLFSSL_X509 *x509;
-    WOLFSSL_X509_CRL *crl;
-} WOLFSSL_X509_INFO;
-
 typedef WOLFSSL          SSL;
 typedef WOLFSSL_SESSION  SSL_SESSION;
 typedef WOLFSSL_METHOD   SSL_METHOD;
@@ -371,6 +366,8 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 
 #define X509_EXTENSION_get_object       wolfSSL_X509_EXTENSION_get_object
 #define X509_EXTENSION_get_data         wolfSSL_X509_EXTENSION_get_data
+
+#define X509_INFO_free                  wolfSSL_X509_INFO_free
 
 #define sk_X509_new                     wolfSSL_sk_X509_new
 #define sk_X509_new_null                wolfSSL_sk_X509_new

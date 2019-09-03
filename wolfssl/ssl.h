@@ -126,6 +126,7 @@ typedef struct WOLFSSL_X509_PUBKEY WOLFSSL_X509_PUBKEY;
 typedef struct WOLFSSL_X509_ALGOR WOLFSSL_X509_ALGOR;
 typedef struct WOLFSSL_X509_CHAIN WOLFSSL_X509_CHAIN;
 typedef struct WC_PKCS12          WOLFSSL_X509_PKCS12;
+typedef struct WOLFSSL_X509_INFO  X509_INFO;
 
 typedef struct WOLFSSL_CERT_MANAGER WOLFSSL_CERT_MANAGER;
 typedef struct WOLFSSL_SOCKADDR     WOLFSSL_SOCKADDR;
@@ -192,7 +193,6 @@ typedef struct WOLFSSL_BASIC_CONSTRAINTS WOLFSSL_BASIC_CONSTRAINTS;
 typedef struct WOLFSSL_ACCESS_DESCRIPTION WOLFSSL_ACCESS_DESCRIPTION;
 
 #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
-
 struct WOLFSSL_AUTHORITY_KEYID {
     WOLFSSL_ASN1_STRING *keyid;
     WOLFSSL_ASN1_OBJECT *issuer;
@@ -242,7 +242,7 @@ struct WOLFSSL_ASN1_OTHERNAME {
 
 struct WOLFSSL_GENERAL_NAME {
     int type;
-    union {
+    struct {
         char* ptr;
         WOLFSSL_ASN1_OTHERNAME* otherName;
         WOLFSSL_ASN1_STRING* rfc822Name;
@@ -1038,6 +1038,7 @@ WOLFSSL_API int wolfSSL_sk_X509_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
 WOLFSSL_API WOLFSSL_X509* wolfSSL_sk_X509_pop(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk);
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_X509_dup(WOLFSSL_STACK* sk);
 WOLFSSL_API void wolfSSL_sk_X509_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk);
+WOLFSSL_API void wolfSSL_sk_X509_INFO_free(WOLF_STACK_OF(WOLFSSL_X509_INFO)* sk);
 WOLFSSL_API WOLFSSL_GENERAL_NAME* wolfSSL_GENERAL_NAME_new(void);
 WOLFSSL_API void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* gn);
 WOLFSSL_API int wolfSSL_sk_GENERAL_NAME_push(WOLF_STACK_OF(WOLFSSL_GENERAL_NAME)* sk,
@@ -1194,6 +1195,7 @@ WOLFSSL_API int  wolfSSL_BIO_seek(WOLFSSL_BIO *bio, int ofs);
 WOLFSSL_API int  wolfSSL_BIO_write_filename(WOLFSSL_BIO *bio, char *name);
 WOLFSSL_API long wolfSSL_BIO_set_mem_eof_return(WOLFSSL_BIO *bio, int v);
 WOLFSSL_API long wolfSSL_BIO_get_mem_ptr(WOLFSSL_BIO *bio, WOLFSSL_BUF_MEM **m);
+WOLFSSL_API int wolfSSL_BIO_get_len(WOLFSSL_BIO *bio);
 
 WOLFSSL_API void        wolfSSL_RAND_screen(void);
 WOLFSSL_API const char* wolfSSL_RAND_file_name(char*, unsigned long);
@@ -1987,6 +1989,7 @@ WOLFSSL_API WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN*, int idx);
 /* free X509 */
 #define wolfSSL_FreeX509(x509) wolfSSL_X509_free((x509))
 WOLFSSL_API void wolfSSL_X509_free(WOLFSSL_X509*);
+WOLFSSL_API void wolfSSL_X509_INFO_free(WOLFSSL_X509_INFO*);
 /* get index cert in PEM */
 WOLFSSL_API int  wolfSSL_get_chain_cert_pem(WOLFSSL_X509_CHAIN*, int idx,
                                 unsigned char* buf, int inLen, int* outLen);
@@ -3183,9 +3186,6 @@ WOLFSSL_API int wolfSSL_PEM_get_EVP_CIPHER_INFO(char* header,
 WOLFSSL_API int wolfSSL_PEM_do_header(EncryptedInfo* cipher,
                                       unsigned char* data, long* len,
                                       pem_password_cb* callback, void* ctx);
-WOLF_STACK_OF(WOLFSSL_X509_INFO) *wolfSSL_PEM_X509_INFO_read_bio(WOLFSSL_BIO *bp,
-                                                                 WOLF_STACK_OF(WOLFSSL_X509_INFO) *sk,
-                                                                 pem_password_cb *cb, void *u);
 
 /*lighttp compatibility */
 
@@ -3195,7 +3195,6 @@ struct WOLFSSL_ASN1_BIT_STRING {
     char* data;
     long flags;
 };
-
 
 #if    defined(OPENSSL_EXTRA) \
     || defined(OPENSSL_ALL) \
@@ -3318,7 +3317,6 @@ WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_X509_new(void);
 WOLFSSL_API int wolfSSL_sk_X509_num(const WOLF_STACK_OF(WOLFSSL_X509) *s);
 
 WOLFSSL_API WOLFSSL_X509_INFO *wolfSSL_X509_INFO_new(void);
-WOLFSSL_API void wolfSSL_X509_INFO_free(WOLFSSL_X509_INFO* info);
 
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_X509_INFO_new_null(void);
 WOLFSSL_API int wolfSSL_sk_X509_INFO_num(const WOLF_STACK_OF(WOLFSSL_X509_INFO)*);
@@ -3329,7 +3327,6 @@ WOLFSSL_API int wolfSSL_sk_X509_INFO_push(WOLF_STACK_OF(WOLFSSL_X509_INFO)*,
 WOLFSSL_API WOLFSSL_X509_INFO* wolfSSL_sk_X509_INFO_pop(WOLF_STACK_OF(WOLFSSL_X509_INFO)*);
 WOLFSSL_API void wolfSSL_sk_X509_INFO_pop_free(WOLF_STACK_OF(WOLFSSL_X509_INFO)*,
     void f (WOLFSSL_X509_INFO*));
-WOLFSSL_API void wolfSSL_sk_X509_INFO_free(WOLF_STACK_OF(WOLFSSL_X509_INFO)*);
 
 typedef int (*wolf_sk_compare_cb)(const void* const *a,
                                   const void* const *b);

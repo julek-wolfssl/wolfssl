@@ -121,9 +121,6 @@ WOLFSSL_API int wolfSSL_RSA_set0_key(WOLFSSL_RSA *r, WOLFSSL_BIGNUM *n, WOLFSSL_
                                      WOLFSSL_BIGNUM *d);
 WOLFSSL_API int wolfSSL_RSA_flags(const WOLFSSL_RSA *r);
 
-WOLFSSL_API void wolfSSL_RSA_get0_key(const WOLFSSL_RSA *r,
-                  const WOLFSSL_BIGNUM **n, const WOLFSSL_BIGNUM **e, const WOLFSSL_BIGNUM **d);
-
 #define WOLFSSL_RSA_LOAD_PRIVATE 1
 #define WOLFSSL_RSA_LOAD_PUBLIC  2
 #define WOLFSSL_RSA_F4           0x10001L
