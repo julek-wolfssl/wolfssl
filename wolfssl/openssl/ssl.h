@@ -295,6 +295,9 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #endif
 
 #define DSA_dup_DH                      wolfSSL_DSA_dup_DH
+/* wolfSSL does not support DSA as the cert public key */
+#define EVP_PKEY_get0_DSA(...)          NULL
+#define DSA_bits(...)                   0
 
 #define i2d_X509_bio                    wolfSSL_i2d_X509_bio
 #define d2i_X509_bio                    wolfSSL_d2i_X509_bio
@@ -537,6 +540,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define BIO_f_ssl                       wolfSSL_BIO_f_ssl
 #define BIO_new_socket                  wolfSSL_BIO_new_socket
 #define SSL_set_bio                     wolfSSL_set_bio
+#define BIO_set_ssl                     wolfSSL_BIO_set_ssl
 #define BIO_eof                         wolfSSL_BIO_eof
 #define BIO_set_ss                      wolfSSL_BIO_set_ss
 
@@ -634,6 +638,7 @@ typedef WOLFSSL_ASN1_BIT_STRING         ASN1_BIT_STRING;
 #define RSA_generate_key                wolfSSL_RSA_generate_key
 #define SSL_CTX_set_tmp_rsa_callback    wolfSSL_CTX_set_tmp_rsa_callback
 #define RSA_print                       wolfSSL_RSA_print
+#define RSA_bits                        wolfSSL_RSA_size
 
 #define PEM_def_callback                wolfSSL_PEM_def_callback
 
@@ -860,6 +865,30 @@ enum {
 #endif /* OPENSSL_ALL || WOLFSSL_ASIO */
 
 #define SSL_CTX_set_tmp_dh              wolfSSL_CTX_set_tmp_dh
+
+#define BIO_new_file                    wolfSSL_BIO_new_file
+#define BIO_ctrl                        wolfSSL_BIO_ctrl
+#define BIO_ctrl_pending                wolfSSL_BIO_ctrl_pending
+#define BIO_wpending                    wolfSSL_BIO_wpending
+#define BIO_get_mem_ptr                 wolfSSL_BIO_get_mem_ptr
+#define BIO_int_ctrl                    wolfSSL_BIO_int_ctrl
+#define BIO_reset                       wolfSSL_BIO_reset
+#define BIO_s_file                      wolfSSL_BIO_s_file
+#define BIO_s_bio                       wolfSSL_BIO_s_bio
+#define BIO_s_socket                    wolfSSL_BIO_s_socket
+#define BIO_set_fd                      wolfSSL_BIO_set_fd
+#define BIO_ctrl_reset_read_request     wolfSSL_BIO_ctrl_reset_read_request
+
+#define BIO_set_write_buf_size          wolfSSL_BIO_set_write_buf_size
+#define BIO_make_bio_pair               wolfSSL_BIO_make_bio_pair
+
+#define BIO_set_fp                      wolfSSL_BIO_set_fp
+#define BIO_get_fp                      wolfSSL_BIO_get_fp
+#define BIO_seek                        wolfSSL_BIO_seek
+#define BIO_write_filename              wolfSSL_BIO_write_filename
+#define BIO_set_mem_eof_return          wolfSSL_BIO_set_mem_eof_return
+
+#define BIO_should_retry(...)           1
 
 #define TLSEXT_STATUSTYPE_ocsp  1
 

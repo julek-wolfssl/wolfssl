@@ -1813,9 +1813,9 @@ WOLFSSL_LOCAL int  SetCipherList(WOLFSSL_CTX*, Suites*, const char* list);
 
 /* wolfSSL Cipher type just points back to SSL */
 struct WOLFSSL_CIPHER {
+    WOLFSSL* ssl;
     byte cipherSuite0;
     byte cipherSuite;
-    WOLFSSL* ssl;
 };
 
 
