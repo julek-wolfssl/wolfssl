@@ -161,6 +161,7 @@ enum DN_Tags {
 enum
 {
     NID_undef = 0,
+    NID_netscape_cert_type = NID_undef,
     NID_des = 66,
     NID_des3 = 67,
     NID_sha256 = 672,

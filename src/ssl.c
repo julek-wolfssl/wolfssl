@@ -8490,6 +8490,30 @@ int wolfSSL_X509_get_ext_by_NID(const WOLFSSL_X509* x509, int nid, int lastPos)
 
 #endif /* OPENSSL_ALL */
 
+WOLFSSL_ASN1_BIT_STRING* wolfSSL_ASN1_BIT_STRING_new(void) {
+    WOLFSSL_ASN1_BIT_STRING* str = (WOLFSSL_ASN1_BIT_STRING*) XMALLOC(sizeof(WOLFSSL_ASN1_BIT_STRING),
+                                                                      NULL, DYNAMIC_TYPE_OPENSSL);
+    XMEMSET(str, 0, sizeof(WOLFSSL_ASN1_BIT_STRING));
+    return str;
+}
+
+void wolfSSL_ASN1_BIT_STRING_free(WOLFSSL_ASN1_BIT_STRING* str) {
+    if (str) {
+        if (str->data) {
+            free(str->data);
+        }
+        free(str);
+    }
+}
+
+int wolfSSL_ASN1_BIT_STRING_get_bit(const WOLFSSL_ASN1_BIT_STRING* str, int i) {
+    if (!str || !str->data || str->length <= (i/8) || i<0) {
+        return 0;
+    }
+
+    return str->data[i/8] & (1<<(7-(i%8)));
+}
+
 /* Looks for the extension matching the passed in nid
  *
  * c   : if not null then is set to status value -2 if multiple occurrences
@@ -8507,9 +8531,11 @@ int wolfSSL_X509_get_ext_by_NID(const WOLFSSL_X509* x509, int nid, int lastPos)
 void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                                                      int nid, int* c, int* idx)
 {
+    void* ret = NULL;
     WOLFSSL_STACK* sk = NULL;
     WOLFSSL_ASN1_OBJECT* obj = NULL;
     WOLFSSL_GENERAL_NAME* gn = NULL;
+    WOLFSSL_ASN1_BIT_STRING* bit_str = NULL;
 
     WOLFSSL_ENTER("wolfSSL_X509_get_ext_d2i");
 
@@ -8877,30 +8903,66 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
             WOLFSSL_MSG("Unsupported/Unknown extension OID");
     }
 
-    if (obj != NULL) {
-        if (wolfSSL_sk_ASN1_OBJECT_push(sk, obj) != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("Error pushing ASN1 object onto stack");
-            wolfSSL_ASN1_OBJECT_free(obj);
-            wolfSSL_sk_ASN1_OBJECT_free(sk);
-            sk = NULL;
+    /* Post processing to allow for returning of different types */
+    switch (nid) {
+    case KEY_USAGE_OID:
+        if (!obj) {
+            goto err;
         }
-    }
-    else if (gn != NULL) {
-        if (wolfSSL_sk_GENERAL_NAME_push(sk, gn) != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("Error pushing GENERAL_NAME object onto stack");
-            wolfSSL_GENERAL_NAME_free(gn);
-            wolfSSL_sk_free(sk);
-            sk = NULL;
+        if (!(bit_str = wolfSSL_ASN1_BIT_STRING_new())) {
+            goto err;
         }
-    }
-    else { /* no ASN1 object found for extension, free stack */
-        wolfSSL_sk_ASN1_OBJECT_free(sk);
-        sk = NULL;
-    }
+        if (!(bit_str->data = (char*)XMALLOC(obj->objSz, NULL, DYNAMIC_TYPE_OPENSSL))) {
+            goto err;
+        }
 
+        bit_str->type = KEY_USAGE_OID;
+        bit_str->flags = 0;
+        bit_str->length = obj->objSz;
+        XMEMCPY(bit_str->data, obj->obj, obj->objSz);
+
+        wolfSSL_ASN1_OBJECT_free(obj);
+        if (sk) {
+            wolfSSL_sk_ASN1_OBJECT_free(sk);
+        }
+
+        ret = bit_str;
+        break;
+
+    default:
+        if (obj && wolfSSL_sk_ASN1_OBJECT_push(sk, obj) == WOLFSSL_SUCCESS) {
+            /* obj pushed successfully on stack */
+        }
+        else if (gn && wolfSSL_sk_GENERAL_NAME_push(sk, gn) == WOLFSSL_SUCCESS) {
+            /* gn pushed successfully on stack */
+        }
+        else {
+            /* Nothing to push or push failed */
+            WOLFSSL_MSG("Error pushing ASN1_OBJECT or GENERAL_NAME object onto stack "
+                        "or nothing to push.");
+            goto err;
+        }
+        ret = sk;
+        break;
+    }
     (void)idx;
 
-    return sk;
+    return ret;
+
+err:
+    if (obj) {
+        wolfSSL_ASN1_OBJECT_free(obj);
+    }
+    if (gn) {
+        wolfSSL_GENERAL_NAME_free(gn);
+    }
+    if (bit_str) {
+        wolfSSL_ASN1_BIT_STRING_free(bit_str);
+    }
+    if (sk) {
+        wolfSSL_sk_ASN1_OBJECT_free(sk);
+    }
+    return NULL;
 }
 
 #ifndef NO_WOLFSSL_STUB
@@ -22951,6 +23013,7 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_ASN1_INTEGER_new(void)
     XMEMSET(a, 0, sizeof(WOLFSSL_ASN1_INTEGER));
     a->data    = a->intData;
     a->dataMax = WOLFSSL_ASN1_INTEGER_MAX;
+    a->length  = 0;
     return a;
 }
 
@@ -23047,6 +23110,7 @@ int wolfSSL_ASN1_INTEGER_set(WOLFSSL_ASN1_INTEGER *a, long v)
 
         /* Set length */
         a->data[i++] = (unsigned char)((j == 0) ? ++j : j);
+        a->length = j + 2; // +2 for type and length
 
         /* Copy to data */
         for (; j > 0; j--) {
@@ -23085,6 +23149,7 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
     a->data[i++] = ASN_INTEGER;
     i += SetLength(x509->serialSz, a->data + i);
     XMEMCPY(&a->data[i], x509->serial, x509->serialSz);
+    a->length = x509->serialSz + 2;
 
     x509->serialNumber = a;
 

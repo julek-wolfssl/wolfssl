@@ -506,6 +506,8 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define X509_OBJECT_free_contents       wolfSSL_X509_OBJECT_free_contents
 #define X509_subject_name_hash          wolfSSL_X509_subject_name_hash
 
+#define X509_check_purpose(...)         0
+
 #define OCSP_parse_url                  wolfSSL_OCSP_parse_url
 
 #define MD4_Init                        wolfSSL_MD4_Init
@@ -566,7 +568,10 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define SSL_get_ex_new_index            wolfSSL_get_ex_new_index
 
 
-typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
+typedef WOLFSSL_ASN1_BIT_STRING         ASN1_BIT_STRING;
+#define ASN1_BIT_STRING_new             wolfSSL_ASN1_BIT_STRING_new
+#define ASN1_BIT_STRING_free            wolfSSL_ASN1_BIT_STRING_free
+#define ASN1_BIT_STRING_get_bit         wolfSSL_ASN1_BIT_STRING_get_bit
 
 #define ASN1_TIME_adj                   wolfSSL_ASN1_TIME_adj
 #define ASN1_TIME_print                 wolfSSL_ASN1_TIME_print

@@ -31,6 +31,17 @@
     extern "C" {
 #endif
 
+#define X509_PURPOSE_SSL_CLIENT       0
+#define X509_PURPOSE_SSL_SERVER       1
+
+#define NS_SSL_CLIENT                 0
+#define NS_SSL_SERVER                 1
+
+struct WOLFSSL_ACCESS_DESCRIPTION {
+    WOLFSSL_ASN1_OBJECT *method;
+    WOLFSSL_GENERAL_NAME *location;
+};
+
 /* Forward reference */
 typedef struct WOLFSSL_v3_ext_method WOLFSSL_v3_ext_method;
 

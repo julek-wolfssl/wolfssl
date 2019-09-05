@@ -126,7 +126,7 @@ typedef struct WOLFSSL_X509_PUBKEY WOLFSSL_X509_PUBKEY;
 typedef struct WOLFSSL_X509_ALGOR WOLFSSL_X509_ALGOR;
 typedef struct WOLFSSL_X509_CHAIN WOLFSSL_X509_CHAIN;
 typedef struct WC_PKCS12          WOLFSSL_X509_PKCS12;
-typedef struct WOLFSSL_X509_INFO  X509_INFO;
+typedef struct WOLFSSL_X509_INFO  WOLFSSL_X509_INFO;
 
 typedef struct WOLFSSL_CERT_MANAGER WOLFSSL_CERT_MANAGER;
 typedef struct WOLFSSL_SOCKADDR     WOLFSSL_SOCKADDR;
@@ -259,11 +259,6 @@ struct WOLFSSL_GENERAL_NAME {
         WOLFSSL_ASN1_OBJECT* rid;
         WOLFSSL_ASN1_TYPE* other;
     } d; /* dereference */
-};
-
-struct WOLFSSL_ACCESS_DESCRIPTION {
-    WOLFSSL_ASN1_OBJECT*  method;
-    WOLFSSL_GENERAL_NAME* location;
 };
 
 struct WOLFSSL_X509V3_CTX {
@@ -3348,8 +3343,12 @@ WOLFSSL_API void wolfSSL_sk_X509_NAME_free(WOLF_STACK_OF(WOLFSSL_X509_NAME) *);
 WOLFSSL_API int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO*,WOLFSSL_X509_NAME*,int,
         unsigned long);
 
+WOLFSSL_API WOLFSSL_ASN1_BIT_STRING* wolfSSL_ASN1_BIT_STRING_new(void);
+WOLFSSL_API void wolfSSL_ASN1_BIT_STRING_free(WOLFSSL_ASN1_BIT_STRING*);
 WOLFSSL_API WOLFSSL_ASN1_BIT_STRING* wolfSSL_X509_get0_pubkey_bitstr(
                             const WOLFSSL_X509*);
+WOLFSSL_API int wolfSSL_ASN1_BIT_STRING_get_bit(
+                            const WOLFSSL_ASN1_BIT_STRING*, int);
 
 WOLFSSL_API int        wolfSSL_CTX_add_session(WOLFSSL_CTX*, WOLFSSL_SESSION*);
 
