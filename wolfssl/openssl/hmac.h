@@ -71,6 +71,8 @@ WOLFSSL_API int wolfSSL_HMAC_Update(WOLFSSL_HMAC_CTX* ctx,
 WOLFSSL_API int wolfSSL_HMAC_Final(WOLFSSL_HMAC_CTX* ctx, unsigned char* hash,
                                   unsigned int* len);
 WOLFSSL_API int wolfSSL_HMAC_cleanup(WOLFSSL_HMAC_CTX* ctx);
+WOLFSSL_API void wolfSSL_HMAC_CTX_free(WOLFSSL_HMAC_CTX* ctx);
+WOLFSSL_API size_t wolfSSL_HMAC_size(const WOLFSSL_HMAC_CTX *ctx);
 
 typedef struct WOLFSSL_HMAC_CTX HMAC_CTX;
 
@@ -78,11 +80,14 @@ typedef struct WOLFSSL_HMAC_CTX HMAC_CTX;
 
 #define HMAC_CTX_init wolfSSL_HMAC_CTX_Init
 #define HMAC_CTX_copy wolfSSL_HMAC_CTX_copy
+#define HMAC_CTX_free wolfSSL_HMAC_CTX_free
+#define HMAC_CTX_reset wolfSSL_HMAC_cleanup
 #define HMAC_Init_ex  wolfSSL_HMAC_Init_ex
 #define HMAC_Init     wolfSSL_HMAC_Init
 #define HMAC_Update   wolfSSL_HMAC_Update
 #define HMAC_Final    wolfSSL_HMAC_Final
 #define HMAC_cleanup  wolfSSL_HMAC_cleanup
+#define HMAC_size     wolfSSL_HMAC_size
 
 
 #ifdef __cplusplus

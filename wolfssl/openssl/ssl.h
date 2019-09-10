@@ -305,6 +305,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define i2d_X509                        wolfSSL_i2d_X509
 #define d2i_X509                        wolfSSL_d2i_X509
 #define PEM_read_bio_X509               wolfSSL_PEM_read_bio_X509
+#define PEM_read_bio_X509_CRL           wolfSSL_PEM_read_bio_X509_CRL
 #define PEM_read_bio_X509_AUX           wolfSSL_PEM_read_bio_X509_AUX
 #define PEM_read_X509                   wolfSSL_PEM_read_X509
 #define PEM_X509_INFO_read_bio          wolfSSL_PEM_X509_INFO_read_bio
@@ -1150,6 +1151,19 @@ enum {
 #define TLS1_CK_ECDHE_ECDSA_WITH_AES_256_CBC_SHA          (0xc00a)
 #define TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256       (0xc02b)
 #define TLS1_CK_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 (0xcca9)
+
+#define EVP_CIPHER_mode                 WOLFSSL_CIPHER_mode
+/* WOLFSSL_EVP_CIPHER is just the string name of the cipher */
+#define EVP_CIPHER_name(x)              x
+#define EVP_MD_CTX_reset                wolfSSL_EVP_MD_CTX_cleanup
+/* WOLFSSL_EVP_MD is just the string name of the digest */
+#define EVP_MD_name(x)                  x
+#define X509_STORE_get0_objects         wolfSSL_X509_STORE_get0_objects
+#define sk_X509_OBJECT_num              wolfSSL_sk_X509_OBJECT_num
+#define sk_X509_OBJECT_value            wolfSSL_sk_X509_OBJECT_value
+#define X509_OBJECT_get_type(x)         0
+
+#define OpenSSL_version(x)              wolfSSL_lib_version()
 
 #ifdef __cplusplus
     } /* extern "C" */
