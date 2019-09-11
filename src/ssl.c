@@ -18347,7 +18347,6 @@ WOLFSSL_GENERAL_NAME* wolfSSL_sk_GENERAL_NAME_value(WOLFSSL_STACK* sk, int i)
     return cur->data.gn;
 }
 
-
 /* Gets the number of nodes in the stack
  *
  * sk  stack to get the number of nodes from
@@ -30559,6 +30558,10 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
 }
 #endif /* !NO_RSA && !HAVE_USER_RSA */
 
+WOLFSSL_HMAC_CTX* wolfSSL_HMAC_CTX_new(void) {
+    return XMALLOC(sizeof(WOLFSSL_HMAC_CTX), NULL, DYNAMIC_TYPE_OPENSSL);
+}
+
 int wolfSSL_HMAC_CTX_Init(WOLFSSL_HMAC_CTX* ctx)
 {
     WOLFSSL_MSG("wolfSSL_HMAC_CTX_Init");
@@ -34718,6 +34721,13 @@ int wolfSSL_RSA_set_method(WOLFSSL_RSA *rsa, WOLFSSL_RSA_METHOD *meth) {
     return 1;
 }
 
+const WOLFSSL_RSA_METHOD* wolfSSL_RSA_get_method(const WOLFSSL_RSA *rsa) {
+    if (!rsa) {
+        return NULL;
+    }
+    return rsa->meth;
+}
+
 int wolfSSL_RSA_set0_key(WOLFSSL_RSA *r, WOLFSSL_BIGNUM *n, WOLFSSL_BIGNUM *e,
                          WOLFSSL_BIGNUM *d)
 {
@@ -34749,6 +34759,12 @@ int wolfSSL_RSA_flags(const WOLFSSL_RSA *r) {
         return r->meth->flags;
     } else {
         return 0;
+    }
+}
+
+void wolfSSL_RSA_set_flags(WOLFSSL_RSA *r, int flags) {
+    if (r && r->meth) {
+        r->meth->flags = flags;
     }
 }
 #endif /* NO_RSA */
@@ -37740,6 +37756,38 @@ err:
         return bufSz;
     }
 
+    int wolfSSL_X509_NAME_get_index_by_OBJ(WOLFSSL_X509_NAME *name,
+                                           const WOLFSSL_ASN1_OBJECT *obj,
+                                           int idx) {
+        const struct DN_Tags_String* dn;
+        enum DN_Tags tag = 0;
+        if (!name || idx >= name->fullName.locSz ||
+                !obj || !obj->obj) {
+            return -1;
+        }
+        if (idx < 0) {
+            idx = 0;
+        }
+        for (dn = dn_strings; dn->str != NULL; dn++) {
+            /* Find the DN_Tags number for the name */
+            if (XSTRNCMP((const char*) obj->obj, dn->str, obj->objSz - 1) == 0) {
+                tag = dn->tag;
+                break;
+            }
+        }
+        if (!tag) {
+            /* Unable to identify desired name */
+            return -1;
+        }
+        for (; idx < name->fullName.locSz; idx++) {
+            /* Find index of desired name */
+            if ((enum DN_Tags)name->fullName.loc[idx] == tag) {
+                return idx;
+            }
+        }
+        return -1;
+    }
+
 #if defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY) || \
     defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL) || \
     defined(WOLFSSL_NGINX) || defined(HAVE_POCO_LIB) || \
@@ -38452,12 +38500,12 @@ err:
            are correct */
         for (i = 0; i < (int)WOLFSSL_OBJECT_INFO_SZ; i++) {
             /* Short name, long name, and numerical value are interpreted */
-            if (((XSTRNCMP(s, wolfssl_object_info[i].sName, len) == 0) ||
-                 (XSTRNCMP(s, wolfssl_object_info[i].lName, len) == 0) ||
-                 (wolfssl_object_info[i].id == (int)sum)) && no_name == 0)
+            if (no_name == 0 && ((XSTRNCMP(s, wolfssl_object_info[i].sName, len) == 0) ||
+                                 (XSTRNCMP(s, wolfssl_object_info[i].lName, len) == 0) ||
+                                 (wolfssl_object_info[i].id == (int)sum)))
                     nid = wolfssl_object_info[i].nid;
             /* Only numerical value is interpreted */
-            else if (wolfssl_object_info[i].id == (int)sum && no_name == 1)
+            else if (no_name == 1 && wolfssl_object_info[i].id == (int)sum)
                     nid = wolfssl_object_info[i].nid;
         }
 

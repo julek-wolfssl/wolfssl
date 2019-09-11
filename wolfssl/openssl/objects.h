@@ -42,6 +42,8 @@
 #define OBJ_txt2obj wolfSSL_OBJ_txt2obj
 #define OBJ_nid2obj wolfSSL_OBJ_nid2obj
 #define OBJ_obj2txt wolfSSL_OBJ_obj2txt
+#define OBJ_txt2obj wolfSSL_OBJ_txt2obj
+#define X509_NAME_get_index_by_OBJ wolfSSL_X509_NAME_get_index_by_OBJ
 #define OBJ_cleanup wolfSSL_OBJ_cleanup
 #define OBJ_cmp     wolfSSL_OBJ_cmp
 #define OBJ_create  wolfSSL_OBJ_create

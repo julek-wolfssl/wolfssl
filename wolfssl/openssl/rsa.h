@@ -38,14 +38,14 @@
 #define RSA_NO_PADDING         3
 
 /* Emulate OpenSSL flags */
-#define RSA_METHOD_FLAG_NO_CHECK        0x0
-#define RSA_FLAG_CACHE_PUBLIC           0x0
-#define RSA_FLAG_CACHE_PRIVATE          0x0
-#define RSA_FLAG_BLINDING               0x0
-#define RSA_FLAG_THREAD_SAFE            0x0
-#define RSA_FLAG_EXT_PKEY               0x0
-#define RSA_FLAG_NO_BLINDING            0x0
-#define RSA_FLAG_NO_CONSTTIME           0x0
+#define RSA_METHOD_FLAG_NO_CHECK        (1 << 1)
+#define RSA_FLAG_CACHE_PUBLIC           (1 << 2)
+#define RSA_FLAG_CACHE_PRIVATE          (1 << 3)
+#define RSA_FLAG_BLINDING               (1 << 4)
+#define RSA_FLAG_THREAD_SAFE            (1 << 5)
+#define RSA_FLAG_EXT_PKEY               (1 << 6)
+#define RSA_FLAG_NO_BLINDING            (1 << 7)
+#define RSA_FLAG_NO_CONSTTIME           (1 << 8)
 
 #ifndef WOLFSSL_RSA_TYPE_DEFINED /* guard on redeclaration */
 typedef struct WOLFSSL_RSA            WOLFSSL_RSA;
@@ -115,11 +115,13 @@ WOLFSSL_API WOLFSSL_RSA_METHOD *wolfSSL_RSA_meth_new(const char *name, int flags
 WOLFSSL_API void wolfSSL_RSA_meth_free(WOLFSSL_RSA_METHOD *meth);
 WOLFSSL_API int wolfSSL_RSA_meth_set(WOLFSSL_RSA_METHOD *rsa, void* p);
 WOLFSSL_API int wolfSSL_RSA_set_method(WOLFSSL_RSA *rsa, WOLFSSL_RSA_METHOD *meth);
+WOLFSSL_API const WOLFSSL_RSA_METHOD* wolfSSL_RSA_get_method(const WOLFSSL_RSA *rsa);
 WOLFSSL_API void wolfSSL_RSA_get0_key(const WOLFSSL_RSA *r, const WOLFSSL_BIGNUM **n,
                                       const WOLFSSL_BIGNUM **e, const WOLFSSL_BIGNUM **d);
 WOLFSSL_API int wolfSSL_RSA_set0_key(WOLFSSL_RSA *r, WOLFSSL_BIGNUM *n, WOLFSSL_BIGNUM *e,
                                      WOLFSSL_BIGNUM *d);
 WOLFSSL_API int wolfSSL_RSA_flags(const WOLFSSL_RSA *r);
+WOLFSSL_API void wolfSSL_RSA_set_flags(WOLFSSL_RSA *r, int flags);
 
 #define WOLFSSL_RSA_LOAD_PRIVATE 1
 #define WOLFSSL_RSA_LOAD_PUBLIC  2
@@ -150,10 +152,12 @@ WOLFSSL_API int wolfSSL_RSA_flags(const WOLFSSL_RSA *r);
 #define RSA_meth_set_init       wolfSSL_RSA_meth_set
 #define RSA_meth_set_finish     wolfSSL_RSA_meth_set
 #define RSA_meth_set0_app_data  wolfSSL_RSA_meth_set
+#define RSA_get_method          wolfSSL_RSA_get_method
 #define RSA_set_method          wolfSSL_RSA_set_method
 #define RSA_get0_key            wolfSSL_RSA_get0_key
 #define RSA_set0_key            wolfSSL_RSA_set0_key
 #define RSA_flags               wolfSSL_RSA_flags
+#define RSA_set_flags           wolfSSL_RSA_set_flags
 
 #define RSA_get0_key       wolfSSL_RSA_get0_key
 

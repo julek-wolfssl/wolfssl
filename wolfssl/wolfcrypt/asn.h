@@ -157,6 +157,12 @@ enum DN_Tags {
     #define WOLFSSL_TLS_FEATURE_SUM 92
 #endif
 
+/* DN_Tags to strings */
+extern const struct DN_Tags_String {
+    enum DN_Tags tag;
+    const char* str;
+} dn_strings[];
+
 /* NIDs */
 enum
 {

@@ -250,7 +250,12 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define SSL_library_init                wolfSSL_library_init
 #define SSL_CTX_set_session_cache_mode  wolfSSL_CTX_set_session_cache_mode
 #define SSL_CTX_set_cipher_list         wolfSSL_CTX_set_cipher_list
+#define SSL_CTX_set_ciphersuites        wolfSSL_CTX_set_cipher_list
 #define SSL_set_cipher_list             wolfSSL_set_cipher_list
+/* wolfSSL does not support security levels */
+#define SSL_CTX_set_security_level(...)
+/* wolfSSL does not support expoting keying material */
+#define SSL_export_keying_material(...) 0
 
 #define SSL_set_ex_data                 wolfSSL_set_ex_data
 #define SSL_get_shutdown                wolfSSL_get_shutdown
@@ -330,13 +335,12 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define X509_digest                     wolfSSL_X509_digest
 #define X509_get_ext_count              wolfSSL_X509_get_ext_count
 #define X509_get_ext_d2i                wolfSSL_X509_get_ext_d2i
-#define X509_get_ext_by_NID             wolfSSL_X509_get_ext_by_NID
 #define X509_get_ext                    wolfSSL_X509_get_ext
 #define X509_get_ext_by_NID             wolfSSL_X509_get_ext_by_NID
-#define X509_add_ext                    wolfSSL_X509_add_ext
 #define X509_get_issuer_name            wolfSSL_X509_get_issuer_name
 #define X509_get_subject_name           wolfSSL_X509_get_subject_name
 #define X509_get_pubkey                 wolfSSL_X509_get_pubkey
+#define X509_get0_pubkey                wolfSSL_X509_get_pubkey
 #define X509_get_notBefore              wolfSSL_X509_get_notBefore
 #define X509_get_notAfter               wolfSSL_X509_get_notAfter
 #define X509_get_serialNumber           wolfSSL_X509_get_serialNumber
@@ -741,7 +745,9 @@ typedef WOLFSSL_ASN1_BIT_STRING         ASN1_BIT_STRING;
 #define BIO_prf                         wolfSSL_BIO_prf
 
 #define sk_num                          wolfSSL_sk_num
+#define sk_ASN1_OBJECT_num              wolfSSL_sk_num
 #define sk_value                        wolfSSL_sk_value
+#define sk_ASN1_OBJECT_value            wolfSSL_sk_value
 
 #define d2i_PKCS12_bio                  wolfSSL_d2i_PKCS12_bio
 #define d2i_PKCS12_fp                   wolfSSL_d2i_PKCS12_fp
@@ -1000,6 +1006,7 @@ enum {
 #define SSL_SESSION_get_id              wolfSSL_SESSION_get_id
 #define SSL_SESSION_print               wolfSSL_SESSION_print
 #define sk_GENERAL_NAME_pop_free        wolfSSL_sk_GENERAL_NAME_pop_free
+#define sk_ASN1_OBJECT_pop_free         wolfSSL_sk_GENERAL_NAME_pop_free
 #define GENERAL_NAME_free               wolfSSL_GENERAL_NAME_free
 #define GENERAL_NAMES_free              wolfSSL_GENERAL_NAMES_free
 
@@ -1162,8 +1169,10 @@ enum {
 #define sk_X509_OBJECT_num              wolfSSL_sk_X509_OBJECT_num
 #define sk_X509_OBJECT_value            wolfSSL_sk_X509_OBJECT_value
 #define X509_OBJECT_get_type(x)         0
+#define EVP_CIPHER_nid                  wolfSSL_EVP_CIPHER_nid
 
 #define OpenSSL_version(x)              wolfSSL_lib_version()
+#define X509V3_EXT_print                wolfSSL_X509V3_EXT_print
 
 #ifdef __cplusplus
     } /* extern "C" */

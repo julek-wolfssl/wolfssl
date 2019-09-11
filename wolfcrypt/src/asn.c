@@ -156,6 +156,23 @@ WOLFSSL_LOCAL int tsip_tls_CertVerify(const byte *cert, word32 certSz,
                         word32 key_e_start, word32 key_e_len,
                         byte *tsip_encRsaKeyIdx);
 #endif
+
+const struct DN_Tags_String dn_strings[] = {
+       { ASN_COMMON_NAME,      "CN" },
+       { ASN_SUR_NAME,         "SN" },
+       { ASN_SERIAL_NUMBER,    "serialNumber" },
+       { ASN_COUNTRY_NAME,     "C" },
+       { ASN_LOCALITY_NAME,    "L" },
+       { ASN_STATE_NAME,       "ST" },
+       { ASN_ORG_NAME,         "O"},
+       { ASN_ORGUNIT_NAME,     "OU"},
+       { ASN_BUS_CAT,          "businessCategory"},
+       { ASN_EMAIL_NAME,       "emailAddress"},
+       { ASN_USER_ID,          "UID"},
+       { ASN_DOMAIN_COMPONENT, "DC"},
+       { 0, NULL }
+};
+
 WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx)
 {
