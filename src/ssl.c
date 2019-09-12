@@ -9054,7 +9054,7 @@ WOLFSSL_ASN1_STRING* wolfSSL_X509_EXTENSION_get_data(WOLFSSL_X509_EXTENSION* ext
 }
 
 /* this function makes the assumption that out buffer is big enough for digest*/
-int wolfSSL_EVP_Digest(unsigned char* in, int inSz, unsigned char* out,
+int wolfSSL_EVP_Digest(const unsigned char* in, int inSz, unsigned char* out,
                               unsigned int* outSz, const WOLFSSL_EVP_MD* evp,
                               WOLFSSL_ENGINE* eng)
 {
@@ -17847,6 +17847,29 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
         return x509->version;
     }
 
+
+    const byte* wolfSSL_X509_notBefore(const WOLFSSL_X509* x509)
+    {
+        WOLFSSL_ENTER("wolfSSL_X509_notBefore");
+
+        if (x509 == NULL)
+            return NULL;
+
+        return x509->notBefore;
+    }
+
+
+    const byte* wolfSSL_X509_notAfter(const WOLFSSL_X509* x509)
+    {
+        WOLFSSL_ENTER("wolfSSL_X509_notAfter");
+
+        if (x509 == NULL)
+            return NULL;
+
+        return x509->notAfter;
+    }
+
+
 #ifdef WOLFSSL_SEP
 
 /* copy oid into in buffer, at most *inOutSz bytes, if buffer is null will
@@ -18344,7 +18367,9 @@ WOLFSSL_GENERAL_NAME* wolfSSL_sk_GENERAL_NAME_value(WOLFSSL_STACK* sk, int i)
         return NULL;
     }
 
-    return cur->data.gn;
+    cur->gn.d.registeredID = cur->data.obj;
+
+    return &cur->gn;
 }
 
 /* Gets the number of nodes in the stack
@@ -40882,10 +40907,25 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_STORE_get1_certs(WOLFSSL_X509_STORE_CT
 WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(WOLFSSL_X509_STORE* store)
 {
     WOLFSSL_ENTER("wolfSSL_X509_STORE_get0_objects");
-    WOLFSSL_STUB("X509_STORE_get1_certs");
+    WOLFSSL_STUB("wolfSSL_X509_STORE_get0_objects");
     (void)store;
     return NULL;
 }
+
+WOLFSSL_X509_OBJECT* wolfSSL_sk_X509_OBJECT_delete(WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* sk, int i) {
+    WOLFSSL_ENTER("wolfSSL_sk_X509_OBJECT_delete");
+    WOLFSSL_STUB("wolfSSL_sk_X509_OBJECT_delete");
+    (void)sk;
+    (void)i;
+    return NULL;
+}
+
+void wolfSSL_X509_OBJECT_free(WOLFSSL_X509_OBJECT *a) {
+    WOLFSSL_ENTER("wolfSSL_X509_OBJECT_free");
+    WOLFSSL_STUB("wolfSSL_X509_OBJECT_free");
+    (void)a;
+}
+
 #endif
 
 

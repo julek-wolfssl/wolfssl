@@ -327,7 +327,7 @@ WOLFSSL_API int wolfSSL_EVP_DigestVerifyUpdate(WOLFSSL_EVP_MD_CTX *ctx,
 WOLFSSL_API int wolfSSL_EVP_DigestVerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
                                               const unsigned char *sig,
                                               size_t siglen);
-WOLFSSL_API int wolfSSL_EVP_Digest(unsigned char* in, int inSz, unsigned char* out,
+WOLFSSL_API int wolfSSL_EVP_Digest(const unsigned char* in, int inSz, unsigned char* out,
                               unsigned int* outSz, const WOLFSSL_EVP_MD* evp,
                               WOLFSSL_ENGINE* eng);
 

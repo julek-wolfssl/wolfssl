@@ -1006,7 +1006,7 @@ enum {
 #define SSL_SESSION_get_id              wolfSSL_SESSION_get_id
 #define SSL_SESSION_print               wolfSSL_SESSION_print
 #define sk_GENERAL_NAME_pop_free        wolfSSL_sk_GENERAL_NAME_pop_free
-#define sk_ASN1_OBJECT_pop_free         wolfSSL_sk_GENERAL_NAME_pop_free
+#define sk_ASN1_OBJECT_pop_free         wolfSSL_sk_ASN1_OBJECT_pop_free
 #define GENERAL_NAME_free               wolfSSL_GENERAL_NAME_free
 #define GENERAL_NAMES_free              wolfSSL_GENERAL_NAMES_free
 
@@ -1168,6 +1168,8 @@ enum {
 #define X509_STORE_get0_objects         wolfSSL_X509_STORE_get0_objects
 #define sk_X509_OBJECT_num              wolfSSL_sk_X509_OBJECT_num
 #define sk_X509_OBJECT_value            wolfSSL_sk_X509_OBJECT_value
+#define sk_X509_OBJECT_delete           wolfSSL_sk_X509_OBJECT_delete
+#define X509_OBJECT_free                wolfSSL_X509_OBJECT_free
 #define X509_OBJECT_get_type(x)         0
 #define EVP_CIPHER_nid                  wolfSSL_EVP_CIPHER_nid
 

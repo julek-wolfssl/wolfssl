@@ -1992,6 +1992,8 @@ WOLFSSL_API int  wolfSSL_X509_get_serial_number(WOLFSSL_X509*,unsigned char*,int
 WOLFSSL_API char*  wolfSSL_X509_get_subjectCN(WOLFSSL_X509*);
 WOLFSSL_API const unsigned char* wolfSSL_X509_get_der(WOLFSSL_X509*, int*);
 WOLFSSL_API const unsigned char* wolfSSL_X509_get_tbs(WOLFSSL_X509*, int*);
+WOLFSSL_API const unsigned char* wolfSSL_X509_notBefore(const WOLFSSL_X509*);
+WOLFSSL_API const unsigned char* wolfSSL_X509_notAfter(const WOLFSSL_X509*);
 WOLFSSL_API int wolfSSL_X509_version(WOLFSSL_X509*);
 
 WOLFSSL_API int wolfSSL_cmp_peer_cert_to_file(WOLFSSL*, const char*);
@@ -3417,6 +3419,9 @@ WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_STORE_get1_certs(
                                WOLFSSL_X509_STORE_CTX*, WOLFSSL_X509_NAME*);
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_OBJECT)*
         wolfSSL_X509_STORE_get0_objects(WOLFSSL_X509_STORE *);
+WOLFSSL_API WOLFSSL_X509_OBJECT*
+        wolfSSL_sk_X509_OBJECT_delete(WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* sk, int i);
+WOLFSSL_API void wolfSSL_X509_OBJECT_free(WOLFSSL_X509_OBJECT *a);
 
 WOLFSSL_API void wolfSSL_sk_X509_pop_free(WOLF_STACK_OF(WOLFSSL_X509)* sk, void f (WOLFSSL_X509*));
 #endif /* OPENSSL_ALL || HAVE_STUNNEL || WOLFSSL_NGINX || WOLFSSL_HAPROXY || HAVE_LIGHTY */

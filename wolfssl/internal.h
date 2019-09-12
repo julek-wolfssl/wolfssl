@@ -3451,6 +3451,11 @@ struct WOLFSSL_STACK {
     #if defined(OPENSSL_ALL)
     wolf_sk_compare_cb comp;
     #endif
+    /* Useful when returning general name so that it can point to data without
+     * allocating more memory. */
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
+    WOLFSSL_GENERAL_NAME gn;
+#endif
     union {
         WOLFSSL_X509*          x509;
         WOLFSSL_X509_NAME*     name;
