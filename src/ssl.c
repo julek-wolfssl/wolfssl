@@ -15756,6 +15756,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_CBC_MODE;
             ctx->keyLen     = 16;
             ctx->block_size = AES_BLOCK_SIZE;
+#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB)
+            ctx->cipher.aes.left = 0;
+#endif
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
@@ -15780,6 +15783,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_CBC_MODE;
             ctx->keyLen     = 24;
             ctx->block_size = AES_BLOCK_SIZE;
+#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB)
+            ctx->cipher.aes.left = 0;
+#endif
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
@@ -15804,6 +15810,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_CBC_MODE;
             ctx->keyLen     = 32;
             ctx->block_size = AES_BLOCK_SIZE;
+#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB)
+            ctx->cipher.aes.left = 0;
+#endif
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
@@ -15930,6 +15939,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_CTR_MODE;
             ctx->keyLen     = 16;
             ctx->block_size = NO_PADDING_BLOCK_SIZE;
+#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB)
+            ctx->cipher.aes.left = 0;
+#endif
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
@@ -15954,6 +15966,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_CTR_MODE;
             ctx->keyLen     = 24;
             ctx->block_size = NO_PADDING_BLOCK_SIZE;
+#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB)
+            ctx->cipher.aes.left = 0;
+#endif
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
@@ -15978,6 +15993,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_CTR_MODE;
             ctx->keyLen     = 32;
             ctx->block_size = NO_PADDING_BLOCK_SIZE;
+#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB)
+            ctx->cipher.aes.left = 0;
+#endif
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
@@ -16003,6 +16021,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_ECB_MODE;
             ctx->keyLen     = 16;
             ctx->block_size = AES_BLOCK_SIZE;
+#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB)
+            ctx->cipher.aes.left = 0;
+#endif
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
@@ -16022,6 +16043,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_ECB_MODE;
             ctx->keyLen     = 24;
             ctx->block_size = AES_BLOCK_SIZE;
+#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB)
+            ctx->cipher.aes.left = 0;
+#endif
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
@@ -16041,6 +16065,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_ECB_MODE;
             ctx->keyLen     = 32;
             ctx->block_size = AES_BLOCK_SIZE;
+#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB)
+            ctx->cipher.aes.left = 0;
+#endif
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
@@ -17850,29 +17877,6 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
 
         return x509->version;
     }
-
-
-    const byte* wolfSSL_X509_notBefore(const WOLFSSL_X509* x509)
-    {
-        WOLFSSL_ENTER("wolfSSL_X509_notBefore");
-
-        if (x509 == NULL)
-            return NULL;
-
-        return x509->notBefore;
-    }
-
-
-    const byte* wolfSSL_X509_notAfter(const WOLFSSL_X509* x509)
-    {
-        WOLFSSL_ENTER("wolfSSL_X509_notAfter");
-
-        if (x509 == NULL)
-            return NULL;
-
-        return x509->notAfter;
-    }
-
 
 #ifdef WOLFSSL_SEP
 
