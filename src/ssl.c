@@ -15740,10 +15740,11 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         if (ctx->cipherType == WOLFSSL_EVP_CIPH_TYPE_INIT){
             /* only first EVP_CipherInit invoke. ctx->cipherType is set below */
             XMEMSET(&ctx->cipher, 0, sizeof(ctx->cipher));
-            ctx->bufUsed = 0;
-            ctx->lastUsed = 0;
             ctx->flags   = 0;
         }
+        /* always clear buffer state */
+        ctx->bufUsed = 0;
+        ctx->lastUsed = 0;
 
 #ifndef NO_AES
     #ifdef HAVE_AES_CBC
@@ -19036,10 +19037,17 @@ int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, WOLFSSL_ASN1_STRING *in)
        The length of out is returned or a negative error code.
        The buffer *out should be free using OPENSSL_free().
        */
-    (void)out;
-    (void)in;
-    WOLFSSL_STUB("ASN1_STRING_to_UTF8");
-    return -1;
+    unsigned char* buf;
+    if (!out || !in) {
+        return -1;
+    }
+    buf = (unsigned char*)XMALLOC(wolfSSL_ASN1_STRING_length(in) + 1, NULL, DYNAMIC_TYPE_OPENSSL);
+    if (!buf) {
+        return -1;
+    }
+    XMEMCPY(buf, wolfSSL_ASN1_STRING_data(in), wolfSSL_ASN1_STRING_length(in) + 1);
+    *out = buf;
+    return wolfSSL_ASN1_STRING_length(in);
 }
 
 /* Returns string representation of ASN1_STRING */
@@ -37726,6 +37734,32 @@ err:
         return obj;
     }
 
+    static const char* oid_translate_num_to_str(const char* oid)
+    {
+        static const struct oid_dict
+        {
+            const char* num;
+            const char* desc;
+        } oid_dict[] =
+        {
+        { "2.5.29.37.0", "Any Extended Key Usage" },
+        { "1.3.6.1.5.5.7.3.1", "TLS Web Server Authentication" },
+        { "1.3.6.1.5.5.7.3.2", "TLS Web Client Authentication" },
+        { "1.3.6.1.5.5.7.3.3", "Code Signing" },
+        { "1.3.6.1.5.5.7.3.4", "E-mail Protection" },
+        { "1.3.6.1.5.5.7.3.8", "Time Stamping" },
+        { "1.3.6.1.5.5.7.3.9", "OCSP Signing" },
+        { NULL, NULL } };
+        const struct oid_dict* idx;
+        for (idx = oid_dict; idx->num != NULL; idx++)
+        {
+            if (!XSTRNCMP(oid, idx->num, XSTRLEN(idx->num)))
+            {
+                return idx->desc;
+            }
+        }
+        return NULL;
+    }
 
     /* if no_name is one than use numerical form otherwise can be short name.
      *
@@ -37734,6 +37768,7 @@ err:
     int wolfSSL_OBJ_obj2txt(char *buf, int bufLen, WOLFSSL_ASN1_OBJECT *a, int no_name)
     {
         int bufSz;
+        const char* desc;
 
         WOLFSSL_ENTER("wolfSSL_OBJ_obj2txt()");
 
@@ -37782,7 +37817,14 @@ err:
             else {
                 bufSz = bufLen - 1;
             }
-            XMEMCPY(buf, a->sName, bufSz);
+            if (bufSz) {
+                XMEMCPY(buf, a->sName, bufSz);
+            } else if (wolfSSL_OBJ_obj2txt(buf, bufLen, a, 1)) {
+                if ((desc = oid_translate_num_to_str(buf))) {
+                    bufSz = XSTRLEN(desc);
+                    XMEMCPY(buf, desc, bufSz);
+                }
+            }
         }
 
         buf[bufSz] = '\0';
@@ -37812,7 +37854,7 @@ err:
             /* Unable to identify desired name */
             return -1;
         }
-        for (; idx < name->fullName.locSz; idx++) {
+        for (idx++; idx < name->fullName.locSz; idx++) {
             /* Find index of desired name */
             if ((enum DN_Tags)name->fullName.loc[idx] == tag) {
                 return idx;
