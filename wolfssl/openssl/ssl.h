@@ -581,6 +581,9 @@ typedef WOLFSSL_ASN1_BIT_STRING         ASN1_BIT_STRING;
 #define ASN1_BIT_STRING_new             wolfSSL_ASN1_BIT_STRING_new
 #define ASN1_BIT_STRING_free            wolfSSL_ASN1_BIT_STRING_free
 #define ASN1_BIT_STRING_get_bit         wolfSSL_ASN1_BIT_STRING_get_bit
+#define ASN1_BIT_STRING_set_bit         wolfSSL_ASN1_BIT_STRING_set_bit
+
+#define sk_ASN1_OBJECT_free             wolfSSL_sk_ASN1_OBJECT_free
 
 #define ASN1_TIME_adj                   wolfSSL_ASN1_TIME_adj
 #define ASN1_TIME_print                 wolfSSL_ASN1_TIME_print
@@ -891,6 +894,7 @@ enum {
 
 #define BIO_set_fp                      wolfSSL_BIO_set_fp
 #define BIO_get_fp                      wolfSSL_BIO_get_fp
+#define BIO_new_fp                      wolfSSL_BIO_new_fp
 #define BIO_seek                        wolfSSL_BIO_seek
 #define BIO_write_filename              wolfSSL_BIO_write_filename
 #define BIO_set_mem_eof_return          wolfSSL_BIO_set_mem_eof_return

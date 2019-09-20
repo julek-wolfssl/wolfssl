@@ -243,6 +243,7 @@ struct WOLFSSL_ASN1_OTHERNAME {
 
 struct WOLFSSL_GENERAL_NAME {
     int type;
+    WOLFSSL_ASN1_STRING ia5;
     struct {
         char* ptr;
         WOLFSSL_ASN1_OTHERNAME* otherName;
@@ -3223,6 +3224,7 @@ WOLFSSL_API int wolfSSL_X509_check_ca(WOLFSSL_X509 *x509);
 #ifndef NO_FILESYSTEM
 WOLFSSL_API long wolfSSL_BIO_set_fp(WOLFSSL_BIO *bio, XFILE fp, int c);
 WOLFSSL_API long wolfSSL_BIO_get_fp(WOLFSSL_BIO *bio, XFILE* fp);
+WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_fp(XFILE fp, int c);
 #endif
 
 #endif /* OPENSSL_EXTRA || OPENSSL_ALL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || HAVE_STUNNEL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
@@ -3238,9 +3240,6 @@ WOLFSSL_API long wolfSSL_BIO_get_fp(WOLFSSL_BIO *bio, XFILE* fp);
     || defined(OPENSSL_EXTRA)
 
 WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_file(const char *filename, const char *mode);
-#ifndef NO_FILESYSTEM
-WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_fp(XFILE fp, int close_flag);
-#endif
 WOLFSSL_API long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX*, WOLFSSL_DH*);
 WOLFSSL_API WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bp,
     WOLFSSL_DH **x, pem_password_cb *cb, void *u);
@@ -3355,6 +3354,8 @@ WOLFSSL_API WOLFSSL_ASN1_BIT_STRING* wolfSSL_X509_get0_pubkey_bitstr(
                             const WOLFSSL_X509*);
 WOLFSSL_API int wolfSSL_ASN1_BIT_STRING_get_bit(
                             const WOLFSSL_ASN1_BIT_STRING*, int);
+WOLFSSL_API int wolfSSL_ASN1_BIT_STRING_set_bit(
+                            WOLFSSL_ASN1_BIT_STRING*, int, int);
 
 WOLFSSL_API int        wolfSSL_CTX_add_session(WOLFSSL_CTX*, WOLFSSL_SESSION*);
 

@@ -124,6 +124,7 @@ authorityKeyIdentifier=keyid,issuer
 subjectKeyIdentifier=hash
 authorityKeyIdentifier=keyid:always,issuer:always
 basicConstraints=CA:true
+subjectAltName=DNS:example.com
 
 # CA with pathlen 0
 [ pathlen_0 ]

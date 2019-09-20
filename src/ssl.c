@@ -3511,7 +3511,7 @@ static const struct cipher{
     { 0, NULL, 0}
 };
 
-const WOLFSSL_EVP_CIPHER *EVP_CIPHER_CTX_cipher(const WOLFSSL_EVP_CIPHER_CTX *ctx) {
+const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_CIPHER_CTX_cipher(const WOLFSSL_EVP_CIPHER_CTX *ctx) {
     const struct cipher* c;
 
     if (!ctx || !ctx->cipherType) {
@@ -7641,6 +7641,29 @@ void wolfSSL_sk_X509_EXTENSION_free(WOLFSSL_STACK* sk)
     XFREE(sk, NULL, DYNAMIC_TYPE_X509);
 }
 
+int wolfSSL_ASN1_BIT_STRING_set_bit(WOLFSSL_ASN1_BIT_STRING* str, int pos, int val) {
+    int _byte = pos/8;
+    int bit = 1<<(7-(pos%8));
+    char* temp;
+
+    if (!str || (val != 0 && val != 1)) {
+        return WOLFSSL_FAILURE;
+    }
+
+    if (_byte+1 > str->length) {
+        if (!(temp = XREALLOC(str->data, _byte+1, NULL, DYNAMIC_TYPE_OPENSSL))) {
+            return WOLFSSL_FAILURE;
+        }
+        XMEMSET(temp+str->length, 0, _byte+1 - str->length);
+        str->data = temp;
+        str->length = _byte+1;
+    }
+
+    str->data[_byte] &= ~bit;
+    str->data[_byte] |= val ? bit : 0;
+    return WOLFSSL_SUCCESS;
+}
+
 /* Gets the X509_EXTENSION* ext based on it's location in WOLFSSL_X509* x509.
  *
  * x509   : The X509 structure to look for the extension.
@@ -8541,10 +8564,10 @@ void wolfSSL_ASN1_BIT_STRING_free(WOLFSSL_ASN1_BIT_STRING* str) {
 
 int wolfSSL_ASN1_BIT_STRING_get_bit(const WOLFSSL_ASN1_BIT_STRING* str, int i) {
     if (!str || !str->data || str->length <= (i/8) || i<0) {
-        return 0;
+        return WOLFSSL_FAILURE;
     }
 
-    return str->data[i/8] & (1<<(7-(i%8)));
+    return str->data[i/8] & (1<<(7-(i%8))) ? 1 : 0;
 }
 
 /* Looks for the extension matching the passed in nid
@@ -15757,9 +15780,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_CBC_MODE;
             ctx->keyLen     = 16;
             ctx->block_size = AES_BLOCK_SIZE;
-#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB)
-            ctx->cipher.aes.left = 0;
-#endif
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
@@ -15784,9 +15804,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_CBC_MODE;
             ctx->keyLen     = 24;
             ctx->block_size = AES_BLOCK_SIZE;
-#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB)
-            ctx->cipher.aes.left = 0;
-#endif
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
@@ -15811,9 +15828,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_CBC_MODE;
             ctx->keyLen     = 32;
             ctx->block_size = AES_BLOCK_SIZE;
-#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB)
-            ctx->cipher.aes.left = 0;
-#endif
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
@@ -16022,9 +16036,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_ECB_MODE;
             ctx->keyLen     = 16;
             ctx->block_size = AES_BLOCK_SIZE;
-#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB)
-            ctx->cipher.aes.left = 0;
-#endif
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
@@ -16044,9 +16055,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_ECB_MODE;
             ctx->keyLen     = 24;
             ctx->block_size = AES_BLOCK_SIZE;
-#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB)
-            ctx->cipher.aes.left = 0;
-#endif
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
@@ -16066,9 +16074,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_ECB_MODE;
             ctx->keyLen     = 32;
             ctx->block_size = AES_BLOCK_SIZE;
-#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB)
-            ctx->cipher.aes.left = 0;
-#endif
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
@@ -18360,6 +18365,7 @@ WOLFSSL_GENERAL_NAME* wolfSSL_sk_GENERAL_NAME_value(WOLFSSL_STACK* sk, int i)
 {
     WOLFSSL_STACK* cur;
     int j;
+    int len;
 
     WOLFSSL_ENTER("wolfSSL_sk_GENERAL_NAME_value");
 
@@ -18377,6 +18383,16 @@ WOLFSSL_GENERAL_NAME* wolfSSL_sk_GENERAL_NAME_value(WOLFSSL_STACK* sk, int i)
     }
 
     cur->gn.d.registeredID = cur->data.obj;
+    cur->gn.d.ia5 = &cur->gn.ia5;
+
+    if (cur->data.obj) {
+        cur->gn.type = cur->data.obj->type;
+        if (cur->data.obj->obj) {
+            len = XSTRLEN((const char*)cur->data.obj->obj);
+            XMEMCPY(cur->gn.ia5.strData, cur->data.obj->obj, len);
+            cur->gn.ia5.length = len;
+        }
+    }
 
     return &cur->gn;
 }
@@ -23193,7 +23209,8 @@ int wolfSSL_ASN1_INTEGER_set(WOLFSSL_ASN1_INTEGER *a, long v)
 
         /* Set length */
         a->data[i++] = (unsigned char)((j == 0) ? ++j : j);
-        a->length = j + 2; // +2 for type and length
+        /* +2 for type and length */
+        a->length = j + 2;
 
         /* Copy to data */
         for (; j > 0; j--) {
@@ -37819,11 +37836,16 @@ err:
             }
             if (bufSz) {
                 XMEMCPY(buf, a->sName, bufSz);
-            } else if (wolfSSL_OBJ_obj2txt(buf, bufLen, a, 1)) {
+            }
+            else if (wolfSSL_OBJ_obj2txt(buf, bufLen, a, 1)) {
                 if ((desc = oid_translate_num_to_str(buf))) {
                     bufSz = XSTRLEN(desc);
-                    XMEMCPY(buf, desc, bufSz);
+                    XMEMCPY(buf, desc, MIN(bufSz, bufLen));
                 }
+            }
+            else if (a->type == GEN_DNS || a->type == GEN_EMAIL || a->type == GEN_URI) {
+                bufSz = XSTRLEN((const char*)a->obj);
+                XMEMCPY(buf, a->obj, MIN(bufSz, bufLen));
             }
         }
 
@@ -39210,29 +39232,6 @@ WOLFSSL_BIO *wolfSSL_BIO_new_file(const char *filename, const char *mode)
     return NULL;
 #endif /* NO_FILESYSTEM */
 }
-
-#ifndef NO_FILESYSTEM
-WOLFSSL_BIO* wolfSSL_BIO_new_fp(XFILE fp, int close_flag)
-{
-    WOLFSSL_BIO* bio;
-
-    WOLFSSL_ENTER("wolfSSL_BIO_new_fp");
-
-    bio = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
-    if (bio == NULL) {
-        return bio;
-    }
-
-    if (wolfSSL_BIO_set_fp(bio, fp, close_flag) != WOLFSSL_SUCCESS) {
-        wolfSSL_BIO_free(bio);
-        bio = NULL;
-    }
-
-    /* file is closed when BIO is free'd or by user depending on flag */
-    return bio;
-}
-#endif
-
 
 #ifndef NO_DH
 WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bio, WOLFSSL_DH **x,

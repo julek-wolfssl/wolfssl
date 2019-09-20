@@ -1221,6 +1221,24 @@ long wolfSSL_BIO_get_fp(WOLFSSL_BIO *bio, XFILE* fp)
     return WOLFSSL_SUCCESS;
 }
 
+#ifndef NO_FILESYSTEM
+WOLFSSL_BIO *wolfSSL_BIO_new_fp(XFILE fp, int c)
+{
+    WOLFSSL_BIO *ret;
+
+    if (!(ret = BIO_new(BIO_s_file()))) {
+        return NULL;
+    }
+
+    if (wolfSSL_BIO_set_fp(ret, fp, c) != WOLFSSL_SUCCESS) {
+        wolfSSL_BIO_free(ret);
+        ret = NULL;
+    }
+
+    return ret;
+}
+#endif
+
 /* overwrites file */
 int wolfSSL_BIO_write_filename(WOLFSSL_BIO *bio, char *name)
 {

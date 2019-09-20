@@ -513,27 +513,33 @@ int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
     if (ctx->flags & WOLFSSL_EVP_CIPH_NO_PADDING) {
         if (ctx->bufUsed != 0) return WOLFSSL_FAILURE;
         *outl = 0;
-    } else if (ctx->enc) {
+    }
+    else if (ctx->enc) {
         if (ctx->block_size == 1) {
             *outl = 0;
-        } else if ((ctx->bufUsed >= 0) && (ctx->block_size != 1)) {
+        }
+        else if ((ctx->bufUsed >= 0) && (ctx->block_size != 1)) {
             padBlock(ctx);
             PRINT_BUF(ctx->buf, ctx->block_size);
             if (evpCipherBlock(ctx, out, ctx->buf, ctx->block_size) == 0) {
                 ret = WOLFSSL_FAILURE;
-            } else {
+            }
+            else {
                 PRINT_BUF(out, ctx->block_size);
                 *outl = ctx->block_size;
             }
         }
-    } else {
+    }
+    else {
         if (ctx->block_size == 1) {
             *outl = 0;
-        } else if ((ctx->bufUsed % ctx->block_size) != 0) {
+        }
+        else if ((ctx->bufUsed % ctx->block_size) != 0) {
             *outl = 0;
             /* not enough padding for decrypt */
             ret = WOLFSSL_FAILURE;
-        } else if (ctx->lastUsed) {
+        }
+        else if (ctx->lastUsed) {
             PRINT_BUF(ctx->lastBlock, ctx->block_size);
             if ((fl = checkPad(ctx, ctx->lastBlock)) >= 0) {
                 XMEMCPY(out, ctx->lastBlock, fl);
@@ -546,7 +552,8 @@ int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
             else {
                 ret = WOLFSSL_FAILURE;
             }
-        } else if (ctx->lastUsed == 0 && ctx->bufUsed == 0) {
+        }
+        else if (ctx->lastUsed == 0 && ctx->bufUsed == 0) {
             /* return error in cases where the block length is incorrect */
             ret = WOLFSSL_FAILURE;
         }
@@ -2048,7 +2055,8 @@ int wolfSSL_PKCS5_PBKDF2_HMAC_SHA1(const char *pass, int passlen,
     if (pass == NULL) {
         passlen = 0;
         pass = nostring;
-    } else if (passlen == -1) {
+    }
+    else if (passlen == -1) {
         passlen = (int)XSTRLEN(pass);
     }
 
