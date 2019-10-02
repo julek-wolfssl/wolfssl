@@ -78,7 +78,9 @@ struct WOLFSSL_RSA {
     char           inSet;     /* internal set from external ? */
     char           exSet;     /* external set from internal ? */
     char           ownRng;    /* flag for if the rng should be free'd */
+#if defined(OPENSSL_EXTRA)
     WOLFSSL_RSA_METHOD* meth;
+#endif
 };
 
 WOLFSSL_API WOLFSSL_RSA* wolfSSL_RSA_new(void);

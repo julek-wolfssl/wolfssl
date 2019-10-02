@@ -192,7 +192,7 @@ int wolfSSL_EC_POINT_is_at_infinity(const WOLFSSL_EC_GROUP *group,
                                     const WOLFSSL_EC_POINT *a);
 
 WOLFSSL_API
-size_t wolfSSL_EC_get_builtin_curves(EC_builtin_curve *r, size_t nitems);
+size_t wolfSSL_EC_get_builtin_curves(WOLFSSL_EC_builtin_curve *r, size_t nitems);
 
 #ifndef HAVE_SELFTEST
 WOLFSSL_API
