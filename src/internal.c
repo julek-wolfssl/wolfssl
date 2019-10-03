@@ -5047,7 +5047,7 @@ int InitHandshakeHashes(WOLFSSL* ssl)
     ret = wc_InitSha256_ex(&ssl->hsHashes->hashSha256, ssl->heap, ssl->devId);
     if (ret != 0)
         return ret;
-    #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    #if (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)) && !defined(WOLFSSL_ARMASM)
         wc_Sha256SetFlags(&ssl->hsHashes->hashSha256, WC_HASH_FLAG_WILLCOPY);
     #endif
 #endif

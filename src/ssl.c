@@ -17029,7 +17029,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                     ssl->devId) != 0) {
                 return WOLFSSL_FAILURE;
             }
-        #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+        #if (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)) && !defined(WOLFSSL_ARMASM)
             wc_Sha256SetFlags(&ssl->hsHashes->hashSha256, WC_HASH_FLAG_WILLCOPY);
         #endif
 #endif

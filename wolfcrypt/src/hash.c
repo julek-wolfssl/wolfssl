@@ -864,12 +864,12 @@ int wc_HashSetFlags(wc_HashAlg* hash, enum wc_HashType type, word32 flags)
 #endif
             break;
         case WC_HASH_TYPE_SHA224:
-#ifdef WOLFSSL_SHA224
+#ifdef WOLFSSL_SHA224 && !defined(WOLFSSL_ARMASM)
             ret = wc_Sha224SetFlags(&hash->sha224, flags);
 #endif
             break;
         case WC_HASH_TYPE_SHA256:
-#ifndef NO_SHA256
+#ifndef NO_SHA256 && !defined(WOLFSSL_ARMASM)
             ret = wc_Sha256SetFlags(&hash->sha256, flags);
 #endif
             break;
@@ -925,12 +925,12 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
 #endif
             break;
         case WC_HASH_TYPE_SHA224:
-#ifdef WOLFSSL_SHA224
+#ifdef WOLFSSL_SHA224 && !defined(WOLFSSL_ARMASM)
             ret = wc_Sha224GetFlags(&hash->sha224, flags);
 #endif
             break;
         case WC_HASH_TYPE_SHA256:
-#ifndef NO_SHA256
+#ifndef NO_SHA256 && !defined(WOLFSSL_ARMASM)
             ret = wc_Sha256GetFlags(&hash->sha256, flags);
 #endif
             break;
