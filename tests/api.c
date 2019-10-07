@@ -18471,7 +18471,7 @@ static void test_wolfSSL_X509_NAME(void)
 
 static void test_wolfSSL_X509_INFO(void)
 {
-#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_ALL)
     STACK_OF(X509_INFO) *info_stack;
     X509_INFO *info;
     BIO *cert;
@@ -18823,7 +18823,7 @@ static void test_wolfSSL_certs(void)
     sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_subject_alt_name,
             &crit, NULL);
     /* AssertNotNull(sk); no alt names set */
-    sk_ASN1_OBJECT_free(sk);
+    sk_GENERAL_NAME_free(sk);
 
     sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_issuer_alt_name,
             &crit, NULL);
@@ -20428,7 +20428,7 @@ static void test_wolfSSL_X509_STORE_CTX_get0_store(void)
 
 static void test_wolfSSL_CTX_set_client_CA_list(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_CERTS) && \
+#if defined(OPENSSL_ALL) && !defined(NO_RSA) && !defined(NO_CERTS) && \
     !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx;
     X509_NAME* name = NULL;
@@ -21545,7 +21545,7 @@ static void test_wolfSSL_ASN1_STRING(void)
 
 static void test_wolfSSL_ASN1_BIT_STRING(void)
 {
-    #if defined(OPENSSL_EXTRA)
+#ifdef OPENSSL_ALL
     ASN1_BIT_STRING* str;
 
     printf(testingFmt, "test_wolfSSL_ASN1_BIT_STRING()");
@@ -21560,7 +21560,7 @@ static void test_wolfSSL_ASN1_BIT_STRING(void)
 
     ASN1_BIT_STRING_free(str);
     printf(resultFmt, passed);
-    #endif
+#endif
 }
 
 

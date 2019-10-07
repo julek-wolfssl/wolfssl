@@ -8040,6 +8040,7 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
                     return NULL;
                 }
                 ext->value.data = (char*)XMALLOC(length, NULL, DYNAMIC_TYPE_ASN1);
+                ext->value.isDynamic = 1;
                 if (ext->value.data == NULL) {
                     WOLFSSL_MSG("Failed to malloc ASN1_STRING data");
                     wolfSSL_X509_EXTENSION_free(ext);
@@ -13610,9 +13611,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
              */
             node->data.name->x509 = NULL;
 
-            /* Clear pointers so freeing certificate doesn't free memory. */
-            XMEMSET(subjectName, 0, sizeof(WOLFSSL_X509_NAME));
-
             /* Put node on the front of the list. */
             node->num  = (list == NULL) ? 1 : list->num + 1;
             node->next = list;
@@ -18461,8 +18459,6 @@ void wolfSSL_sk_GENERAL_NAME_pop_free(WOLFSSL_STACK* sk,
         wolfSSL_GENERAL_NAME_free(sk->data.gn);
     }
     XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
-
-
 }
 
 

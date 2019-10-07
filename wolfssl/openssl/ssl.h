@@ -1010,6 +1010,7 @@ enum {
 #define SSL_SESSION_get_id              wolfSSL_SESSION_get_id
 #define SSL_SESSION_print               wolfSSL_SESSION_print
 #define sk_GENERAL_NAME_pop_free        wolfSSL_sk_GENERAL_NAME_pop_free
+#define sk_GENERAL_NAME_free(x)         wolfSSL_sk_GENERAL_NAME_pop_free(x, NULL)
 #define sk_ASN1_OBJECT_pop_free         wolfSSL_sk_ASN1_OBJECT_pop_free
 #define GENERAL_NAME_free               wolfSSL_GENERAL_NAME_free
 #define GENERAL_NAMES_free              wolfSSL_GENERAL_NAMES_free
