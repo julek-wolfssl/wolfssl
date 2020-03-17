@@ -6882,32 +6882,6 @@ static int ecc_check_privkey_gen_helper(ecc_key* key)
 
 #endif /* WOLFSSL_VALIDATE_ECC_IMPORT */
 
-
-int wc_ecc_get_generator(ecc_point* ecp, int curve_idx)
-{
-    int err = MP_OKAY;
-    DECLARE_CURVE_SPECS(curve, 2);
-
-    if (!ecp || curve_idx < 0 || curve_idx > (int)(ECC_SET_COUNT-1))
-        return BAD_FUNC_ARG;
-
-    ALLOC_CURVE_SPECS(2);
-
-    err = wc_ecc_curve_load(&ecc_sets[curve_idx], &curve,
-                            (ECC_CURVE_FIELD_GX | ECC_CURVE_FIELD_GY));
-    if (err == MP_OKAY)
-        err = mp_copy(curve->Gx, ecp->x);
-    if (err == MP_OKAY)
-        err = mp_copy(curve->Gy, ecp->y);
-    if (err == MP_OKAY)
-        err = mp_set(ecp->z, 1);
-
-    wc_ecc_curve_free(curve);
-    FREE_CURVE_SPECS();
-
-    return err;
-}
-
 #if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || !defined(WOLFSSL_SP_MATH)
 /* validate order * pubkey = point at infinity, 0 on success */
 static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
@@ -6958,6 +6932,30 @@ static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
 #endif
 #endif /* !WOLFSSL_ATECC508A && !WOLFSSL_CRYPTOCELL*/
 
+int wc_ecc_get_generator(ecc_point* ecp, int curve_idx)
+{
+    int err = MP_OKAY;
+    DECLARE_CURVE_SPECS(curve, 2);
+
+    if (!ecp || curve_idx < 0 || curve_idx > (int)(ECC_SET_COUNT-1))
+        return BAD_FUNC_ARG;
+
+    ALLOC_CURVE_SPECS(2);
+
+    err = wc_ecc_curve_load(&ecc_sets[curve_idx], &curve,
+                            (ECC_CURVE_FIELD_GX | ECC_CURVE_FIELD_GY));
+    if (err == MP_OKAY)
+        err = mp_copy(curve->Gx, ecp->x);
+    if (err == MP_OKAY)
+        err = mp_copy(curve->Gy, ecp->y);
+    if (err == MP_OKAY)
+        err = mp_set(ecp->z, 1);
+
+    wc_ecc_curve_free(curve);
+    FREE_CURVE_SPECS();
+
+    return err;
+}
 
 /* perform sanity checks on ecc key validity, 0 on success */
 int wc_ecc_check_key(ecc_key* key)
