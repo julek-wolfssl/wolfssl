@@ -5612,7 +5612,7 @@ int CalcHashId(const byte* data, word32 len, byte* hash)
 }
 
 /* process NAME, either issuer or subject */
-static int GetName(DecodedCert* cert, int nameType, int maxIdx)
+int GetName(DecodedCert* cert, int nameType, int maxIdx)
 {
     int    length;  /* length of all distinguished names */
     int    dummy;
