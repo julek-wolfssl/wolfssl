@@ -1800,12 +1800,16 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         wolfSSL_CTX_SetIOSend(ctx, SimulateWantWriteIOSendCb);
     }
 
-#if defined(HAVE_SESSION_TICKET) && \
-    ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || \
-      defined(HAVE_AESGCM))
+#ifdef HAVE_SESSION_TICKET
     if (TicketInit() != 0)
         err_sys_ex(catastrophic, "unable to setup Session Ticket Key context");
+#ifdef OPENSSL_EXTRA
+    /* In OpenSSL compat case, the compat layer handles the session
+     * tickets internally by default */
+#elif ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || \
+      defined(HAVE_AESGCM))
     wolfSSL_CTX_set_TicketEncCb(ctx, myTicketEncCb);
+#endif
 #endif
 
 #if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_STATIC_EPHEMERAL)

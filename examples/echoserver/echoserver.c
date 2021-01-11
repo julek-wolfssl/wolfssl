@@ -165,12 +165,16 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
-#if defined(HAVE_SESSION_TICKET) && \
-    ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || \
-      defined(HAVE_AESGCM))
+#ifdef HAVE_SESSION_TICKET
     if (TicketInit() != 0)
         err_sys("unable to setup Session Ticket Key context");
+#ifdef OPENSSL_EXTRA
+    /* In OpenSSL compat case, the compat layer handles the session
+     * tickets internally by default */
+#elif ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || \
+      defined(HAVE_AESGCM))
     wolfSSL_CTX_set_TicketEncCb(ctx, myTicketEncCb);
+#endif
 #endif
 
 #ifndef NO_FILESYSTEM

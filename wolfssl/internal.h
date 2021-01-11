@@ -2868,6 +2868,19 @@ struct WOLFSSL_CTX {
         SessionTicketEncCb ticketEncCb;   /* enc/dec session ticket Cb */
         void*              ticketEncCtx;  /* session encrypt context */
         int                ticketHint;    /* ticket hint in seconds */
+    #ifdef OPENSSL_EXTRA
+        /* The ticket key callback as used in OpenSSL is stored here. */
+        int (*ticketCompatCb)(WOLFSSL *ssl, unsigned char *name, unsigned char *iv,
+            WOLFSSL_EVP_CIPHER_CTX *ectx, WOLFSSL_HMAC_CTX *hctx, int enc);
+        /* Fields for OpenSSL compatibility session tickets.
+         * wolfSSL requires a user callback to be explicitly used for
+         * TLS session tickets. OpenSSL caches the session internally by default.
+         * These fields are generated during CTX initialisation. */
+        byte               ticketCompatName[WOLFSSL_TICKET_NAME_SZ];
+        byte               ticketCompatKey[AES_256_KEY_SIZE];
+        byte               ticketCompatHmacKey[WOLFSSL_TICKET_NAME_SZ];
+        byte               ticketCompatIV[WOLFSSL_TICKET_IV_SZ];
+    #endif
     #endif
     #ifdef HAVE_SUPPORTED_CURVES
         byte userCurves;                  /* indicates user called wolfSSL_CTX_UseSupportedCurve */

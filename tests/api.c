@@ -2646,11 +2646,14 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
         ctx = wolfSSL_CTX_new(method);
     }
 
-#if defined(HAVE_SESSION_TICKET) && \
-    ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || \
-      defined(HAVE_AESGCM))
+#ifdef HAVE_SESSION_TICKET
     TicketInit();
+#ifdef OPENSSL_EXTRA
+    wolfSSL_CTX_set_tlsext_ticket_key_cb(ctx, myTicketEncCbOpenSSL);
+#elif ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || \
+      defined(HAVE_AESGCM))
     wolfSSL_CTX_set_TicketEncCb(ctx, myTicketEncCb);
+#endif
 #endif
 
 #if defined(USE_WINDOWS_API)
@@ -2834,8 +2837,7 @@ done:
     wc_ecc_fp_free();  /* free per thread cache */
 #endif
 
-#if defined(HAVE_SESSION_TICKET) && defined(HAVE_CHACHA) && \
-                                    defined(HAVE_POLY1305)
+#ifdef HAVE_SESSION_TICKET
     TicketCleanup();
 #endif
 
