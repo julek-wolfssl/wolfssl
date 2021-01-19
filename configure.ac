@@ -2483,7 +2483,7 @@ AC_ARG_ENABLE([anon],
     [ ENABLED_ANON=no ]
     )
 
-if test "x$ENABLED_WPAS" = "xyes"
+if test "x$ENABLED_WPAS" = "xyes" || test "$ENABLED_NGINX" = "yes"
 then
     ENABLED_ANON=yes
 fi
