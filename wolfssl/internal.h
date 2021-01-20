@@ -59,6 +59,9 @@
 #ifdef HAVE_POLY1305
     #include <wolfssl/wolfcrypt/poly1305.h>
 #endif
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && defined(OPENSSL_EXTRA)
+    #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
+#endif
 #ifdef HAVE_CAMELLIA
     #include <wolfssl/wolfcrypt/camellia.h>
 #endif
@@ -2869,17 +2872,16 @@ struct WOLFSSL_CTX {
         void*              ticketEncCtx;  /* session encrypt context */
         int                ticketHint;    /* ticket hint in seconds */
     #ifdef OPENSSL_EXTRA
-        /* The ticket key callback as used in OpenSSL is stored here. */
-        int (*ticketCompatCb)(WOLFSSL *ssl, unsigned char *name, unsigned char *iv,
-            WOLFSSL_EVP_CIPHER_CTX *ectx, WOLFSSL_HMAC_CTX *hctx, int enc);
         /* Fields for OpenSSL compatibility session tickets.
          * wolfSSL requires a user callback to be explicitly used for
          * TLS session tickets. OpenSSL caches the session internally by default.
          * These fields are generated during CTX initialisation. */
         byte               ticketCompatName[WOLFSSL_TICKET_NAME_SZ];
+    #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+        byte               ticketCompatKey[CHACHA20_POLY1305_AEAD_KEYSIZE];
+    #elif !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_256)
         byte               ticketCompatKey[AES_256_KEY_SIZE];
-        byte               ticketCompatHmacKey[WOLFSSL_TICKET_NAME_SZ];
-        byte               ticketCompatIV[WOLFSSL_TICKET_IV_SZ];
+    #endif
     #endif
     #endif
     #ifdef HAVE_SUPPORTED_CURVES
