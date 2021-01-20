@@ -2381,7 +2381,7 @@ void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
 void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
                 word16 havePSK, word16 haveDH, word16 haveNTRU,
                 word16 haveECDSAsig, word16 haveECC,
-                word16 haveStaticECC, int side)
+                word16 haveStaticECC, word16 haveAnon, int side)
 {
     word16 idx = 0;
     int    tls    = pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_MINOR;
@@ -2403,6 +2403,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     (void)side;
     (void)haveRSA;    /* some builds won't read */
     (void)haveRSAsig; /* non ecc builds won't read */
+    (void)haveAnon;   /* anon ciphers optional */
 
     if (suites == NULL) {
         WOLFSSL_MSG("InitSuites pointer error");
@@ -2622,14 +2623,14 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
 #endif
 
 #ifdef BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA
-    if (tls1_2 && haveDH) {
+    if (tls1_2 && haveDH && haveAnon) {
       suites->suites[idx++] = CIPHER_BYTE;
       suites->suites[idx++] = TLS_DH_anon_WITH_AES_128_CBC_SHA;
     }
 #endif
 
 #ifdef BUILD_TLS_DH_anon_WITH_AES_256_GCM_SHA384
-    if (tls1_2 && haveDH) {
+    if (tls1_2 && haveDH && haveAnon) {
       suites->suites[idx++] = CIPHER_BYTE;
       suites->suites[idx++] = TLS_DH_anon_WITH_AES_256_GCM_SHA384;
     }
@@ -5293,13 +5294,15 @@ int InitSSL_Suites(WOLFSSL* ssl)
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                    ssl->options.haveDH, ssl->options.haveNTRU,
                    ssl->options.haveECDSAsig, ssl->options.haveECC,
-                   ssl->options.haveStaticECC, ssl->options.side);
+                   ssl->options.haveStaticECC, ssl->options.haveAnon,
+                   ssl->options.side);
     }
     else {
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                    TRUE, ssl->options.haveNTRU,
                    ssl->options.haveECDSAsig, ssl->options.haveECC,
-                   ssl->options.haveStaticECC, ssl->options.side);
+                   ssl->options.haveStaticECC, ssl->options.haveAnon,
+                   ssl->options.side);
     }
 
 #if !defined(NO_CERTS) && !defined(WOLFSSL_SESSION_EXPORT)
@@ -27577,7 +27580,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                        ssl->options.haveDH, ssl->options.haveNTRU,
                        ssl->options.haveECDSAsig, ssl->options.haveECC,
-                       ssl->options.haveStaticECC, ssl->options.side);
+                       ssl->options.haveStaticECC, ssl->options.haveAnon,
+                       ssl->options.side);
         }
 
         /* suite size */
@@ -27907,7 +27911,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                        ssl->options.haveDH, ssl->options.haveNTRU,
                        ssl->options.haveECDSAsig, ssl->options.haveECC,
-                       ssl->options.haveStaticECC, ssl->options.side);
+                       ssl->options.haveStaticECC, ssl->options.haveAnon,
+                       ssl->options.side);
         }
 
 #ifdef OPENSSL_EXTRA
@@ -27969,7 +27974,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                        ssl->options.haveDH, ssl->options.haveNTRU,
                        ssl->options.haveECDSAsig, ssl->options.haveECC,
-                       ssl->options.haveStaticECC, ssl->options.side);
+                       ssl->options.haveStaticECC, ssl->options.haveAnon,
+                       ssl->options.side);
             }
         }
 #endif
