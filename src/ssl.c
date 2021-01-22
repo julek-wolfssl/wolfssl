@@ -42843,6 +42843,16 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
                                        (const unsigned char*)pkey->pkey.ptr,
                                        pkey->pkey_sz, SSL_FILETYPE_ASN1);
     }
+#ifdef HAVE_PKCS11
+    else if (pkey->devId != INVALID_DEVID) {
+        if (wolfSSL_CTX_SetDevId(ctx, pkey->devId) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("wolfSSL_CTX_SetDevId failed");
+            return WOLFSSL_FAILURE;
+        }
+        return wolfSSL_CTX_use_PrivateKey_id(ctx, pkey->keyId,
+                pkey->keyIdSz, pkey->devId, pkey->keySz);
+    }
+#endif
 
     WOLFSSL_MSG("wolfSSL private key not set");
     return BAD_FUNC_ARG;

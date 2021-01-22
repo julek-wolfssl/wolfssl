@@ -344,6 +344,12 @@ struct WOLFSSL_EVP_PKEY {
     int pkey_sz;
     int references;  /*number of times free should be called for complete free*/
     wolfSSL_Mutex    refMutex; /* ref count mutex */
+    #ifdef HAVE_PKCS11
+    int devId;        /* Device ID for PKCS11 */
+    byte* keyId;
+    int keyIdSz;
+    int keySz;        /* Key size in bytes */
+    #endif
 
     union {
         char* ptr; /* der format of key / or raw for NTRU */

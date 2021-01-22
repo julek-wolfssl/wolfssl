@@ -6761,6 +6761,9 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_ex(void* heap)
         pkey->references = 1;
         wc_InitMutex(&pkey->refMutex); /* init of mutex needs to come before
                                         * wolfSSL_EVP_PKEY_free */
+#ifdef HAVE_PKCS11
+        pkey->devId = INVALID_DEVID;
+#endif
         if (ret != 0){
             wolfSSL_EVP_PKEY_free(pkey);
             WOLFSSL_MSG("memory failure");
