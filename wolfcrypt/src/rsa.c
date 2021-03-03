@@ -810,7 +810,8 @@ int wc_CheckRsaKey(RsaKey* key)
    out:   mask output after generation
    outSz: size of output buffer
  */
-#if !defined(NO_SHA) || !defined(NO_SHA256) || defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
+#if !defined(NO_SHA) || !defined(NO_SHA256) || defined(WOLFSSL_SHA384) || \
+    defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA3)
 static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
                                         byte* out, word32 outSz, void* heap)
 {
@@ -920,6 +921,27 @@ static int RsaMGF(int type, byte* seed, word32 seedSz, byte* out,
             ret = RsaMGF1(WC_HASH_TYPE_SHA512, seed, seedSz, out, outSz, heap);
             break;
     #endif
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
+    case WC_MGF1SHA3_224:
+        ret = RsaMGF1(WC_HASH_TYPE_SHA3_224, seed, seedSz, out, outSz, heap);
+            break;
+#endif
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+    case WC_MGF1SHA3_256:
+        ret = RsaMGF1(WC_HASH_TYPE_SHA3_256, seed, seedSz, out, outSz, heap);
+            break;
+#endif
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
+    case WC_MGF1SHA3_384:
+        ret = RsaMGF1(WC_HASH_TYPE_SHA3_384, seed, seedSz, out, outSz, heap);
+            break;
+#endif
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512)
+    case WC_MGF1SHA3_512:
+        ret = RsaMGF1(WC_HASH_TYPE_SHA3_512, seed, seedSz, out, outSz, heap);
+            break;
+#endif
+
         default:
             WOLFSSL_MSG("Unknown MGF type: check build options");
             ret = BAD_FUNC_ARG;
@@ -1816,14 +1838,31 @@ int wc_hash2mgf(enum wc_HashType hType)
 #else
         break;
 #endif
+    case WC_HASH_TYPE_SHA3_224:
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
+        return WC_MGF1SHA3_224;
+#endif
+        break;
+    case WC_HASH_TYPE_SHA3_256:
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+        return WC_MGF1SHA3_256;
+#endif
+        break;
+case WC_HASH_TYPE_SHA3_384:
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
+        return WC_MGF1SHA3_384;
+#endif
+        break;
+case WC_HASH_TYPE_SHA3_512:
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512)
+        return WC_MGF1SHA3_512;
+#endif
+        break;
+
     case WC_HASH_TYPE_MD2:
     case WC_HASH_TYPE_MD4:
     case WC_HASH_TYPE_MD5:
     case WC_HASH_TYPE_MD5_SHA:
-    case WC_HASH_TYPE_SHA3_224:
-    case WC_HASH_TYPE_SHA3_256:
-    case WC_HASH_TYPE_SHA3_384:
-    case WC_HASH_TYPE_SHA3_512:
     case WC_HASH_TYPE_BLAKE2B:
     case WC_HASH_TYPE_BLAKE2S:
     default:

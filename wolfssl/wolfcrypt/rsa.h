@@ -320,6 +320,10 @@ WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
 #define WC_MGF1SHA256 1
 #define WC_MGF1SHA384 2
 #define WC_MGF1SHA512 3
+#define WC_MGF1SHA3_224 7
+#define WC_MGF1SHA3_256 8
+#define WC_MGF1SHA3_384 9
+#define WC_MGF1SHA3_512 10
 
 /* Padding types */
 #define WC_RSA_PKCSV15_PAD 0
