@@ -2157,16 +2157,16 @@ static const struct s_ent {
     {WC_HASH_TYPE_SHA512, NID_sha512, "SHA512"},
 #endif /* WOLFSSL_SHA512 */
 #ifndef WOLFSSL_NOSHA3_224
-    {WC_HASH_TYPE_SHA3_224, NID_sha3_224, "SHA3_224"},
+    {WC_HASH_TYPE_SHA3_224, NID_sha3_224, "SHA3-224"},
 #endif
 #ifndef WOLFSSL_NOSHA3_256
-    {WC_HASH_TYPE_SHA3_256, NID_sha3_256, "SHA3_256"},
+    {WC_HASH_TYPE_SHA3_256, NID_sha3_256, "SHA3-256"},
 #endif
 #ifndef WOLFSSL_NOSHA3_384
-    {WC_HASH_TYPE_SHA3_384, NID_sha3_384, "SHA3_384"},
+    {WC_HASH_TYPE_SHA3_384, NID_sha3_384, "SHA3-384"},
 #endif
 #ifndef WOLFSSL_NOSHA3_512
-    {WC_HASH_TYPE_SHA3_512, NID_sha3_512, "SHA3_512"},
+    {WC_HASH_TYPE_SHA3_512, NID_sha3_512, "SHA3-512"},
 #endif
     {WC_HASH_TYPE_NONE, 0, NULL}
 };
@@ -2398,20 +2398,20 @@ static int wolfSSL_evp_digest_pk_init(WOLFSSL_EVP_MD_CTX *ctx,
     #endif
 #ifdef WOLFSSL_SHA3
     #ifndef WOLFSSL_NOSHA3_224
-        else if (XSTRNCMP(type, "SHA3_224", 8) == 0) {
+        else if (XSTRNCMP(type, "SHA3-224", 8) == 0) {
             hashType = WC_SHA3_224;
         }
     #endif
     #ifndef WOLFSSL_NOSHA3_256
-        else if (XSTRNCMP(type, "SHA3_256", 8) == 0) {
+        else if (XSTRNCMP(type, "SHA3-256", 8) == 0) {
             hashType = WC_SHA3_256;
         }
     #endif
-        else if (XSTRNCMP(type, "SHA3_384", 8) == 0) {
+        else if (XSTRNCMP(type, "SHA3-384", 8) == 0) {
             hashType = WC_SHA3_384;
         }
     #ifndef WOLFSSL_NOSHA3_512
-        else if (XSTRNCMP(type, "SHA3_512", 8) == 0) {
+        else if (XSTRNCMP(type, "SHA3-512", 8) == 0) {
             hashType = WC_SHA3_512;
         }
     #endif
@@ -3438,7 +3438,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha3_224(void)
     {
         WOLFSSL_ENTER("EVP_sha3_224");
-        return EVP_get_digestbyname("SHA3_224");
+        return EVP_get_digestbyname("SHA3-224");
     }
 #endif /* WOLFSSL_NOSHA3_224 */
 
@@ -3447,21 +3447,21 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha3_256(void)
     {
         WOLFSSL_ENTER("EVP_sha3_256");
-        return EVP_get_digestbyname("SHA3_256");
+        return EVP_get_digestbyname("SHA3-256");
     }
 #endif /* WOLFSSL_NOSHA3_256 */
 
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha3_384(void)
     {
         WOLFSSL_ENTER("EVP_sha3_384");
-        return EVP_get_digestbyname("SHA3_384");
+        return EVP_get_digestbyname("SHA3-384");
     }
 
 #ifndef WOLFSSL_NOSHA3_512
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha3_512(void)
     {
         WOLFSSL_ENTER("EVP_sha3_512");
-        return EVP_get_digestbyname("SHA3_512");
+        return EVP_get_digestbyname("SHA3-512");
     }
 #endif /* WOLFSSL_NOSHA3_512 */
 #endif /* WOLFSSL_SHA3 */
@@ -5581,20 +5581,20 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     #endif
 #ifdef WOLFSSL_SHA3
     #ifndef WOLFSSL_NOSHA3_224
-        else if (XSTRNCMP(md, "SHA3_224", 8) == 0) {
+        else if (XSTRNCMP(md, "SHA3-224", 8) == 0) {
              ret = wolfSSL_SHA3_224_Init(&(ctx->hash.digest.sha3_224));
         }
     #endif
     #ifndef WOLFSSL_NOSHA3_256
-        else if (XSTRNCMP(md, "SHA3_256", 8) == 0) {
+        else if (XSTRNCMP(md, "SHA3-256", 8) == 0) {
              ret = wolfSSL_SHA3_256_Init(&(ctx->hash.digest.sha3_256));
         }
     #endif
-        else if (XSTRNCMP(md, "SHA3_384", 8) == 0) {
+        else if (XSTRNCMP(md, "SHA3-384", 8) == 0) {
              ret = wolfSSL_SHA3_384_Init(&(ctx->hash.digest.sha3_384));
         }
     #ifndef WOLFSSL_NOSHA3_512
-        else if (XSTRNCMP(md, "SHA3_512", 8) == 0) {
+        else if (XSTRNCMP(md, "SHA3-512", 8) == 0) {
              ret = wolfSSL_SHA3_512_Init(&(ctx->hash.digest.sha3_512));
         }
     #endif

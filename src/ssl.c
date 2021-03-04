@@ -17788,23 +17788,23 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 #endif
 #ifdef WOLFSSL_SHA3
     #ifndef WOLFSSL_NOSHA3_224
-        if (XSTRNCMP(evp_md, "SHA3_224", 8) == 0) {
+        if (XSTRNCMP(evp_md, "SHA3-224", 8) == 0) {
             type = WC_SHA3_224;
             mdlen = WC_SHA3_224_DIGEST_SIZE;
         } else
     #endif
     #ifndef WOLFSSL_NOSHA3_256
-        if (XSTRNCMP(evp_md, "SHA3_256", 8) == 0) {
+        if (XSTRNCMP(evp_md, "SHA3-256", 8) == 0) {
             type = WC_SHA3_256;
             mdlen = WC_SHA3_256_DIGEST_SIZE;
         } else
     #endif
-        if (XSTRNCMP(evp_md, "SHA3_384", 8) == 0) {
+        if (XSTRNCMP(evp_md, "SHA3-384", 8) == 0) {
             type = WC_SHA3_384;
             mdlen = WC_SHA3_384_DIGEST_SIZE;
         } else
     #ifndef WOLFSSL_NOSHA3_512
-        if (XSTRNCMP(evp_md, "SHA3_512", 8) == 0) {
+        if (XSTRNCMP(evp_md, "SHA3-512", 8) == 0) {
             type = WC_SHA3_512;
             mdlen = WC_SHA3_512_DIGEST_SIZE;
         } else
@@ -34949,26 +34949,26 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
 #endif
 #ifdef WOLFSSL_SHA3
     #ifndef WOLFSSL_NOSHA3_224
-        if (XSTRNCMP(type, "SHA3_224", 8) == 0) {
+        if (XSTRNCMP(type, "SHA3-224", 8) == 0) {
             WOLFSSL_MSG("sha3_224 hmac");
             ctx->type = WC_SHA3_224;
         }
         else
     #endif
     #ifndef WOLFSSL_NOSHA3_256
-        if (XSTRNCMP(type, "SHA3_256", 8) == 0) {
+        if (XSTRNCMP(type, "SHA3-256", 8) == 0) {
             WOLFSSL_MSG("sha3_256 hmac");
             ctx->type = WC_SHA3_256;
         } 
         else
     #endif
-        if (XSTRNCMP(type, "SHA3_384", 8) == 0) {
+        if (XSTRNCMP(type, "SHA3-384", 8) == 0) {
             WOLFSSL_MSG("sha3_384 hmac");
             ctx->type = WC_SHA3_384;
         }
         else
     #ifndef WOLFSSL_NOSHA3_512
-        if (XSTRNCMP(type, "SHA3_512", 8) == 0) {
+        if (XSTRNCMP(type, "SHA3-512", 8) == 0) {
             WOLFSSL_MSG("sha3_512 hmac");
             ctx->type = WC_SHA3_512;
         }
