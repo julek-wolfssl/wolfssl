@@ -117,12 +117,12 @@ AC_C_BIGENDIAN
 # unusable positive from AC_CHECK_FUNCS().
 AC_CHECK_FUNCS([gethostbyname getaddrinfo gettimeofday gmtime_r inet_ntoa memset socket strftime])
 AC_CHECK_DECLS([gethostbyname, getaddrinfo, gettimeofday, gmtime_r, inet_ntoa, memset, socket, strftime], [], [
-if test "$(eval echo \$"$(eval 'echo ac_cv_func_${as_decl_name}')")" = "yes"
+if test "$(eval $ECHO \$"$(eval '$ECHO ac_cv_func_${as_decl_name}')")" = "yes"
 then
-    echo "    note: earlier check for $(eval 'echo ${as_decl_name}') superseded."
-    eval "$(eval 'echo ac_cv_func_${as_decl_name}=no')"
-    _mask_varname=HAVE_`eval "echo '${as_decl_name}'" | tr 'a-z' 'A-Z'`
-    echo "g/#define $_mask_varname 1/s//\/* #undef $_mask_varname *\//
+    $ECHO "    note: earlier check for $(eval '$ECHO ${as_decl_name}') superseded."
+    eval "$(eval '$ECHO ac_cv_func_${as_decl_name}=no')"
+    _mask_varname=HAVE_`eval "$ECHO '${as_decl_name}'" | tr 'a-z' 'A-Z'`
+    $ECHO "g/#define $_mask_varname 1/s//\/* #undef $_mask_varname *\//
 wq
 ." | ed -s confdefs.h
 fi
@@ -385,7 +385,7 @@ then
     test "$enable_maxfragment" = "" && enable_maxfragment=yes
     test "$enable_alpn" = "" && enable_alpn=yes
     test "$enable_truncatedhmac" = "" && enable_truncatedhmac=yes
-    test "$enable_trusted_ca" = "" && enable_trusted_ca=yes
+    test "$enable_trustedca" = "" && enable_trustedca=yes
     test "$enable_supportedcurves" = "" && enable_supportedcurves=yes
     test "$enable_session_ticket" = "" && enable_session_ticket=yes
     test "$enable_tlsx" = "" && enable_tlsx=yes
@@ -555,7 +555,7 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT"
     fi
 
-    if test "$ENABLED_FIPS" == "no"
+    if test "$ENABLED_FIPS" = "no"
     then
         test "$enable_xchacha" = "" && enable_xchacha=yes
         test "$enable_ed25519" = "" && enable_ed25519=yes
@@ -5006,7 +5006,7 @@ ENABLED_SP_SAKKE_1024=$ENABLED_SAKKE
 ENABLED_SP_NO_MALLOC=no
 ENABLED_SP_NONBLOCK=no
 ENABLED_SP_SMALL=no
-for v in `echo $ENABLED_SP | tr "," " "`
+for v in `$ECHO $ENABLED_SP | tr "," " "`
 do
   case $v in
   small)
@@ -5233,7 +5233,7 @@ if test "$ENABLED_SP_MATH" = "yes"; then
     ENABLED_SLOWMATH="no"
 fi
 
-for v in `echo $ENABLED_SP_MATH_ALL | tr "," " "`
+for v in `$ECHO $ENABLED_SP_MATH_ALL | tr "," " "`
 do
   case $v in
   yes | no)
@@ -5746,13 +5746,13 @@ fi
 
 # Support for enabling setting default DH parameters in
 AC_ARG_ENABLE([defaultdhparams],
-    [AS_HELP_STRING([--enable-dhdefaultparams],[Enables option for default dh parameters (default: disabled)])],
-    [ ENABLED_DHDEFAULTPARAMS=$enableval ],
-    [ ENABLED_DHDEFAULTPARAMS=no ]
+    [AS_HELP_STRING([--enable-defaultdhparams],[Enables option for default dh parameters (default: disabled)])],
+    [ ENABLED_DEFAULTDHPARAMS=$enableval ],
+    [ ENABLED_DEFAULTDHPARAMS=no ]
     )
-if test "$ENABLED_DHDEFAULTPARAMS" = "yes" || test "$ENABLED_QT" = "no"
+if test "$ENABLED_DEFAULTDHPARAMS" = "yes" || test "$ENABLED_QT" = "no"
 then
-    ENABLED_DHDEFAULTPARAMS=yes
+    ENABLED_DEFAULTDHPARAMS=yes
     AM_CFLAGS="$AM_CFLAGS -DHAVE_DH_DEFAULT_PARAMS"
 fi
 
@@ -6333,7 +6333,7 @@ AC_SUBST([LIB_ADD])
 AC_SUBST([LIB_STATIC_ADD])
 
 # FINAL
-AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
+AC_CONFIG_FILES([stamp-h], [$ECHO timestamp > stamp-h])
 AC_CONFIG_FILES([Makefile
         wolfssl/version.h
         wolfssl/options.h
@@ -6351,92 +6351,92 @@ AC_OUTPUT
 
 
 # force make clean
-echo "---"
-echo "Running make clean..."
+$ECHO "---"
+$ECHO "Running make clean..."
 make clean >/dev/null 2>&1
 
 # generate user options header
-echo "---"
-echo "Generating user options header..."
+$ECHO "---"
+$ECHO "Generating user options header..."
 
 OPTION_FILE="wolfssl/options.h"
 rm -f $OPTION_FILE
 
-echo "/* wolfssl options.h" > $OPTION_FILE
-echo " * generated from configure options" >> $OPTION_FILE
-echo " *" >> $OPTION_FILE
-echo " * Copyright (C) 2006-2020 wolfSSL Inc." >> $OPTION_FILE
-echo " *" >> $OPTION_FILE
-echo " * This file is part of wolfSSL. (formerly known as CyaSSL)" >> $OPTION_FILE
-echo " *" >> $OPTION_FILE
-echo " */" >> $OPTION_FILE
+$ECHO "/* wolfssl options.h" > $OPTION_FILE
+$ECHO " * generated from configure options" >> $OPTION_FILE
+$ECHO " *" >> $OPTION_FILE
+$ECHO " * Copyright (C) 2006-2020 wolfSSL Inc." >> $OPTION_FILE
+$ECHO " *" >> $OPTION_FILE
+$ECHO " * This file is part of wolfSSL. (formerly known as CyaSSL)" >> $OPTION_FILE
+$ECHO " *" >> $OPTION_FILE
+$ECHO " */" >> $OPTION_FILE
 
-echo "" >> $OPTION_FILE
-echo "#ifndef WOLFSSL_OPTIONS_H" >> $OPTION_FILE
-echo "#define WOLFSSL_OPTIONS_H" >> $OPTION_FILE
-echo "" >> $OPTION_FILE
-echo "" >> $OPTION_FILE
-echo "#ifdef __cplusplus" >> $OPTION_FILE
-echo "extern \"C\" {" >> $OPTION_FILE
-echo "#endif" >> $OPTION_FILE
-echo "" >> $OPTION_FILE
+$ECHO "" >> $OPTION_FILE
+$ECHO "#ifndef WOLFSSL_OPTIONS_H" >> $OPTION_FILE
+$ECHO "#define WOLFSSL_OPTIONS_H" >> $OPTION_FILE
+$ECHO "" >> $OPTION_FILE
+$ECHO "" >> $OPTION_FILE
+$ECHO "#ifdef __cplusplus" >> $OPTION_FILE
+$ECHO "extern \"C\" {" >> $OPTION_FILE
+$ECHO "#endif" >> $OPTION_FILE
+$ECHO "" >> $OPTION_FILE
 
 for option in $CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS; do
-    defonly=`echo $option | sed 's/^-D//'`
+    defonly=`$ECHO $option | $SED 's/^-D//'`
     if test "$defonly" != "$option"
     then
-        noequalsign=`echo $defonly | sed 's/=/ /'`
+        noequalsign=`$ECHO $defonly | $SED 's/=/ /'`
         if test "$noequalsign" = "NDEBUG" || test "$noequalsign" = "DEBUG"
         then
-            echo "not outputting (N)DEBUG to $OPTION_FILE"
+            $ECHO "not outputting (N)DEBUG to $OPTION_FILE"
             continue
         fi
 
         # allow user to ignore system options
-        ignoresys=$(echo "$noequalsign" | grep '^_.*')
+        ignoresys=$($ECHO "$noequalsign" | $GREP '^_.*')
         if test -n "$ignoresys"
         then
-            echo "#ifndef WOLFSSL_OPTIONS_IGNORE_SYS" >> $OPTION_FILE
+            $ECHO "#ifndef WOLFSSL_OPTIONS_IGNORE_SYS" >> $OPTION_FILE
         fi
 
-        noarg=`echo $defonly | sed 's/=.*//'`
-        echo "#undef  $noarg" >> $OPTION_FILE
-        echo "#define $noequalsign" >> $OPTION_FILE
+        noarg=`$ECHO $defonly | $SED 's/=.*//'`
+        $ECHO "#undef  $noarg" >> $OPTION_FILE
+        $ECHO "#define $noequalsign" >> $OPTION_FILE
 
         if test -n "$ignoresys"
         then
-            echo "#endif" >> $OPTION_FILE
+            $ECHO "#endif" >> $OPTION_FILE
         fi
 
-        echo "" >> $OPTION_FILE
+        $ECHO "" >> $OPTION_FILE
     else
-        echo "option w/o begin -D is $option, not saving to $OPTION_FILE"
+        $ECHO "option w/o begin -D is $option, not saving to $OPTION_FILE"
     fi
 done
 
-echo "" >> $OPTION_FILE
-echo "#ifdef __cplusplus" >> $OPTION_FILE
-echo "}" >> $OPTION_FILE
-echo "#endif" >> $OPTION_FILE
-echo "" >> $OPTION_FILE
-echo "" >> $OPTION_FILE
-echo "#endif /* WOLFSSL_OPTIONS_H */" >> $OPTION_FILE
-echo "" >> $OPTION_FILE
-echo
+$ECHO "" >> $OPTION_FILE
+$ECHO "#ifdef __cplusplus" >> $OPTION_FILE
+$ECHO "}" >> $OPTION_FILE
+$ECHO "#endif" >> $OPTION_FILE
+$ECHO "" >> $OPTION_FILE
+$ECHO "" >> $OPTION_FILE
+$ECHO "#endif /* WOLFSSL_OPTIONS_H */" >> $OPTION_FILE
+$ECHO "" >> $OPTION_FILE
+$ECHO
 
 #backwards compatibility for those who have included options or version
 touch cyassl/options.h
-echo "/* cyassl options.h" > cyassl/options.h
-echo " * generated from wolfssl/options.h" >> cyassl/options.h
-echo " */" >> cyassl/options.h
-echo ""
+$ECHO "/* cyassl options.h" > cyassl/options.h
+$ECHO " * generated from wolfssl/options.h" >> cyassl/options.h
+$ECHO " */" >> cyassl/options.h
+$ECHO ""
 while read -r line
 do
-    echo "$line" >> cyassl/options.h
+    $ECHO "$line" >> cyassl/options.h
 done < $OPTION_FILE
 
 # switch ifdef protection in cyassl/option.h to CYASSL_OPTONS_H
-sed 's/WOLFSSL_OPTIONS_H/CYASSL_OPTIONS_H/g' cyassl/options.h > cyassl/options.h.tmp
+$SED 's/WOLFSSL_OPTIONS_H/CYASSL_OPTIONS_H/g' cyassl/options.h > cyassl/options.h.tmp
 mv cyassl/options.h.tmp cyassl/options.h
 
 # workaround for mingw sed that may get "Permission denied" trying to preserver permissions
@@ -6447,192 +6447,192 @@ esac
 
 
 # output config summary
-echo "---"
-echo "Configuration summary for $PACKAGE_NAME version $VERSION"
-echo ""
-echo "   * Installation prefix:        $prefix"
-echo "   * System type:                $host_vendor-$host_os"
-echo "   * Host CPU:                   $host_cpu"
-echo "   * C Compiler:                 $CC"
-echo "   * C Flags:                    $CFLAGS"
-echo "   * C++ Compiler:               $CXX"
-echo "   * C++ Flags:                  $CXXFLAGS"
-echo "   * CPP Flags:                  $CPPFLAGS"
-echo "   * CCAS Flags:                 $CCASFLAGS"
-echo "   * LIB Flags:                  $LIB"
+$ECHO "---"
+$ECHO "Configuration summary for $PACKAGE_NAME version $VERSION"
+$ECHO ""
+$ECHO "   * Installation prefix:        $prefix"
+$ECHO "   * System type:                $host_vendor-$host_os"
+$ECHO "   * Host CPU:                   $host_cpu"
+$ECHO "   * C Compiler:                 $CC"
+$ECHO "   * C Flags:                    $CFLAGS"
+$ECHO "   * C++ Compiler:               $CXX"
+$ECHO "   * C++ Flags:                  $CXXFLAGS"
+$ECHO "   * CPP Flags:                  $CPPFLAGS"
+$ECHO "   * CCAS Flags:                 $CCASFLAGS"
+$ECHO "   * LIB Flags:                  $LIB"
 
 test "$ENABLED_LINUXKM" = "yes" && \
-echo "   * Linux Kernel Build Root:    $KERNEL_ROOT" && \
-echo "   * Linux Kernel Build Arch:    $KERNEL_ARCH" && \
-echo "   * fpu disable C flags:        $CFLAGS_FPU_DISABLE" && \
-echo "   * fpu enable C flags:         $CFLAGS_FPU_ENABLE" && \
-echo "   * SIMD disable C flags:       $CFLAGS_SIMD_DISABLE" && \
-echo "   * SIMD enable C flags:        $CFLAGS_SIMD_ENABLE" && \
-echo "   * No-auto-vectorize C flags:  $CFLAGS_AUTO_VECTORIZE_DISABLE" && \
-echo "   * Auto-vectorize C flags:     $CFLAGS_AUTO_VECTORIZE_ENABLE" && \
-echo "   * SIMD enable as flags:       $ASFLAGS_FPU_DISABLE_SIMD_ENABLE" && \
-echo "   * FPU enable as flags:        $ASFLAGS_FPU_ENABLE_SIMD_DISABLE" && \
-echo "   * SIMD+FPU disable as flags:  $ASFLAGS_FPUSIMD_DISABLE" && \
+$ECHO "   * Linux Kernel Build Root:    $KERNEL_ROOT" && \
+$ECHO "   * Linux Kernel Build Arch:    $KERNEL_ARCH" && \
+$ECHO "   * fpu disable C flags:        $CFLAGS_FPU_DISABLE" && \
+$ECHO "   * fpu enable C flags:         $CFLAGS_FPU_ENABLE" && \
+$ECHO "   * SIMD disable C flags:       $CFLAGS_SIMD_DISABLE" && \
+$ECHO "   * SIMD enable C flags:        $CFLAGS_SIMD_ENABLE" && \
+$ECHO "   * No-auto-vectorize C flags:  $CFLAGS_AUTO_VECTORIZE_DISABLE" && \
+$ECHO "   * Auto-vectorize C flags:     $CFLAGS_AUTO_VECTORIZE_ENABLE" && \
+$ECHO "   * SIMD enable as flags:       $ASFLAGS_FPU_DISABLE_SIMD_ENABLE" && \
+$ECHO "   * FPU enable as flags:        $ASFLAGS_FPU_ENABLE_SIMD_DISABLE" && \
+$ECHO "   * SIMD+FPU disable as flags:  $ASFLAGS_FPUSIMD_DISABLE" && \
 
-echo "   * SIMD+FPU enable as flags:   $ASFLAGS_FPUSIMD_ENABLE"
-echo "   * Debug enabled:              $ax_enable_debug"
-echo "   * Coverage enabled:           $ax_enable_coverage"
-echo "   * Warnings as failure:        $ac_cv_warnings_as_errors"
-echo "   * make -j:                    $enable_jobserver"
-echo "   * VCS checkout:               $ac_cv_vcs_checkout"
-echo
-echo "   Features "
+$ECHO "   * SIMD+FPU enable as flags:   $ASFLAGS_FPUSIMD_ENABLE"
+$ECHO "   * Debug enabled:              $ax_enable_debug"
+$ECHO "   * Coverage enabled:           $ax_enable_coverage"
+$ECHO "   * Warnings as failure:        $ac_cv_warnings_as_errors"
+$ECHO "   * make -j:                    $enable_jobserver"
+$ECHO "   * VCS checkout:               $ac_cv_vcs_checkout"
+$ECHO
+$ECHO "   Features "
 if test "$ENABLED_FIPS" = "yes"; then
-echo "   * FIPS:                       $FIPS_VERSION"
+$ECHO "   * FIPS:                       $FIPS_VERSION"
 else
-echo "   * FIPS:                       $ENABLED_FIPS"
+$ECHO "   * FIPS:                       $ENABLED_FIPS"
 fi
-echo "   * Single threaded:            $ENABLED_SINGLETHREADED"
-echo "   * Filesystem:                 $ENABLED_FILESYSTEM"
-echo "   * OpenSSH Build:              $ENABLED_OPENSSH"
-echo "   * OpenSSL Extra API:          $ENABLED_OPENSSLEXTRA"
-echo "   * OpenSSL Coexist:            $ENABLED_OPENSSLCOEXIST"
-echo "   * Old Names:                  $ENABLED_OLDNAMES"
-echo "   * Max Strength Build:         $ENABLED_MAXSTRENGTH"
-echo "   * Distro Build:               $ENABLED_DISTRO"
-echo "   * Reproducible Build:         $ENABLED_REPRODUCIBLE_BUILD"
-echo "   * fastmath:                   $ENABLED_FASTMATH"
-echo "   * Assembly Allowed:           $ENABLED_ASM"
-echo "   * sniffer:                    $ENABLED_SNIFFER"
-echo "   * snifftest:                  $ENABLED_SNIFFTEST"
-echo "   * ARC4:                       $ENABLED_ARC4"
-echo "   * AES:                        $ENABLED_AES"
-echo "   * AES-NI:                     $ENABLED_AESNI"
-echo "   * AES-CBC:                    $ENABLED_AESCBC"
-echo "   * AES-GCM:                    $ENABLED_AESGCM"
-echo "   * AES-CCM:                    $ENABLED_AESCCM"
-echo "   * AES-CTR:                    $ENABLED_AESCTR"
-echo "   * AES-CFB:                    $ENABLED_AESCFB"
-echo "   * AES-OFB:                    $ENABLED_AESOFB"
-echo "   * DES3:                       $ENABLED_DES3"
-echo "   * IDEA:                       $ENABLED_IDEA"
-echo "   * Camellia:                   $ENABLED_CAMELLIA"
-echo "   * NULL Cipher:                $ENABLED_NULL_CIPHER"
-echo "   * MD2:                        $ENABLED_MD2"
-echo "   * MD4:                        $ENABLED_MD4"
-echo "   * MD5:                        $ENABLED_MD5"
-echo "   * RIPEMD:                     $ENABLED_RIPEMD"
-echo "   * SHA:                        $ENABLED_SHA"
-echo "   * SHA-224:                    $ENABLED_SHA224"
-echo "   * SHA-384:                    $ENABLED_SHA384"
-echo "   * SHA-512:                    $ENABLED_SHA512"
-echo "   * SHA3:                       $ENABLED_SHA3"
-echo "   * SHAKE256:                   $ENABLED_SHAKE256"
-echo "   * BLAKE2:                     $ENABLED_BLAKE2"
-echo "   * BLAKE2S:                    $ENABLED_BLAKE2S"
-echo "   * CMAC:                       $ENABLED_CMAC"
-echo "   * keygen:                     $ENABLED_KEYGEN"
-echo "   * certgen:                    $ENABLED_CERTGEN"
-echo "   * certreq:                    $ENABLED_CERTREQ"
-echo "   * certext:                    $ENABLED_CERTEXT"
-echo "   * certgencache:               $ENABLED_certgencache"
-echo "   * HC-128:                     $ENABLED_HC128"
-echo "   * RABBIT:                     $ENABLED_RABBIT"
-echo "   * CHACHA:                     $ENABLED_CHACHA"
-echo "   * XCHACHA:                    $ENABLED_XCHACHA"
-echo "   * Hash DRBG:                  $ENABLED_HASHDRBG"
-echo "   * PWDBASED:                   $ENABLED_PWDBASED"
-echo "   * scrypt:                     $ENABLED_SCRYPT"
-echo "   * wolfCrypt Only:             $ENABLED_CRYPTONLY"
-echo "   * HKDF:                       $ENABLED_HKDF"
-echo "   * X9.63 KDF:                  $ENABLED_X963KDF"
-echo "   * MD4:                        $ENABLED_MD4"
-echo "   * PSK:                        $ENABLED_PSK"
-echo "   * Poly1305:                   $ENABLED_POLY1305"
-echo "   * LEANPSK:                    $ENABLED_LEANPSK"
-echo "   * LEANTLS:                    $ENABLED_LEANTLS"
-echo "   * RSA:                        $ENABLED_RSA"
-echo "   * RSA-PSS:                    $ENABLED_RSAPSS"
-echo "   * DSA:                        $ENABLED_DSA"
-echo "   * DH:                         $ENABLED_DH"
-echo "   * DH Default Parameters:      $ENABLED_DHDEFAULTPARAMS"
-echo "   * ECC:                        $ENABLED_ECC"
-echo "   * ECC Custom Curves           $ENABLED_ECCCUSTCURVES"
-echo "   * ECC Minimum Bits            $ENABLED_ECCMINSZ"
-echo "   * CURVE25519:                 $ENABLED_CURVE25519"
-echo "   * ED25519:                    $ENABLED_ED25519"
-echo "   * CURVE448:                   $ENABLED_CURVE448"
-echo "   * ED448:                      $ENABLED_ED448"
-echo "   * FPECC:                      $ENABLED_FPECC"
-echo "   * ECC_ENCRYPT:                $ENABLED_ECC_ENCRYPT"
-echo "   * ECCSI                       $ENABLED_ECCSI"
-echo "   * SAKKE                       $ENABLED_SAKKE"
-echo "   * ASN:                        $ENABLED_ASN"
-echo "   * Anonymous cipher:           $ENABLED_ANON"
-echo "   * CODING:                     $ENABLED_CODING"
-echo "   * MEMORY:                     $ENABLED_MEMORY"
-echo "   * I/O POOL:                   $ENABLED_IOPOOL"
-echo "   * LIGHTY:                     $ENABLED_LIGHTY"
-echo "   * HAPROXY:                    $ENABLED_HAPROXY"
-echo "   * STUNNEL:                    $ENABLED_STUNNEL"
-echo "   * Apache httpd:               $ENABLED_APACHE_HTTPD"
-echo "   * NGINX:                      $ENABLED_NGINX"
-echo "   * ASIO:                       $ENABLED_ASIO"
-echo "   * LIBWEBSOCKETS:              $ENABLED_LIBWEBSOCKETS"
-echo "   * Qt                          $ENABLED_QT"
-echo "   * Qt Unit Testing             $ENABLED_QT_TEST"
-echo "   * SIGNAL:                     $ENABLED_SIGNAL"
-echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
-echo "   * DTLS:                       $ENABLED_DTLS"
-echo "   * SCTP:                       $ENABLED_SCTP"
-echo "   * Indefinite Length:          $ENABLED_BER_INDEF"
-echo "   * Multicast:                  $ENABLED_MCAST"
-echo "   * SSL v3.0 (Old):             $ENABLED_SSLV3"
-echo "   * TLS v1.0 (Old):             $ENABLED_TLSV10"
-echo "   * TLS v1.1 (Old):             $ENABLED_OLD_TLS"
-echo "   * TLS v1.2:                   $ENABLED_TLSV12"
-echo "   * TLS v1.3:                   $ENABLED_TLS13"
-echo "   * Post-handshake Auth:        $ENABLED_TLS13_POST_AUTH"
-echo "   * Early Data:                 $ENABLED_TLS13_EARLY_DATA"
-echo "   * Send State in HRR Cookie:   $ENABLED_SEND_HRR_COOKIE"
-echo "   * OCSP:                       $ENABLED_OCSP"
-echo "   * OCSP Stapling:              $ENABLED_CERTIFICATE_STATUS_REQUEST"
-echo "   * OCSP Stapling v2:           $ENABLED_CERTIFICATE_STATUS_REQUEST_V2"
-echo "   * CRL:                        $ENABLED_CRL"
-echo "   * CRL-MONITOR:                $ENABLED_CRL_MONITOR"
-echo "   * Persistent session cache:   $ENABLED_SAVESESSION"
-echo "   * Persistent cert    cache:   $ENABLED_SAVECERT"
-echo "   * Atomic User Record Layer:   $ENABLED_ATOMICUSER"
-echo "   * Public Key Callbacks:       $ENABLED_PKCALLBACKS"
-echo "   * NTRU:                       $ENABLED_NTRU"
-echo "   * QSH:                        $ENABLED_QSH"
-echo "   * Whitewood netRandom:        $ENABLED_WNR"
-echo "   * Server Name Indication:     $ENABLED_SNI"
-echo "   * ALPN:                       $ENABLED_ALPN"
-echo "   * Maximum Fragment Length:    $ENABLED_MAX_FRAGMENT"
-echo "   * Trusted CA Indication:      $ENABLED_TRUSTED_CA"
-echo "   * Truncated HMAC:             $ENABLED_TRUNCATED_HMAC"
-echo "   * Supported Elliptic Curves:  $ENABLED_SUPPORTED_CURVES"
-echo "   * FFDHE only in client:       $ENABLED_FFDHE_ONLY"
-echo "   * Session Ticket:             $ENABLED_SESSION_TICKET"
-echo "   * Extended Master Secret:     $ENABLED_EXTENDED_MASTER"
-echo "   * Renegotiation Indication:   $ENABLED_RENEGOTIATION_INDICATION"
-echo "   * Secure Renegotiation:       $ENABLED_SECURE_RENEGOTIATION"
-echo "   * Fallback SCSV:              $ENABLED_FALLBACK_SCSV"
-echo "   * Keying Material Exporter:   $ENABLED_KEYING_MATERIAL"
-echo "   * All TLS Extensions:         $ENABLED_TLSX"
-echo "   * PKCS#7                      $ENABLED_PKCS7"
-echo "   * S/MIME                      $ENABLED_SMIME"
-echo "   * wolfSSH                     $ENABLED_WOLFSSH"
-echo "   * wolfTPM                     $ENABLED_WOLFTPM"
-echo "   * wolfSCEP                    $ENABLED_WOLFSCEP"
-echo "   * Secure Remote Password      $ENABLED_SRP"
-echo "   * Small Stack:                $ENABLED_SMALL_STACK"
-echo "   * Linux Kernel Module:        $ENABLED_LINUXKM"
-echo "   * valgrind unit tests:        $ENABLED_VALGRIND"
-echo "   * LIBZ:                       $ENABLED_LIBZ"
-echo "   * Examples:                   $ENABLED_EXAMPLES"
-echo "   * Crypt tests:                $ENABLED_CRYPT_TESTS"
-echo "   * Stack sizes in tests:       $ENABLED_STACKSIZE"
-echo "   * Heap stats in tests:        $ENABLED_TRACKMEMORY"
-echo "   * User Crypto:                $ENABLED_USER_CRYPTO"
-echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
-echo "   * Single Precision:           $ENABLED_SP"
+$ECHO "   * Single threaded:            $ENABLED_SINGLETHREADED"
+$ECHO "   * Filesystem:                 $ENABLED_FILESYSTEM"
+$ECHO "   * OpenSSH Build:              $ENABLED_OPENSSH"
+$ECHO "   * OpenSSL Extra API:          $ENABLED_OPENSSLEXTRA"
+$ECHO "   * OpenSSL Coexist:            $ENABLED_OPENSSLCOEXIST"
+$ECHO "   * Old Names:                  $ENABLED_OLDNAMES"
+$ECHO "   * Max Strength Build:         $ENABLED_MAXSTRENGTH"
+$ECHO "   * Distro Build:               $ENABLED_DISTRO"
+$ECHO "   * Reproducible Build:         $ENABLED_REPRODUCIBLE_BUILD"
+$ECHO "   * fastmath:                   $ENABLED_FASTMATH"
+$ECHO "   * Assembly Allowed:           $ENABLED_ASM"
+$ECHO "   * sniffer:                    $ENABLED_SNIFFER"
+$ECHO "   * snifftest:                  $ENABLED_SNIFFTEST"
+$ECHO "   * ARC4:                       $ENABLED_ARC4"
+$ECHO "   * AES:                        $ENABLED_AES"
+$ECHO "   * AES-NI:                     $ENABLED_AESNI"
+$ECHO "   * AES-CBC:                    $ENABLED_AESCBC"
+$ECHO "   * AES-GCM:                    $ENABLED_AESGCM"
+$ECHO "   * AES-CCM:                    $ENABLED_AESCCM"
+$ECHO "   * AES-CTR:                    $ENABLED_AESCTR"
+$ECHO "   * AES-CFB:                    $ENABLED_AESCFB"
+$ECHO "   * AES-OFB:                    $ENABLED_AESOFB"
+$ECHO "   * DES3:                       $ENABLED_DES3"
+$ECHO "   * IDEA:                       $ENABLED_IDEA"
+$ECHO "   * Camellia:                   $ENABLED_CAMELLIA"
+$ECHO "   * NULL Cipher:                $ENABLED_NULL_CIPHER"
+$ECHO "   * MD2:                        $ENABLED_MD2"
+$ECHO "   * MD4:                        $ENABLED_MD4"
+$ECHO "   * MD5:                        $ENABLED_MD5"
+$ECHO "   * RIPEMD:                     $ENABLED_RIPEMD"
+$ECHO "   * SHA:                        $ENABLED_SHA"
+$ECHO "   * SHA-224:                    $ENABLED_SHA224"
+$ECHO "   * SHA-384:                    $ENABLED_SHA384"
+$ECHO "   * SHA-512:                    $ENABLED_SHA512"
+$ECHO "   * SHA3:                       $ENABLED_SHA3"
+$ECHO "   * SHAKE256:                   $ENABLED_SHAKE256"
+$ECHO "   * BLAKE2:                     $ENABLED_BLAKE2"
+$ECHO "   * BLAKE2S:                    $ENABLED_BLAKE2S"
+$ECHO "   * CMAC:                       $ENABLED_CMAC"
+$ECHO "   * keygen:                     $ENABLED_KEYGEN"
+$ECHO "   * certgen:                    $ENABLED_CERTGEN"
+$ECHO "   * certreq:                    $ENABLED_CERTREQ"
+$ECHO "   * certext:                    $ENABLED_CERTEXT"
+$ECHO "   * certgencache:               $ENABLED_certgencache"
+$ECHO "   * HC-128:                     $ENABLED_HC128"
+$ECHO "   * RABBIT:                     $ENABLED_RABBIT"
+$ECHO "   * CHACHA:                     $ENABLED_CHACHA"
+$ECHO "   * XCHACHA:                    $ENABLED_XCHACHA"
+$ECHO "   * Hash DRBG:                  $ENABLED_HASHDRBG"
+$ECHO "   * PWDBASED:                   $ENABLED_PWDBASED"
+$ECHO "   * scrypt:                     $ENABLED_SCRYPT"
+$ECHO "   * wolfCrypt Only:             $ENABLED_CRYPTONLY"
+$ECHO "   * HKDF:                       $ENABLED_HKDF"
+$ECHO "   * X9.63 KDF:                  $ENABLED_X963KDF"
+$ECHO "   * MD4:                        $ENABLED_MD4"
+$ECHO "   * PSK:                        $ENABLED_PSK"
+$ECHO "   * Poly1305:                   $ENABLED_POLY1305"
+$ECHO "   * LEANPSK:                    $ENABLED_LEANPSK"
+$ECHO "   * LEANTLS:                    $ENABLED_LEANTLS"
+$ECHO "   * RSA:                        $ENABLED_RSA"
+$ECHO "   * RSA-PSS:                    $ENABLED_RSAPSS"
+$ECHO "   * DSA:                        $ENABLED_DSA"
+$ECHO "   * DH:                         $ENABLED_DH"
+$ECHO "   * DH Default Parameters:      $ENABLED_DEFAULTDHPARAMS"
+$ECHO "   * ECC:                        $ENABLED_ECC"
+$ECHO "   * ECC Custom Curves           $ENABLED_ECCCUSTCURVES"
+$ECHO "   * ECC Minimum Bits            $ENABLED_ECCMINSZ"
+$ECHO "   * CURVE25519:                 $ENABLED_CURVE25519"
+$ECHO "   * ED25519:                    $ENABLED_ED25519"
+$ECHO "   * CURVE448:                   $ENABLED_CURVE448"
+$ECHO "   * ED448:                      $ENABLED_ED448"
+$ECHO "   * FPECC:                      $ENABLED_FPECC"
+$ECHO "   * ECC_ENCRYPT:                $ENABLED_ECC_ENCRYPT"
+$ECHO "   * ECCSI                       $ENABLED_ECCSI"
+$ECHO "   * SAKKE                       $ENABLED_SAKKE"
+$ECHO "   * ASN:                        $ENABLED_ASN"
+$ECHO "   * Anonymous cipher:           $ENABLED_ANON"
+$ECHO "   * CODING:                     $ENABLED_CODING"
+$ECHO "   * MEMORY:                     $ENABLED_MEMORY"
+$ECHO "   * I/O POOL:                   $ENABLED_IOPOOL"
+$ECHO "   * LIGHTY:                     $ENABLED_LIGHTY"
+$ECHO "   * HAPROXY:                    $ENABLED_HAPROXY"
+$ECHO "   * STUNNEL:                    $ENABLED_STUNNEL"
+$ECHO "   * Apache httpd:               $ENABLED_APACHE_HTTPD"
+$ECHO "   * NGINX:                      $ENABLED_NGINX"
+$ECHO "   * ASIO:                       $ENABLED_ASIO"
+$ECHO "   * LIBWEBSOCKETS:              $ENABLED_LIBWEBSOCKETS"
+$ECHO "   * Qt                          $ENABLED_QT"
+$ECHO "   * Qt Unit Testing             $ENABLED_QT_TEST"
+$ECHO "   * SIGNAL:                     $ENABLED_SIGNAL"
+$ECHO "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
+$ECHO "   * DTLS:                       $ENABLED_DTLS"
+$ECHO "   * SCTP:                       $ENABLED_SCTP"
+$ECHO "   * Indefinite Length:          $ENABLED_BER_INDEF"
+$ECHO "   * Multicast:                  $ENABLED_MCAST"
+$ECHO "   * SSL v3.0 (Old):             $ENABLED_SSLV3"
+$ECHO "   * TLS v1.0 (Old):             $ENABLED_TLSV10"
+$ECHO "   * TLS v1.1 (Old):             $ENABLED_OLD_TLS"
+$ECHO "   * TLS v1.2:                   $ENABLED_TLSV12"
+$ECHO "   * TLS v1.3:                   $ENABLED_TLS13"
+$ECHO "   * Post-handshake Auth:        $ENABLED_TLS13_POST_AUTH"
+$ECHO "   * Early Data:                 $ENABLED_TLS13_EARLY_DATA"
+$ECHO "   * Send State in HRR Cookie:   $ENABLED_SEND_HRR_COOKIE"
+$ECHO "   * OCSP:                       $ENABLED_OCSP"
+$ECHO "   * OCSP Stapling:              $ENABLED_CERTIFICATE_STATUS_REQUEST"
+$ECHO "   * OCSP Stapling v2:           $ENABLED_CERTIFICATE_STATUS_REQUEST_V2"
+$ECHO "   * CRL:                        $ENABLED_CRL"
+$ECHO "   * CRL-MONITOR:                $ENABLED_CRL_MONITOR"
+$ECHO "   * Persistent session cache:   $ENABLED_SAVESESSION"
+$ECHO "   * Persistent cert    cache:   $ENABLED_SAVECERT"
+$ECHO "   * Atomic User Record Layer:   $ENABLED_ATOMICUSER"
+$ECHO "   * Public Key Callbacks:       $ENABLED_PKCALLBACKS"
+$ECHO "   * NTRU:                       $ENABLED_NTRU"
+$ECHO "   * QSH:                        $ENABLED_QSH"
+$ECHO "   * Whitewood netRandom:        $ENABLED_WNR"
+$ECHO "   * Server Name Indication:     $ENABLED_SNI"
+$ECHO "   * ALPN:                       $ENABLED_ALPN"
+$ECHO "   * Maximum Fragment Length:    $ENABLED_MAX_FRAGMENT"
+$ECHO "   * Trusted CA Indication:      $ENABLED_TRUSTED_CA"
+$ECHO "   * Truncated HMAC:             $ENABLED_TRUNCATED_HMAC"
+$ECHO "   * Supported Elliptic Curves:  $ENABLED_SUPPORTED_CURVES"
+$ECHO "   * FFDHE only in client:       $ENABLED_FFDHE_ONLY"
+$ECHO "   * Session Ticket:             $ENABLED_SESSION_TICKET"
+$ECHO "   * Extended Master Secret:     $ENABLED_EXTENDED_MASTER"
+$ECHO "   * Renegotiation Indication:   $ENABLED_RENEGOTIATION_INDICATION"
+$ECHO "   * Secure Renegotiation:       $ENABLED_SECURE_RENEGOTIATION"
+$ECHO "   * Fallback SCSV:              $ENABLED_FALLBACK_SCSV"
+$ECHO "   * Keying Material Exporter:   $ENABLED_KEYING_MATERIAL"
+$ECHO "   * All TLS Extensions:         $ENABLED_TLSX"
+$ECHO "   * PKCS#7                      $ENABLED_PKCS7"
+$ECHO "   * S/MIME                      $ENABLED_SMIME"
+$ECHO "   * wolfSSH                     $ENABLED_WOLFSSH"
+$ECHO "   * wolfTPM                     $ENABLED_WOLFTPM"
+$ECHO "   * wolfSCEP                    $ENABLED_WOLFSCEP"
+$ECHO "   * Secure Remote Password      $ENABLED_SRP"
+$ECHO "   * Small Stack:                $ENABLED_SMALL_STACK"
+$ECHO "   * Linux Kernel Module:        $ENABLED_LINUXKM"
+$ECHO "   * valgrind unit tests:        $ENABLED_VALGRIND"
+$ECHO "   * LIBZ:                       $ENABLED_LIBZ"
+$ECHO "   * Examples:                   $ENABLED_EXAMPLES"
+$ECHO "   * Crypt tests:                $ENABLED_CRYPT_TESTS"
+$ECHO "   * Stack sizes in tests:       $ENABLED_STACKSIZE"
+$ECHO "   * Heap stats in tests:        $ENABLED_TRACKMEMORY"
+$ECHO "   * User Crypto:                $ENABLED_USER_CRYPTO"
+$ECHO "   * Fast RSA:                   $ENABLED_FAST_RSA"
+$ECHO "   * Single Precision:           $ENABLED_SP"
 if test "$ENABLED_SP_MATH_ALL" != "no"
 then
     ENABLED_SP_MATH_DESC="all"
@@ -6644,31 +6644,31 @@ else
         ENABLED_SP_MATH_DESC="no"
     fi
 fi
-echo "   * SP math implementation:     $ENABLED_SP_MATH_DESC"
-echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
-echo "   * PKCS#11:                    $ENABLED_PKCS11"
-echo "   * PKCS#12:                    $ENABLED_PKCS12"
-echo "   * Cavium Nitrox:              $ENABLED_CAVIUM"
-echo "   * Cavium Octeon (Sync):       $ENABLED_OCTEON_SYNC"
-echo "   * Intel Quick Assist:         $ENABLED_INTEL_QA"
-echo "   * ARM ASM:                    $ENABLED_ARMASM"
-echo "   * AES Key Wrap:               $ENABLED_AESKEYWRAP"
-echo "   * Write duplicate:            $ENABLED_WRITEDUP"
-echo "   * Xilinx Hardware Acc.:       $ENABLED_XILINX"
-echo "   * Inline Code:                $ENABLED_INLINE"
-echo "   * Linux AF_ALG:               $ENABLED_AFALG"
-echo "   * Linux devcrypto:            $ENABLED_DEVCRYPTO"
-echo "   * Crypto callbacks:           $ENABLED_CRYPTOCB"
-echo "   * i.MX6 CAAM:                 $ENABLED_CAAM"
-echo ""
-echo "---"
+$ECHO "   * SP math implementation:     $ENABLED_SP_MATH_DESC"
+$ECHO "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
+$ECHO "   * PKCS#11:                    $ENABLED_PKCS11"
+$ECHO "   * PKCS#12:                    $ENABLED_PKCS12"
+$ECHO "   * Cavium Nitrox:              $ENABLED_CAVIUM"
+$ECHO "   * Cavium Octeon (Sync):       $ENABLED_OCTEON_SYNC"
+$ECHO "   * Intel Quick Assist:         $ENABLED_INTEL_QA"
+$ECHO "   * ARM ASM:                    $ENABLED_ARMASM"
+$ECHO "   * AES Key Wrap:               $ENABLED_AESKEYWRAP"
+$ECHO "   * Write duplicate:            $ENABLED_WRITEDUP"
+$ECHO "   * Xilinx Hardware Acc.:       $ENABLED_XILINX"
+$ECHO "   * Inline Code:                $ENABLED_INLINE"
+$ECHO "   * Linux AF_ALG:               $ENABLED_AFALG"
+$ECHO "   * Linux devcrypto:            $ENABLED_DEVCRYPTO"
+$ECHO "   * Crypto callbacks:           $ENABLED_CRYPTOCB"
+$ECHO "   * i.MX6 CAAM:                 $ENABLED_CAAM"
+$ECHO ""
+$ECHO "---"
 
 if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes"
 then
-    echo >> config.h
-    echo "#define LIBWOLFSSL_CONFIGURE_ARGS \"$ac_configure_args\"" >> config.h
-    echo >> config.h
-    echo "#define LIBWOLFSSL_GLOBAL_CFLAGS \"$CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS\"" >> config.h
+    $ECHO >> config.h
+    $ECHO "#define LIBWOLFSSL_CONFIGURE_ARGS \"$ac_configure_args\"" >> config.h
+    $ECHO >> config.h
+    $ECHO "#define LIBWOLFSSL_GLOBAL_CFLAGS \"$CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS\"" >> config.h
 fi
 
 ################################################################################
