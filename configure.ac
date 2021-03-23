@@ -6435,16 +6435,15 @@ do
     echo "$line" >> cyassl/options.h
 done < $OPTION_FILE
 
-# switch ifdef protection in cyassl/option.h to CYASSL_OPTONS_H, remove bak
-sed -i.bak 's/WOLFSSL_OPTIONS_H/CYASSL_OPTIONS_H/g' cyassl/options.h
+# switch ifdef protection in cyassl/option.h to CYASSL_OPTONS_H
+sed 's/WOLFSSL_OPTIONS_H/CYASSL_OPTIONS_H/g' cyassl/options.h > cyassl/options.h.tmp
+mv cyassl/options.h.tmp cyassl/options.h
 
 # workaround for mingw sed that may get "Permission denied" trying to preserver permissions
 case $host_os in
     mingw*)
         chmod u+w cyassl/options.h ;;
 esac
-
-rm cyassl/options.h.bak
 
 
 # output config summary
