@@ -80,14 +80,14 @@ int unit_test(int argc, char** argv)
         goto exit;
     }
 
-#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
-#ifndef SINGLE_THREADED
-    if ( (ret = SuiteTest(argc, argv)) != 0){
-        printf("suite test failed with %d\n", ret);
-        goto exit;
-    }
-#endif
-#endif
+//#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+//#ifndef SINGLE_THREADED
+//    if ( (ret = SuiteTest(argc, argv)) != 0){
+//        printf("suite test failed with %d\n", ret);
+//        goto exit;
+//    }
+//#endif
+//#endif
 
     SrpTest();
 
