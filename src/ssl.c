@@ -989,6 +989,14 @@ int wolfSSL_get_fd(const WOLFSSL* ssl)
     WOLFSSL_ENTER("SSL_get_fd");
     if (ssl) {
         fd = ssl->rfd;
+#ifdef OPENSSL_EXTRA
+        if (fd == SOCKET_INVALID) {
+            /* see if we don't have a socket bio */
+            if (ssl->biord && ssl->biord->type == WOLFSSL_BIO_SOCKET
+                    && ssl->biord->num != SOCKET_INVALID)
+                fd = ssl->biord->num;
+        }
+#endif
     }
     WOLFSSL_LEAVE("SSL_get_fd", fd);
     return fd;

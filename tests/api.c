@@ -35570,6 +35570,7 @@ static void test_wolfSSL_BIO_accept(void)
     AssertNotNull(sslServer = SSL_new(ctx));
     AssertNotNull(serverAcceptBio = BIO_pop(serverBindBio));
     SSL_set_bio(sslServer, serverAcceptBio, serverAcceptBio);
+    AssertIntNE(SSL_get_fd(sslServer), SOCKET_INVALID);
     AssertIntEQ(SSL_accept(sslServer), 1);
 
     join_thread(thread);
