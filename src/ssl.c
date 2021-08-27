@@ -43430,7 +43430,7 @@ err:
         if (o->nid > 0)
             return o->nid;
         if ((ret = GetObjectId(o->obj, &idx, &oid, o->grp, o->objSz)) < 0) {
-            if (ret == ASN_OBJECT_ID_E) {
+            if (ret == ASN_OBJECT_ID_E || ret == ASN_PARSE_E) {
                 /* Put ASN object tag in front and try again */
                 int len = SetObjectId(o->objSz, NULL) + o->objSz;
                 byte* buf = (byte*)XMALLOC(len, NULL, DYNAMIC_TYPE_TMP_BUFFER);

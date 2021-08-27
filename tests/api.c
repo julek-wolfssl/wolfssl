@@ -44468,6 +44468,46 @@ static void test_wolfSSL_X509_load_crl_file(void)
 #endif
 }
 
+static void test_wolfSSL_ASN1_OBJECT(void)
+{
+#ifdef OPENSSL_ALL
+    /*
+     * This test case makes sure that we can correctly identify the challenge
+     * password in DER encoding. The pop_attr_b64 was taken from the us895.c
+     * test file found in libest and tests similar logic to the
+     * est_is_challengePassword_present API.
+     */
+    const char              pop_attr_b64[] = "MAsGCSqGSIb3DQEJBw==\0";
+    unsigned char           pop_attr[2 * sizeof(pop_attr_b64)] = {0};
+    const unsigned char*    obj_start;
+    long                    obj_len;
+    const unsigned char*    pp;
+    word32                  outLen = sizeof(pop_attr);
+    int                     tag, cls;
+    long                    len;
+    ASN1_OBJECT*            asn_obj;
+
+    AssertIntEQ(Base64_Decode((const byte*)pop_attr_b64, XSTRLEN(pop_attr_b64),
+            pop_attr, &outLen), 0);
+
+    pp = pop_attr;
+    AssertIntEQ(ASN1_get_object(&pp, &obj_len, &tag, &cls, (long)outLen) & 0x80, 0);
+    AssertIntEQ(tag, V_ASN1_SEQUENCE);
+    AssertIntEQ(cls, 0);
+    AssertIntEQ(obj_len, 11);
+    obj_start = pp;
+    AssertIntEQ(ASN1_get_object(&pp, &len, &tag, &cls, obj_len) & 0x80, 0);
+    AssertIntEQ(tag, V_ASN1_OBJECT);
+    AssertIntEQ(cls, 0);
+    AssertIntEQ(len, 9);
+
+    AssertNotNull(asn_obj = d2i_ASN1_OBJECT(NULL, &obj_start, obj_len));
+    AssertIntEQ(OBJ_obj2nid(asn_obj), NID_pkcs9_challengePassword);
+
+    ASN1_OBJECT_free(asn_obj);
+#endif /* OPENSSL_ALL */
+}
+
 static void test_wolfSSL_d2i_X509_REQ(void)
 {
 #if defined(WOLFSSL_CERT_REQ) && !defined(NO_RSA) && \
@@ -47888,6 +47928,7 @@ void ApiTest(void)
     test_wolfSSL_SHA512_Transform();
     test_wolfSSL_X509_get_serialNumber();
     test_wolfSSL_X509_CRL();
+    test_wolfSSL_ASN1_OBJECT();
     test_wolfSSL_d2i_X509_REQ();
     test_wolfSSL_PEM_read_X509();
     test_wolfSSL_PEM_read();
