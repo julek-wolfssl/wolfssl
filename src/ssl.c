@@ -58631,7 +58631,14 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
             /* AddCA() frees the buffer. */
             XMEMCPY(derCert->buffer,
                             x509->derCert->buffer, x509->derCert->length);
-            result = AddCA(store->cm, &derCert, WOLFSSL_USER_CA, VERIFY);
+            result = AddCA(store->cm, &derCert, WOLFSSL_USER_CA,
+                    /* OpenSSL doesn't verify by default */
+#ifdef OPENSSL_COMPATIBLE_DEFAULTS
+                    NO_VERIFY
+#else
+                    VERIFY
+#endif
+                    );
         }
     }
 
