@@ -1170,6 +1170,7 @@ enum Misc {
     DTLS_MAJOR      = 0xfe,     /* DTLS major version number */
     DTLS_MINOR      = 0xff,     /* DTLS minor version number */
     DTLSv1_2_MINOR  = 0xfd,     /* DTLS minor version number */
+    DTLSv1_3_MINOR  = 0xfc,     /* DTLS minor version number */
     SSLv3_MAJOR     = 3,        /* SSLv3 and TLSv1+  major version number */
     SSLv3_MINOR     = 0,        /* TLSv1   minor version number */
     TLSv1_MINOR     = 1,        /* TLSv1   minor version number */
@@ -1646,6 +1647,10 @@ WOLFSSL_LOCAL ProtocolVersion MakeTLSv1_3(void);
 #ifdef WOLFSSL_DTLS
     WOLFSSL_LOCAL ProtocolVersion MakeDTLSv1(void);
     WOLFSSL_LOCAL ProtocolVersion MakeDTLSv1_2(void);
+
+#ifdef WOLFSSL_DTLS13
+    WOLFSSL_LOCAL ProtocolVersion MakeDTLSv1_3(void);
+#endif /* WOLFSSL_DTLS13 */
 
 #endif
 #ifdef WOLFSSL_SESSION_EXPORT
@@ -4828,6 +4833,10 @@ WOLFSSL_LOCAL int IsTLS(const WOLFSSL* ssl);
 WOLFSSL_LOCAL int IsAtLeastTLSv1_2(const WOLFSSL* ssl);
 WOLFSSL_LOCAL int IsAtLeastTLSv1_3(ProtocolVersion pv);
 WOLFSSL_LOCAL int TLSv1_3_Capable(WOLFSSL* ssl);
+
+#ifdef WOLFSSL_DTLS13
+WOLFSSL_LOCAL int IsAtLeastDTLSv1_3(ProtocolVersion pv);
+#endif /* WOLFSSL_DTLS13 */
 
 WOLFSSL_LOCAL void FreeHandshakeResources(WOLFSSL* ssl);
 WOLFSSL_LOCAL void ShrinkInputBuffer(WOLFSSL* ssl, int forcedFree);
