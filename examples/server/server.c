@@ -2153,6 +2153,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         if (doDTLS) {
             if (version == 3)
                 version = -2;
+#ifdef WOLFSSL_DTLS13
+            else if (version == 4)
+                version = -4;
+#endif /* WOLFSSL_DTLS13 */
         #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
             else if (version == EITHER_DOWNGRADE_VERSION)
                 version = -3;
@@ -2236,6 +2240,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             method = wolfDTLSv1_2_server_method_ex;
             break;
     #endif
+#ifdef WOLFSSL_DTLS13
+        case -4:
+            method = wolfDTLSv1_3_server_method_ex;
+            break;
+#endif
     #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
         case -3:
             method = wolfDTLSv1_2_method_ex;

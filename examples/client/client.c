@@ -2769,6 +2769,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             else if (version == EITHER_DOWNGRADE_VERSION)
                 version = -3;
         #endif
+#ifdef WOLFSSL_DTLS13
+            else if (version == 4)
+                version = -4;
+#endif /* WOLFSSL_DTLS13 */
             else
                 version = -1;
         }
@@ -2846,6 +2850,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             method = wolfDTLSv1_2_client_method_ex;
             break;
     #endif
+#ifdef WOLFSSL_DTLS13
+        case -4:
+            method = wolfDTLSv1_3_client_method_ex;
+            break;
+#endif /* WOLFSSL_DTLS13 */
     #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
         case -3:
             method = wolfDTLSv1_2_method_ex;
@@ -3463,7 +3472,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
-    if (!helloRetry && version >= 4) {
+    if (!helloRetry && (version >= 4 || version <= -4)) {
         SetKeyShare(ssl, onlyKeyShare, useX25519, useX448, usePqc,
                     pqcAlg, 0);
     }
