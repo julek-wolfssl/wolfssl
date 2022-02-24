@@ -59,4 +59,28 @@ WOLFSSL_METHOD* wolfDTLSv1_3_server_method_ex(void* heap)
 
     return method;
 }
+/**
+ * Dtls13DoLegacyVersion() - check client legacy version field
+ * @ssl: ssl object
+ * @pv: ProtocolVersion to check against
+ * @wantDowngrade: client ask for a version smaller than DTLS1.2
+ *
+ * DTLSv1.3 (as TLSv1.3) uses an extension to negotiate the version. This legacy
+ * version field can be used only to negotiate DTLSv1.2 or DTLSv1.0.  This
+ * function set wantDowngrade if client sent minor < DTLSv1.2. It also set
+ * ssl->version accordingly.
+ */
+void Dtls13DoLegacyVersion(
+    WOLFSSL *ssl, ProtocolVersion *pv, int *wantDowngrade) {
+
+  /* DTLS version number goes backwards (-1,-2,-3 so the check are reversed:
+     version_a > version_b means that version_a is smaller than version_b.*/
+
+  if (pv->major == DTLS_MAJOR && pv->minor > DTLSv1_2_MINOR) {
+      *wantDowngrade = 1;
+      ssl->version.minor = pv->minor;
+  }
+
+}
+
 #endif /* WOLFSSL_DTLS13 */

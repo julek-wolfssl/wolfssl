@@ -5184,6 +5184,12 @@ WOLFSSL_LOCAL int oid2nid(word32 oid, int grp);
 WOLFSSL_LOCAL word32 nid2oid(int nid, int grp);
 #endif
 
+#ifdef WOLFSSL_DTLS13
+
+WOLFSSL_LOCAL void Dtls13DoLegacyVersion(WOLFSSL *ssl, ProtocolVersion *pv,
+                                         int *wantDowngrade);
+
+#endif /* WOLFSSL_DTLS13 */
 #ifdef WOLFSSL_STATIC_EPHEMERAL
 WOLFSSL_LOCAL int wolfSSL_StaticEphemeralKeyLoad(WOLFSSL* ssl, int keyAlgo, void* keyPtr);
 #endif

@@ -3053,9 +3053,21 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 #else
     Sch13Args  args[1];
 #endif
+    byte major, tls12minor;
+
 
     WOLFSSL_START(WC_FUNC_CLIENT_HELLO_SEND);
     WOLFSSL_ENTER("SendTls13ClientHello");
+
+    major = SSLv3_MAJOR;
+    tls12minor = TLSv1_2_MINOR;
+
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls) {
+        major = DTLS_MAJOR;
+        tls12minor = DTLSv1_2_MINOR;
+    }
+#endif /* WOLFSSL_DTLS */
 
     if (ssl == NULL) {
         return BAD_FUNC_ARG;
@@ -3172,8 +3184,9 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     AddTls13Headers(args->output, args->length, client_hello, ssl);
 
     /* Protocol version - negotiation now in extension: supported_versions. */
-    args->output[args->idx++] = SSLv3_MAJOR;
-    args->output[args->idx++] = TLSv1_2_MINOR;
+    args->output[args->idx++] = major;
+    args->output[args->idx++] = tls12minor;
+
     /* Keep for downgrade. */
     ssl->chVersion = ssl->version;
 
@@ -3314,6 +3327,15 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     (void)sizeof(args_test);
 #else
     Dsh13Args  args[1];
+    byte tls12minor;
+
+    tls12minor = TLSv1_2_MINOR;
+
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls)
+        tls12minor = DTLSv1_2_MINOR;
+#endif /*  WOLFSSL_DTLS13 */
+
 #endif
 
     WOLFSSL_START(WC_FUNC_SERVER_HELLO_DO);
@@ -3363,18 +3385,38 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     args->idx += OPAQUE16_LEN;
 
 #ifndef WOLFSSL_NO_TLS12
-    if (args->pv.major == ssl->version.major &&
-        args->pv.minor < TLSv1_2_MINOR &&
-        ssl->options.downgrade)
     {
-        /* Force client hello version 1.2 to work for static RSA. */
-        ssl->chVersion.minor = TLSv1_2_MINOR;
-        ssl->version.minor = TLSv1_2_MINOR;
-        return DoServerHello(ssl, input, inOutIdx, helloSz);
+        byte wantDowngrade;
+
+        wantDowngrade = args->pv.major == ssl->version.major &&
+            args->pv.minor < TLSv1_2_MINOR;
+
+#ifdef WOLFSSL_DTLS13
+        if (ssl->options.dtls)
+            wantDowngrade = args->pv.major == ssl->version.major &&
+                args->pv.minor > DTLSv1_2_MINOR;
+#endif /* WOLFSSL_DTLS13 */
+
+        if (wantDowngrade && ssl->options.downgrade)
+            {
+                /* Force client hello version 1.2 to work for static RSA. */
+                ssl->chVersion.minor = TLSv1_2_MINOR;
+                ssl->version.minor = TLSv1_2_MINOR;
+
+#ifdef WOLFSSL_DTLS13
+                if (ssl->options.dtls) {
+                    ssl->chVersion.minor = DTLSv1_2_MINOR;
+                    ssl->version.minor = DTLSv1_2_MINOR;
+                }
+#endif /* WOLFSSL_DTLS13 */
+
+                return DoServerHello(ssl, input, inOutIdx, helloSz);
+            }
     }
 #endif
+
     if (args->pv.major != ssl->version.major ||
-        args->pv.minor != TLSv1_2_MINOR) {
+        args->pv.minor != tls12minor) {
         return VERSION_ERROR;
     }
 
@@ -3437,6 +3479,14 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         /* Force client hello version 1.2 to work for static RSA. */
         ssl->chVersion.minor = TLSv1_2_MINOR;
         ssl->version.minor = TLSv1_2_MINOR;
+
+#ifdef WOLFSSL_DTLS13
+        if (ssl->options.dtls) {
+            ssl->chVersion.minor = DTLSv1_2_MINOR;
+            ssl->version.minor = DTLSv1_2_MINOR;
+        }
+#endif /* WOLFSSL_DTLS13 */
+
 #endif
         ssl->options.haveEMS = 0;
         if (args->pv.minor < ssl->options.minDowngrade)
@@ -3480,8 +3530,13 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
 #endif
 
-            if (args->pv.minor < ssl->options.minDowngrade)
+            if (!ssl->options.dtls &&
+                args->pv.minor < ssl->options.minDowngrade)
                 return VERSION_ERROR;
+
+            if (ssl->options.dtls && args->pv.minor > ssl->options.minDowngrade)
+                return VERSION_ERROR;
+
             ssl->version.minor = args->pv.minor;
         }
     }
@@ -4642,6 +4697,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     byte sessIdSz;
     int wantDowngrade = 0;
     word16 totalExtSz = 0;
+    int dtlsLegacyVersionChecked = 0;
 
 #ifdef WOLFSSL_CALLBACKS
     if (ssl->hsInfoOn) AddPacketName(ssl, "ClientHello");
@@ -4660,6 +4716,9 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     XMEMCPY(&args->pv, input + args->idx, OPAQUE16_LEN);
     ssl->chVersion = args->pv;   /* store */
     args->idx += OPAQUE16_LEN;
+
+
+    /* this check pass for DTLS Major (0xff) */
     if (args->pv.major < SSLv3_MAJOR) {
         WOLFSSL_MSG("Legacy version field contains unsupported value");
  #ifdef WOLFSSL_MYSQL_COMPATIBLE
@@ -4670,25 +4729,37 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ERROR_OUT(INVALID_PARAMETER, exit_dch);
     }
 
-    /* Legacy protocol version cannot negotiate TLS 1.3 or higher. */
-    if (args->pv.major > SSLv3_MAJOR || (args->pv.major == SSLv3_MAJOR &&
-                                            args->pv.minor >= TLSv1_3_MINOR)) {
-        args->pv.major = SSLv3_MAJOR;
-        args->pv.minor = TLSv1_2_MINOR;
-        wantDowngrade = 1;
-        ssl->version.minor = args->pv.minor;
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls) {
+        Dtls13DoLegacyVersion(ssl, &args->pv, &wantDowngrade);
+        dtlsLegacyVersionChecked = 1;
     }
-    /* Legacy version must be [ SSLv3_MAJOR, TLSv1_2_MINOR ] for TLS v1.3 */
-    else if (args->pv.major == SSLv3_MAJOR && args->pv.minor < TLSv1_2_MINOR) {
-        wantDowngrade = 1;
-        ssl->version.minor = args->pv.minor;
+#endif /* WOLFSSL_DTLS13 */
+
+    if (!dtlsLegacyVersionChecked) {
+        /* Legacy protocol version cannot negotiate TLS 1.3 or higher. */
+        if (args->pv.major > SSLv3_MAJOR || (args->pv.major == SSLv3_MAJOR &&
+                                             args->pv.minor >= TLSv1_3_MINOR)) {
+            args->pv.major = SSLv3_MAJOR;
+            args->pv.minor = TLSv1_2_MINOR;
+            wantDowngrade = 1;
+            ssl->version.minor = args->pv.minor;
+        }
+        /* Legacy version must be [ SSLv3_MAJOR, TLSv1_2_MINOR ] for TLS v1.3 */
+        else if (args->pv.major == SSLv3_MAJOR &&
+                 args->pv.minor < TLSv1_2_MINOR) {
+            wantDowngrade = 1;
+            ssl->version.minor = args->pv.minor;
+        }
     }
-    else {
+
+    if (!wantDowngrade) {
         ret = DoTls13SupportedVersions(ssl, input + args->begin,
             args->idx - args->begin, helloSz, &wantDowngrade);
         if (ret < 0)
             goto exit_dch;
     }
+
     if (wantDowngrade) {
 #ifndef WOLFSSL_NO_TLS12
         if (!ssl->options.downgrade) {
@@ -5014,7 +5085,7 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
 
     /* The protocol version must be TLS v1.2 for middleboxes. */
     output[idx++] = ssl->version.major;
-    output[idx++] = TLSv1_2_MINOR;
+    output[idx++] = ssl->options.dtls ? DTLSv1_2_MINOR : TLSv1_2_MINOR;
 
     if (extMsgType == server_hello) {
         /* Generate server random. */

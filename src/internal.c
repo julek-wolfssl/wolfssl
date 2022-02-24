@@ -9379,6 +9379,7 @@ int CheckAvailableSize(WOLFSSL *ssl, int size)
 static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                            RecordLayerHeader* rh, word16 *size)
 {
+    byte tls12minor;
 #ifdef OPENSSL_ALL
     word32 start = *inOutIdx;
 #endif
@@ -9432,13 +9433,18 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 #endif
 
+    tls12minor = TLSv1_2_MINOR;
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls)
+        tls12minor = DTLSv1_2_MINOR;
+#endif /* WOLFSSL_DTLS13 */
     /* catch version mismatch */
 #ifndef WOLFSSL_TLS13
     if (rh->pvMajor != ssl->version.major || rh->pvMinor != ssl->version.minor)
 #else
     if (rh->pvMajor != ssl->version.major ||
         (rh->pvMinor != ssl->version.minor &&
-         (!IsAtLeastTLSv1_3(ssl->version) || rh->pvMinor != TLSv1_2_MINOR)
+         (!IsAtLeastTLSv1_3(ssl->version) || rh->pvMinor != tls12minor)
         ))
 #endif
     {
@@ -9561,9 +9567,18 @@ int GetDtlsHandShakeHeader(WOLFSSL* ssl, const byte* input,
     idx += DTLS_HANDSHAKE_FRAG_SZ;
     c24to32(input + idx, fragSz);
 
-    if (ssl->curRL.pvMajor != ssl->version.major ||
-        ssl->curRL.pvMinor != ssl->version.minor) {
+#ifdef WOLFSSL_DTLS13
+    if (IsAtLeastTLSv1_3(ssl->version) &&
+        (ssl->curRL.pvMajor != ssl->version.major ||
+         ssl->curRL.pvMinor != DTLSv1_2_MINOR)) {
+            WOLFSSL_ERROR(VERSION_ERROR);
+            return VERSION_ERROR;
+    }
+#endif /* WOLFSSL_DTLS13 */
 
+    if (!IsAtLeastTLSv1_3(ssl->version) &&
+        (ssl->curRL.pvMajor != ssl->version.major ||
+         ssl->curRL.pvMinor != ssl->version.minor)) {
         if (*type != client_hello && *type != hello_verify_request) {
             WOLFSSL_ERROR(VERSION_ERROR);
             return VERSION_ERROR;
