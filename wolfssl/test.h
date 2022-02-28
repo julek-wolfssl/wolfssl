@@ -3,6 +3,7 @@
 #ifndef wolfSSL_TEST_H
 #define wolfSSL_TEST_H
 
+#include "wolfssl/ssl.h"
 #ifdef FUSION_RTOS
     #include <fclstdio.h>
     #include <fclstdlib.h>
@@ -4986,16 +4987,24 @@ static WC_INLINE int SimulateWantWriteIOSendCb(WOLFSSL *ssl, char *buf, int sz, 
 {
     static int wantWriteFlag = 1;
 
-    int sent;
+    int sent = 0;
     int sd = *(int*)ctx;
 
     (void)ssl;
+
 
     if (!wantWriteFlag)
     {
         wantWriteFlag = 1;
 
-        sent = wolfIO_Send(sd, buf, sz, 0);
+        if (wolfSSL_dtls(ssl)) {
+#ifdef WOLFSSL_DTLS
+            sent = EmbedSendTo(ssl, buf, sz, ctx);
+#endif /* WOLFSSL_DTLS */
+        } else {
+            sent = wolfIO_Send(sd, buf, sz, 0);
+        }
+
         if (sent < 0) {
             int err = errno;
 

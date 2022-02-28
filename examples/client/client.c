@@ -232,9 +232,18 @@ static int NonBlockingSSL_Connect(WOLFSSL* ssl)
             }
         }
 #ifdef WOLFSSL_DTLS
-        else if (select_ret == TEST_TIMEOUT && wolfSSL_dtls(ssl) &&
-                                        wolfSSL_dtls_got_timeout(ssl) >= 0) {
-            error = WOLFSSL_ERROR_WANT_READ;
+        else if (select_ret == TEST_TIMEOUT && wolfSSL_dtls(ssl)) {
+            error = wolfSSL_dtls_got_timeout(ssl);
+            if (error < 0) {
+                error = wolfSSL_get_error(ssl, error);
+                if (error >= 0 || error == WOLFSSL_ERROR_WANT_WRITE)
+                    error = WOLFSSL_ERROR_WANT_WRITE;
+                else
+                    error = WOLFSSL_FATAL_ERROR;
+            }
+            else {
+                error = WOLFSSL_ERROR_WANT_READ;
+            }
         }
 #endif
         else {
