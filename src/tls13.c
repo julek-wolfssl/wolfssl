@@ -6349,8 +6349,21 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
     Scv13Args  args[1];
 #endif
 
+#ifdef WOLFSSL_DTLS13
+    int record_layer_hdr_extra;
+#endif /* WOLFSSL_DTLS13 */
+
     WOLFSSL_START(WC_FUNC_CERTIFICATE_VERIFY_SEND);
     WOLFSSL_ENTER("SendTls13CertificateVerify");
+
+#ifdef WOLFSSL_DTLS13
+    /* can be negative */
+    if (ssl->options.dtls)
+        record_layer_hdr_extra = Dtls13GetRlHeaderLength(1) - RECORD_HEADER_SZ;
+    else
+        record_layer_hdr_extra = 0;
+
+#endif /* WOLFSSL_DTLS13 */
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
@@ -6407,6 +6420,14 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
             args->verify =
                           &args->output[RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ];
+
+#ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls) {
+                rem -= record_layer_hdr_extra + DTLS_HANDSHAKE_EXTRA;
+                args->idx += record_layer_hdr_extra + DTLS_HANDSHAKE_EXTRA;
+                args->verify += record_layer_hdr_extra + DTLS_HANDSHAKE_EXTRA;
+            }
+#endif /* WOLFSSL_DTLS13 */
 
             if (ssl->buffers.key == NULL) {
             #ifdef HAVE_PK_CALLBACKS
@@ -6666,7 +6687,11 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
 
             args->sendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ +
                                    args->length + HASH_SIG_SIZE + VERIFY_HEADER;
+#ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls)
+                args->sendSz += record_layer_hdr_extra + DTLS_HANDSHAKE_EXTRA;
 
+#endif /* WOLFSSL_DTLS13 */
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_END;
         } /* case TLS_ASYNC_FINALIZE */
@@ -6674,6 +6699,21 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
 
         case TLS_ASYNC_END:
         {
+#ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls) {
+                ret = Dtls13HandshakeSend(ssl, args->output,
+                                          MAX_CERT_VERIFY_SZ +
+                                          MAX_MSG_EXTRA +
+                                          MAX_MSG_EXTRA,
+                                          args->sendSz,
+                                          certificate_verify, 1);
+                if (ret != 0)
+                    goto exit_scv;
+
+                break;
+            }
+#endif /* WOLFSSL_DTLS13 */
+
             /* This message is always encrypted. */
             ret = BuildTls13Message(ssl, args->output,
                                     MAX_CERT_VERIFY_SZ + MAX_MSG_EXTRA,
