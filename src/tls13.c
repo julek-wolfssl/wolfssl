@@ -5121,7 +5121,6 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
         else
     #endif
-            /* FIXME: add check that ciphersuite is compatible with on DTLS1.3 */
         /* Check that the negotiated ciphersuite matches protocol version. */
         if (ssl->options.cipherSuite0 != TLS13_BYTE) {
             WOLFSSL_MSG("Negotiated ciphersuite from lesser version than "
@@ -5188,6 +5187,11 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
         if ((ret = RestartHandshakeHash(ssl)) < 0)
             return ret;
     }
+
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls)
+        idx = DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ;
+#endif /* WOLFSSL_DTLS13 */
 
     /* Protocol version, server random, session id, cipher suite, compression
      * and extensions.
@@ -5256,7 +5260,6 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     if (ret != 0)
         return ret;
 
-    ssl->buffers.outputBuffer.length += sendSz;
 
     if ((ret = HashOutput(ssl, output, sendSz, 0)) != 0)
         return ret;
@@ -5272,6 +5275,14 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
 
     if (extMsgType == server_hello)
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
+
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls)
+        return Dtls13HandshakeSend(ssl, output, sendSz, sendSz,
+                                   server_hello, 0);
+#endif /* WOLFSSL_DTLS13 */
+
+    ssl->buffers.outputBuffer.length += sendSz;
 
     if (!ssl->options.groupMessages || extMsgType != server_hello)
 

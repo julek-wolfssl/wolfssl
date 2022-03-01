@@ -2049,7 +2049,6 @@ int SetCipherSpecs(WOLFSSL* ssl)
 #endif
     }
 
-/* FIXME: check that choosen chipersuite is compatible with DTLS 1.3 */
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls &&
         ssl->version.major == DTLS_MAJOR &&
