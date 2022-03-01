@@ -2049,6 +2049,14 @@ int SetCipherSpecs(WOLFSSL* ssl)
 #endif
     }
 
+/* FIXME: check that choosen chipersuite is compatible with DTLS 1.3 */
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls &&
+        ssl->version.major == DTLS_MAJOR &&
+        ssl->version.minor <= DTLSv1_3_MINOR)
+        ssl->options.tls1_3 = 1;
+#endif /* WOLFSSL_DTLS13 */
+
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
     if (IsAtLeastTLSv1_3(ssl->version) || ssl->specs.cipher_type != block)
        ssl->options.encThenMac = 0;

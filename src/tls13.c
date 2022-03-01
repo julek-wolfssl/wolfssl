@@ -4697,6 +4697,16 @@ static int DoTls13SupportedVersions(WOLFSSL* ssl, const byte* input, word32 i,
         return BUFFER_ERROR;
     }
     i += b;
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls) {
+        /* legacy_cookie - not used in DTLS v1.3 */
+        b = input[i++];
+        if (i + b > helloSz) {
+            return BUFFER_ERROR;
+        }
+        i += b;
+    }
+#endif /* WOLFSSL_DTLS13 */
     /* Cipher suites */
     if (i + OPAQUE16_LEN > helloSz)
         return BUFFER_ERROR;
@@ -4926,6 +4936,12 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         args->idx += ID_LEN;
     }
 
+#ifdef WOLFSSL_DTLS13
+    /* legacy_cookie */
+    if (ssl->options.dtls)
+        args->idx += OPAQUE8_LEN;
+#endif /* WOLFSSL_DTLS13 */
+
     args->clSuites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
         DYNAMIC_TYPE_SUITES);
     if (args->clSuites == NULL) {
@@ -5105,6 +5121,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
         else
     #endif
+            /* FIXME: add check that ciphersuite is compatible with on DTLS1.3 */
         /* Check that the negotiated ciphersuite matches protocol version. */
         if (ssl->options.cipherSuite0 != TLS13_BYTE) {
             WOLFSSL_MSG("Negotiated ciphersuite from lesser version than "
