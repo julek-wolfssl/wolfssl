@@ -2395,9 +2395,15 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
         ssl->options.buildMsgState = BUILD_MSG_BEGIN;
         XMEMSET(args, 0, sizeof(BuildMsg13Args));
 
-        args->sz = RECORD_HEADER_SZ + inSz;
-        args->idx  = RECORD_HEADER_SZ;
         args->headerSz = RECORD_HEADER_SZ;
+#ifdef WOLFSSL_DTLS13
+        if (ssl->options.dtls)
+            args->headerSz = Dtls13GetRlHeaderLength(1);
+#endif /* WOLFSSL_DTLS13 */
+
+        args->sz = args->headerSz + inSz;
+        args->idx  = args->headerSz;
+
     #ifdef WOLFSSL_ASYNC_CRYPT
         ssl->async.freeArgs = FreeBuildMsg13Args;
     #endif
@@ -2437,7 +2443,15 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
              * Always have the content type as application data for encrypted
              * messages in TLS v1.3.
              */
-            AddTls13RecordHeader(output, args->size, application_data, ssl);
+
+            if (ssl->options.dtls) {
+#ifdef WOLFSSL_DTLS13
+                Dtls13RlAddCiphertextHeader(ssl, output, args->size);
+#endif /* WOLFSSL_DTLS13 */
+            }
+            else {
+                AddTls13RecordHeader(output, args->size, application_data, ssl);
+            }
 
             /* TLS v1.3 can do in place encryption. */
             if (input != output + args->idx)
@@ -2480,7 +2494,13 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 const byte* aad = output;
                 output += args->headerSz;
                 ret = EncryptTls13(ssl, output, output, args->size, aad,
-                                   RECORD_HEADER_SZ, asyncOkay);
+                                   args->headerSz, asyncOkay);
+#ifdef WOLFSSL_DTLS13
+                if (ret == 0 && ssl->options.dtls) {
+                    /* AAD points to the header. Reuse the variable  */
+                    ret = Dtls13EncryptRecordNumber(ssl, (byte*)aad, args->sz);
+                }
+#endif /* WOLFSSL_DTLS13 */
             }
             break;
         }

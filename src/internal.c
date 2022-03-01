@@ -17339,11 +17339,22 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                     else
                     {
                 #ifdef WOLFSSL_TLS13
+                        byte *aad = (byte*)&ssl->curRL;
+                        word16 aad_size = RECORD_HEADER_SZ;
+#ifdef WOLFSSL_DTLS13
+                        if (ssl->options.dtls) {
+                            /* aad now points to the record header */
+                            aad = in->buffer +
+                                in->idx - ssl->dtls13CurRlLength;
+                            aad_size = ssl->dtls13CurRlLength;
+                        }
+#endif /* WOLFSSL_DTLS13 */
+
                         ret = DecryptTls13(ssl,
                                         in->buffer + in->idx,
                                         in->buffer + in->idx,
                                         ssl->curSize,
-                                        (byte*)&ssl->curRL, RECORD_HEADER_SZ, 1);
+                                        aad, aad_size, 1);
                 #else
                         ret = DECRYPT_ERROR;
                 #endif /* WOLFSSL_TLS13 */
