@@ -39,6 +39,7 @@ EXTRA_DIST += tests/unit.h \
               tests/test-dtls-sha2.conf \
               tests/test-dtls-srtp.conf \
               tests/test-dtls-srtp-fails.conf \
+              tests/test-dtls13.conf \
               tests/test-sctp.conf \
               tests/test-sctp-sha2.conf \
               tests/test-sig.conf \

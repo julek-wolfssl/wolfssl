@@ -1087,6 +1087,18 @@ int SuiteTest(int argc, char** argv)
     strcpy(argv0[2], "");
 #endif
 
+#ifdef WOLFSSL_DTLS13
+    args.argc = 2;
+    strcpy(argv0[1], "tests/test-dtls13.conf");
+    printf("starting dtls srtp suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif /* WOLFSSL_DTLS13 */
+
 #endif
 #ifdef WOLFSSL_SCTP
     /* add dtls-sctp extra suites */
