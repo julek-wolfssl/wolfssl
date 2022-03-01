@@ -6129,16 +6129,37 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         word32 i = RECORD_HEADER_SZ;
         int    sendSz = RECORD_HEADER_SZ;
 
-        if (ssl->fragOffset == 0) {
+#ifdef WOLFSSL_DTLS13
+        if (ssl->options.dtls) {
+            i = Dtls13GetRlHeaderLength(1);
+            sendSz = (int)i;
+        }
+#endif /* WOLFSSL_DTLS13 */
+
+        if (ssl->fragOffset == 0)  {
             if (headerSz + certSz + extSz + certChainSz <=
                                             maxFragment - HANDSHAKE_HEADER_SZ) {
                 fragSz = headerSz + certSz + extSz + certChainSz;
             }
-            else
+#ifdef WOLFSSL_DTLS13
+            else if (ssl->options.dtls){
+                /* short-cirtuit the fragmentation logic here. DTLS
+                   fragmentation will be done in dtls13_handshake_send() */
+                fragSz = headerSz + certSz + extSz + certChainSz;
+            }
+#endif /* WOLFSSL_DTLS13 */
+            else {
                 fragSz = maxFragment - HANDSHAKE_HEADER_SZ;
+            }
 
             sendSz += fragSz + HANDSHAKE_HEADER_SZ;
             i += HANDSHAKE_HEADER_SZ;
+#ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls) {
+                sendSz += DTLS_HANDSHAKE_EXTRA;
+                i += DTLS_HANDSHAKE_EXTRA;
+            }
+#endif /* WOLFSSL_DTLS13 */
         }
         else {
             fragSz = min(length, maxFragment);
@@ -6227,6 +6248,14 @@ static int SendTls13Certificate(WOLFSSL* ssl)
             return BUFFER_E;
         }
 
+#ifdef WOLFSSL_DTLS13
+        if (ssl->options.dtls) {
+            /* DTLS1.3 uses a separate variable and logic for fragments */
+            ssl->fragOffset = 0;
+            ret = Dtls13HandshakeSend(ssl, output, sendSz, i, certificate, 1);
+        } else
+#endif /* WOLFSSL_DTLS13 */
+        {
         /* This message is always encrypted. */
         sendSz = BuildTls13Message(ssl, output, sendSz,
                                    output + RECORD_HEADER_SZ,
@@ -6246,6 +6275,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         ssl->buffers.outputBuffer.length += sendSz;
         if (!ssl->options.groupMessages)
             ret = SendBuffered(ssl);
+        }
     }
 
     if (ret != WANT_WRITE) {
