@@ -5307,13 +5307,23 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
     int    ret;
     byte*  output;
     word16 length = 0;
-    word32 idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+    word32 idx;
     int    sendSz;
 
     WOLFSSL_START(WC_FUNC_ENCRYPTED_EXTENSIONS_SEND);
     WOLFSSL_ENTER("SendTls13EncryptedExtensions");
 
     ssl->keys.encryptionOn = 1;
+
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls) {
+        idx = Dtls13GetHeadersLength(encrypted_extensions);
+    }
+    else
+#endif /* WOLFSSL_DTLS13 */
+    {
+        idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+    }
 
 #if defined(HAVE_SUPPORTED_CURVES) && !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)
     if ((ret = TLSX_SupportedCurve_CheckPriority(ssl)) != 0)
@@ -5341,6 +5351,23 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
     if ((ret = SetKeysSide(ssl, ENCRYPT_AND_DECRYPT_SIDE)) != 0)
         return ret;
 #endif
+
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls) {
+        ssl->dtls13Epoch = DTLS13_EPOCH_HANDSHAKE;
+
+        ret = Dtls13NewEpoch(
+            ssl, DTLS13_EPOCH_HANDSHAKE, ENCRYPT_AND_DECRYPT_SIDE);
+        if (ret != 0)
+            return ret;
+
+        ret = Dtls13SetEpochKeys(
+            ssl, DTLS13_EPOCH_HANDSHAKE, ENCRYPT_AND_DECRYPT_SIDE);
+        if (ret != 0)
+            return ret;
+
+    }
+#endif /* WOLFSSL_DTLS13 */
 
     ret = TLSX_GetResponseSize(ssl, encrypted_extensions, &length);
     if (ret != 0)
@@ -5376,6 +5403,18 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
     }
 #endif
 
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls) {
+        ret = Dtls13HandshakeSend(ssl, output, sendSz, idx,
+                                  encrypted_extensions, 1);
+
+        if (ret == 0)
+            ssl->options.serverState = SERVER_ENCRYPTED_EXTENSIONS_COMPLETE;
+
+        return ret;
+    }
+#endif /* WOLFSSL_DTLS13 */
+
     /* This handshake message is always encrypted. */
     sendSz = BuildTls13Message(ssl, output, sendSz, output + RECORD_HEADER_SZ,
                                idx - RECORD_HEADER_SZ, handshake, 1, 0, 0);
@@ -5388,6 +5427,7 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
 
     if (!ssl->options.groupMessages)
         ret = SendBuffered(ssl);
+
 
     WOLFSSL_LEAVE("SendTls13EncryptedExtensions", ret);
     WOLFSSL_END(WC_FUNC_ENCRYPTED_EXTENSIONS_SEND);
