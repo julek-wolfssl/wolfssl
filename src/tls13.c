@@ -1642,6 +1642,13 @@ static void AddTls13HandShakeHeader(byte* output, word32 length,
     (void)fragLength;
     (void)ssl;
 
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls) {
+        Dtls13HandshakeAddheader(ssl, output, type, length);
+        return;
+    }
+#endif /* WOLFSSL_DTLS13 */
+
     /* handshake header */
     hs = (HandShakeHeader*)output;
     hs->type = type;
@@ -1661,6 +1668,13 @@ static void AddTls13Headers(byte* output, word32 length, byte type,
 {
     word32 lengthAdj = HANDSHAKE_HEADER_SZ;
     word32 outputAdj = RECORD_HEADER_SZ;
+
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls) {
+        Dtls13AddHeaders(output, length, type, ssl);
+        return;
+    }
+#endif /* WOLFSSL_DTLS13 */
 
     AddTls13RecordHeader(output, length + lengthAdj, handshake, ssl);
     AddTls13HandShakeHeader(output + outputAdj, length, 0, length, type, ssl);
@@ -1683,6 +1697,15 @@ static void AddTls13FragHeaders(byte* output, word32 fragSz, word32 fragOffset,
     word32 lengthAdj = HANDSHAKE_HEADER_SZ;
     word32 outputAdj = RECORD_HEADER_SZ;
     (void)fragSz;
+
+#ifdef WOLFSSL_DTLS13
+    /* we ignore fragmentation fields here because fragmentation logic for
+       DTLS1.3 is inside dtls13_handshake_send(). */
+    if (ssl->options.dtls) {
+        Dtls13AddHeaders(output, length, type, ssl);
+        return;
+    }
+#endif /* WOLFSSL_DTLS13 */
 
     AddTls13RecordHeader(output, fragSz + lengthAdj, handshake, ssl);
     AddTls13HandShakeHeader(output + outputAdj, length, fragOffset, fragSz,
