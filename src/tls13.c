@@ -7303,7 +7303,7 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
     /* check against totalSz */
-    if (*inOutIdx + size + ssl->keys.padSz > totalSz)
+    if (*inOutIdx + size > totalSz)
         return BUFFER_E;
 
     if (ssl->options.handShakeDone) {
