@@ -5469,6 +5469,11 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     ext->resp = 0;
 
     i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls)
+        i = Dtls13GetRlHeaderLength(1) + DTLS_HANDSHAKE_HEADER_SZ;
+#endif /* WOLFSSL_DTLS13 */
+
     reqSz = (word16)(OPAQUE8_LEN + reqCtxLen);
     ret = TLSX_GetRequestSize(ssl, certificate_request, &reqSz);
     if (ret != 0)
@@ -5502,6 +5507,13 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     if (ret != 0)
         return ret;
     i += reqSz;
+
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls) {
+        return Dtls13HandshakeSend(ssl, output, sendSz, i,
+                                   certificate_request, 1);
+    }
+#endif /* WOLFSSL_DTLS13 */
 
     /* Always encrypted. */
     sendSz = BuildTls13Message(ssl, output, sendSz, output + RECORD_HEADER_SZ,
