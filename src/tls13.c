@@ -1259,6 +1259,18 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
     /* Store keys and IVs but don't activate them. */
     ret = StoreKeys(ssl, key_dig, provision);
 
+#ifdef WOLFSSL_DTLS13
+    if (ret != 0)
+      goto end;
+
+    if (ssl->options.dtls) {
+        ret = Dtls13DeriveSnKeys(ssl, provision);
+        if (ret != 0)
+            return ret;
+    }
+
+#endif /* WOLFSSL_DTLS13 */
+
 end:
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key_dig, ssl->heap, DYNAMIC_TYPE_DIGEST);

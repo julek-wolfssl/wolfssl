@@ -2215,6 +2215,11 @@ typedef struct Keys {
     byte aead_dec_imp_IV[AEAD_MAX_IMP_SZ];
 #endif
 
+#ifdef WOLFSSL_DTLS13
+    byte client_sn_key[MAX_SYM_KEY_SIZE];
+    byte server_sn_key[MAX_SYM_KEY_SIZE];
+#endif /* WOLFSSL_DTLS13 */
+
     word32 peer_sequence_number_hi;
     word32 peer_sequence_number_lo;
     word32 sequence_number_hi;
@@ -5188,6 +5193,8 @@ WOLFSSL_LOCAL word32 nid2oid(int nid, int grp);
 
 WOLFSSL_LOCAL void Dtls13DoLegacyVersion(WOLFSSL *ssl, ProtocolVersion *pv,
                                          int *wantDowngrade);
+
+WOLFSSL_LOCAL int Dtls13DeriveSnKeys(WOLFSSL *ssl, int provision);
 
 #endif /* WOLFSSL_DTLS13 */
 #ifdef WOLFSSL_STATIC_EPHEMERAL

@@ -30,6 +30,13 @@
 #include <wolfssl/ssl.h>
 #include <wolfssl/internal.h>
 
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 WOLFSSL_METHOD* wolfDTLSv1_3_client_method_ex(void* heap)
 {
     WOLFSSL_METHOD* method;
@@ -59,6 +66,7 @@ WOLFSSL_METHOD* wolfDTLSv1_3_server_method_ex(void* heap)
 
     return method;
 }
+
 /**
  * Dtls13DoLegacyVersion() - check client legacy version field
  * @ssl: ssl object
@@ -81,6 +89,46 @@ void Dtls13DoLegacyVersion(
       ssl->version.minor = pv->minor;
   }
 
+}
+
+#define SN_LABEL_SZ 2
+static const byte snLabel[SN_LABEL_SZ + 1] = "sn";
+
+/**
+ * Dtls13DeriveSnKeys() - derive the key used to encrypt the record number
+ * @ssl: ssl object
+ * @provision: which side (CLIENT or SERVER) to provision
+ */
+int Dtls13DeriveSnKeys(WOLFSSL *ssl, int provision)
+{
+    byte key_dig[MAX_PRF_DIG];
+    int ret = 0;
+
+    if (provision & PROVISION_CLIENT) {
+        WOLFSSL_MSG("Derive SN Client key");
+        ret = Tls13DeriveKey(ssl, key_dig, ssl->specs.key_size,
+            ssl->clientSecret, snLabel, SN_LABEL_SZ, ssl->specs.mac_algorithm,
+            0);
+        if (ret != 0)
+            goto end;
+
+        XMEMCPY(ssl->keys.client_sn_key, key_dig, ssl->specs.key_size);
+    }
+
+    if (provision & PROVISION_SERVER) {
+        WOLFSSL_MSG("Derive SN Server key");
+        ret = Tls13DeriveKey(ssl, key_dig, ssl->specs.key_size,
+            ssl->serverSecret, snLabel, SN_LABEL_SZ, ssl->specs.mac_algorithm,
+            0);
+        if (ret != 0)
+            goto end;
+
+        XMEMCPY(ssl->keys.server_sn_key, key_dig, ssl->specs.key_size);
+    }
+
+end:
+    ForceZero(key_dig, MAX_PRF_DIG);
+    return ret;
 }
 
 #endif /* WOLFSSL_DTLS13 */
