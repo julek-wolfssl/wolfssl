@@ -9424,12 +9424,142 @@ int CheckAvailableSize(WOLFSSL *ssl, int size)
     return 0;
 }
 
+#ifdef WOLFSSL_DTLS13
+static int GetDtls13RecordHeader(WOLFSSL *ssl, const byte *input,
+    word32 *inOutIdx, RecordLayerHeader *rh, word16 *size)
+{
+
+    Dtls13UnifiedHdrInfo hdrInfo;
+    word32 epochNumber;
+    byte newSeqLo[4];
+    byte epochBits;
+    int readSize;
+    int ret;
+
+    readSize = ssl->buffers.inputBuffer.length - *inOutIdx;
+
+    epochBits = *input & EE_MASK;
+    epochNumber = (ssl->dtls13PeerEpoch & (~EE_MASK)) | epochBits;
+
+    /* protected records always use unified_headers in DTLSv1.3 */
+    if (epochNumber == 0)
+        return SEQUENCE_ERROR;
+
+    if (ssl->dtls13DecryptEpoch == NULL)
+        return BAD_STATE_E;
+
+    if (ssl->dtls13DecryptEpoch->epochNumber != epochNumber) {
+        ret = Dtls13SetEpochKeys(ssl, epochNumber, DECRYPT_SIDE_ONLY);
+        if (ret != 0)
+            return SEQUENCE_ERROR;
+    }
+
+    ret = Dtls13ParseUnifedRecordLayer(
+        ssl, input + *inOutIdx, readSize, &hdrInfo);
+
+    if (ret != 0)
+        return ret;
+
+    *size = hdrInfo.recordLength;
+    c16toa(*size, rh->length);
+
+   /* type is implicit */
+    rh->type = application_data;
+
+    /* version is implicit */
+    rh->pvMajor = ssl->version.major;
+    rh->pvMinor = DTLSv1_2_MINOR;
+
+    ssl->keys.curEpoch = epochNumber;
+    ssl->keys.curSeq_hi = ssl->keys.peer_sequence_number_hi;
+
+    c32toa(ssl->keys.peer_sequence_number_lo, newSeqLo);
+    newSeqLo[3] = hdrInfo.seqLo;
+    if (hdrInfo.seqHiPresent)
+        newSeqLo[2] = hdrInfo.seqHi;
+    ato32(newSeqLo, &ssl->keys.curSeq_lo);
+
+    *inOutIdx += hdrInfo.headerLength;
+    ssl->dtls13CurRlLength = hdrInfo.headerLength;
+
+    return 0;
+}
+
+#endif /* WOLFSSL_DTLS13 */
+
+#ifdef WOLFSSL_DTLS
+static int GetDtlsRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
+                                RecordLayerHeader* rh, word16 *size)
+{
+
+#ifdef HAVE_FUZZER
+    if (ssl->fuzzerCb)
+        ssl->fuzzerCb(ssl, input + *inOutIdx, DTLS_RECORD_HEADER_SZ,
+                       FUZZ_HEAD, ssl->fuzzerCtx);
+#endif
+
+#ifdef WOLFSSL_DTLS13
+    word32 read_size;
+
+    read_size = ssl->buffers.inputBuffer.length - *inOutIdx;
+
+    if (ssl->options.tls1_3 && Dtls13IsUnifiedHeader(*(input + *inOutIdx)))
+        return GetDtls13RecordHeader(ssl, input, inOutIdx, rh, size);
+
+    /* not a unified header, check that we have at least
+       DTLS_RECORD_HEADER_SZ */
+    if (read_size < DTLS_RECORD_HEADER_SZ)
+        return LENGTH_ERROR;
+
+#endif /* WOLFSSL_DTLS13 */
+
+    /* type and version in same sport */
+    XMEMCPY(rh, input + *inOutIdx, ENUM_LEN + VERSION_SZ);
+    *inOutIdx += ENUM_LEN + VERSION_SZ;
+    ato16(input + *inOutIdx, &ssl->keys.curEpoch);
+    *inOutIdx += OPAQUE16_LEN;
+    if (ssl->options.haveMcast) {
+    #ifdef WOLFSSL_MULTICAST
+        ssl->keys.curPeerId = input[*inOutIdx];
+        ssl->keys.curSeq_hi = input[*inOutIdx+1];
+    #endif
+    }
+    else
+        ato16(input + *inOutIdx, &ssl->keys.curSeq_hi);
+    *inOutIdx += OPAQUE16_LEN;
+    ato32(input + *inOutIdx, &ssl->keys.curSeq_lo);
+    *inOutIdx += OPAQUE32_LEN;  /* advance past rest of seq */
+    ato16(input + *inOutIdx, size);
+    *inOutIdx += LENGTH_SZ;
+
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.tls1_3) {
+
+        /* only non protected message can use the DTLSPlaintext record header */
+        if (ssl->keys.curEpoch != 0)
+            return SEQUENCE_ERROR;
+
+        if (ssl->dtls13DecryptEpoch->epochNumber != 0)
+            Dtls13SetEpochKeys(ssl, 0, DECRYPT_SIDE_ONLY);
+    }
+#endif /* WOLFSSL_DTLS13 */
+
+    return 0;
+}
+#endif /* WOLFSSL_DTLS */
 
 /* do all verify and sanity checks on record header */
 static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                            RecordLayerHeader* rh, word16 *size)
 {
     byte tls12minor;
+
+    (void)tls12minor;
+
+#ifdef WOLFSSL_DTLS
+    int ret;
+#endif /* WOLFSSL_DTLS */
+
 #ifdef OPENSSL_ALL
     word32 start = *inOutIdx;
 #endif
@@ -9445,29 +9575,9 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
     else {
 #ifdef WOLFSSL_DTLS
-#ifdef HAVE_FUZZER
-        if (ssl->fuzzerCb)
-            ssl->fuzzerCb(ssl, input + *inOutIdx, DTLS_RECORD_HEADER_SZ,
-                           FUZZ_HEAD, ssl->fuzzerCtx);
-#endif
-        /* type and version in same sport */
-        XMEMCPY(rh, input + *inOutIdx, ENUM_LEN + VERSION_SZ);
-        *inOutIdx += ENUM_LEN + VERSION_SZ;
-        ato16(input + *inOutIdx, &ssl->keys.curEpoch);
-        *inOutIdx += OPAQUE16_LEN;
-        if (ssl->options.haveMcast) {
-        #ifdef WOLFSSL_MULTICAST
-            ssl->keys.curPeerId = input[*inOutIdx];
-            ssl->keys.curSeq_hi = input[*inOutIdx+1];
-        #endif
-        }
-        else
-            ato16(input + *inOutIdx, &ssl->keys.curSeq_hi);
-        *inOutIdx += OPAQUE16_LEN;
-        ato32(input + *inOutIdx, &ssl->keys.curSeq_lo);
-        *inOutIdx += OPAQUE32_LEN;  /* advance past rest of seq */
-        ato16(input + *inOutIdx, size);
-        *inOutIdx += LENGTH_SZ;
+        ret = GetDtlsRecordHeader(ssl, input, inOutIdx, rh, size);
+        if (ret != 0)
+            return ret;
 #endif
     }
 
@@ -17022,8 +17132,15 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
             readSz = RECORD_HEADER_SZ;
 
         #ifdef WOLFSSL_DTLS
-            if (ssl->options.dtls)
+            if (ssl->options.dtls) {
                 readSz = DTLS_RECORD_HEADER_SZ;
+#ifdef WOLFSSL_DTLS13
+                if (ssl->options.tls1_3) {
+                    /* dtls1.3 unified header can be as little as 2 bytes */
+                    readSz = DTLS_UNIFIED_HEADER_MIN_SZ;
+                }
+#endif /* WOLFSSL_DTLS13 */
+            }
         #endif
 
             /* get header or return error */
