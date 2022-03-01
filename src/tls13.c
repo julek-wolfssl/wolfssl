@@ -7416,8 +7416,21 @@ static int SendTls13Finished(WOLFSSL* ssl)
     int   outputSz;
     byte* secret;
 
+#ifdef WOLFSSL_DTLS13
+    int dtlsRet = 0, isDtls = 0;
+#endif /* WOLFSSL_DTLS13 */
+
     WOLFSSL_START(WC_FUNC_FINISHED_SEND);
     WOLFSSL_ENTER("SendTls13Finished");
+
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls) {
+        headerSz = DTLS_HANDSHAKE_HEADER_SZ;
+        /* using isDtls instead of ssl->options.dtls will abide clang static
+           analyzer on unsing an uninitialized value */
+        isDtls = 1;
+    }
+#endif /* WOLFSSL_DTLS13 */
 
     outputSz = WC_MAX_DIGEST_SIZE + DTLS_HANDSHAKE_HEADER_SZ + MAX_MSG_EXTRA;
     /* Check buffers are big enough and grow if needed. */
@@ -7428,6 +7441,11 @@ static int SendTls13Finished(WOLFSSL* ssl)
     output = ssl->buffers.outputBuffer.buffer +
              ssl->buffers.outputBuffer.length;
     input = output + RECORD_HEADER_SZ;
+
+#ifdef WOLFSSL_DTLS13
+    if (isDtls)
+        input = output + Dtls13GetRlHeaderLength(1);
+#endif /* WOLFSSL_DTLS13 */
 
     AddTls13HandShakeHeader(input, finishedSz, 0, finishedSz, finished, ssl);
 
@@ -7471,6 +7489,17 @@ static int SendTls13Finished(WOLFSSL* ssl)
             ssl->serverFinished_len = finishedSz;
         }
     #endif
+
+#ifdef WOLFSSL_DTLS13
+    if (isDtls) {
+        dtlsRet = Dtls13HandshakeSend(ssl, output, outputSz,
+            Dtls13GetRlHeaderLength(1) + headerSz + finishedSz, finished, 1);
+        if (dtlsRet != 0 && dtlsRet != WANT_WRITE)
+            return ret;
+
+    } else
+#endif /* WOLFSSL_DTLS13 */
+    {
     /* This message is always encrypted. */
     sendSz = BuildTls13Message(ssl, output, outputSz, input,
                                headerSz + finishedSz, handshake, 1, 0, 0);
@@ -7486,18 +7515,29 @@ static int SendTls13Finished(WOLFSSL* ssl)
     #endif
 
     ssl->buffers.outputBuffer.length += sendSz;
+    }
 
     if (ssl->options.side == WOLFSSL_SERVER_END) {
         /* Can send application data now. */
         if ((ret = DeriveMasterSecret(ssl)) != 0)
             return ret;
 #ifdef WOLFSSL_EARLY_DATA
+
+        byte storeTrafficDecKeys = ssl->earlyData == no_early_data;
+
+#ifdef WOLFSSL_DTLS13
+        /* DTLS13 dynamically change keys and it needs all
+           the keys in ssl->keys to save the keying material */
+        if (isDtls)
+            storeTrafficDecKeys = 1;
+#endif /* WOLFSSL_DTLS13 */
+
         if ((ret = DeriveTls13Keys(ssl, traffic_key, ENCRYPT_SIDE_ONLY, 1))
                                                                          != 0) {
             return ret;
         }
         if ((ret = DeriveTls13Keys(ssl, traffic_key, DECRYPT_SIDE_ONLY,
-                                       ssl->earlyData == no_early_data)) != 0) {
+                                       storeTrafficDecKeys)) != 0) {
             return ret;
         }
 #else
@@ -7508,6 +7548,24 @@ static int SendTls13Finished(WOLFSSL* ssl)
 #endif
         if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
             return ret;
+
+#ifdef WOLFSSL_DTLS13
+        if (isDtls) {
+            ssl->dtls13Epoch = DTLS13_EPOCH_TRAFFIC0;
+            ssl->dtls13PeerEpoch = DTLS13_EPOCH_TRAFFIC0;
+
+            ret = Dtls13NewEpoch(
+                ssl, DTLS13_EPOCH_TRAFFIC0, ENCRYPT_AND_DECRYPT_SIDE);
+            if (ret != 0)
+                return ret;
+
+            ret = Dtls13SetEpochKeys(
+                ssl, DTLS13_EPOCH_TRAFFIC0, ENCRYPT_AND_DECRYPT_SIDE);
+            if (ret != 0)
+                return ret;
+
+        }
+#endif /* WOLFSSL_DTLS13 */
     }
 
     if (ssl->options.side == WOLFSSL_CLIENT_END &&
@@ -7529,6 +7587,24 @@ static int SendTls13Finished(WOLFSSL* ssl)
         if (ret != 0)
             return ret;
 #endif
+
+#ifdef WOLFSSL_DTLS13
+        if (isDtls) {
+            ssl->dtls13Epoch = DTLS13_EPOCH_TRAFFIC0;
+            ssl->dtls13PeerEpoch = DTLS13_EPOCH_TRAFFIC0;
+
+            ret = Dtls13NewEpoch(
+                ssl, DTLS13_EPOCH_TRAFFIC0, ENCRYPT_AND_DECRYPT_SIDE);
+            if (ret != 0)
+                return ret;
+
+            ret = Dtls13SetEpochKeys(
+                ssl, DTLS13_EPOCH_TRAFFIC0, ENCRYPT_AND_DECRYPT_SIDE);
+            if (ret != 0)
+                return ret;
+
+        }
+#endif /* WOLFSSL_DTLS13 */
     }
 
 #ifndef NO_WOLFSSL_CLIENT
@@ -7543,6 +7619,11 @@ static int SendTls13Finished(WOLFSSL* ssl)
         ssl->options.serverState = SERVER_FINISHED_COMPLETE;
     }
 #endif
+
+#ifdef WOLFSSL_DTLS13
+    if (isDtls)
+        return dtlsRet;
+#endif /* WOLFSSL_DTLS13 */
 
     if ((ret = SendBuffered(ssl)) != 0)
         return ret;
