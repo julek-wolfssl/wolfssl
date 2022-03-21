@@ -14157,6 +14157,19 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
     if (ssl == NULL)
         return WOLFSSL_FATAL_ERROR;
 
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
+        result = Dtls13RtxTimeout(ssl);
+        if (result < 0) {
+            ssl->error = result;
+            WOLFSSL_ERROR(result);
+            return WOLFSSL_FATAL_ERROR;
+        }
+
+        return WOLFSSL_SUCCESS;
+    }
+#endif /* WOLFSSL_DTLS13 */
+
     if ((IsSCR(ssl) || !ssl->options.handShakeDone)) {
         if (DtlsMsgPoolTimeout(ssl) < 0){
             ssl->error = SOCKET_ERROR_E;
@@ -14508,6 +14521,25 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                     #endif
                             neededState = SERVER_HELLODONE_COMPLETE;
                     }
+#ifdef WOLFSSL_DTLS13
+
+                if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)
+                    && ssl->handshakeRtxFSM.sendAcks == 1) {
+                    ssl->handshakeRtxFSM.sendAcks = 0;
+                    /* we aren't negotiated the version yet, so we aren't sure
+                       the other end can speak v1.3. On the other side we have
+                       received a unified records, assuming that the ServerHello
+                       got lost, we will send an empty ACK. In case the server
+                       is a DTLS with version less than 1.3, it shoudl just
+                       ignore the message */
+                    if ((ssl->error = SendDtls13Ack(ssl)) < 0) {
+                        WOLFSSL_ERROR(ssl->error);
+                        return WOLFSSL_FATAL_ERROR;
+                    }
+                }
+
+
+#endif /* WOLFSSL_DTLS13 */
             }
 
             ssl->options.connectState = HELLO_AGAIN;
@@ -14660,6 +14692,12 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             ssl->options.connectState = FINISHED_DONE;
             WOLFSSL_MSG("connect state: FINISHED_DONE");
             FALL_THROUGH;
+
+#ifdef WOLFSSL_DTLS13
+        case WAIT_FINISHED_ACK:
+            ssl->options.connectState = FINISHED_DONE;
+            FALL_THROUGH;
+#endif /* WOLFSSL_DTLS13 */
 
         case FINISHED_DONE :
             /* get response */
