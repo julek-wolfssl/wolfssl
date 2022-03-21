@@ -9472,7 +9472,9 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 
 #ifdef WOLFSSL_DTLS
-    if (IsDtlsNotSctpMode(ssl)) {
+    /* DTLSv1.3 MUST check window after deprotecting to avoid timing channel
+       (draft43 Section 4.5.1) */
+    if (IsDtlsNotSctpMode(ssl) && !IsAtLeastTLSv1_3(ssl->version)) {
         if (!DtlsCheckWindow(ssl) ||
                 (rh->type == application_data && ssl->keys.curEpoch == 0) ||
                 (rh->type == alert && ssl->options.handShakeDone &&
@@ -14748,6 +14750,19 @@ static WC_INLINE int DtlsCheckWindow(WOLFSSL* ssl)
     return _DtlsCheckWindow(ssl, next_hi, next_lo, window);
 }
 
+#ifdef WOLFSSL_DTLS13
+static WC_INLINE int Dtls13CheckWindow(WOLFSSL* ssl)
+{
+    if (ssl->dtls13DecryptEpoch == NULL) {
+        WOLFSSL_MSG("Can't find decrypting Epoch");
+        return 0;
+    }
+
+    return _DtlsCheckWindow(ssl, ssl->dtls13DecryptEpoch->nextPeerSeqNumberHi,
+                            ssl->dtls13DecryptEpoch->nextPeerSeqNumberLo,
+                            ssl->dtls13DecryptEpoch->window);
+}
+#endif /* WOLFSSL_DTLS13 */
 
 #ifdef WOLFSSL_MULTICAST
 static WC_INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
@@ -14889,6 +14904,21 @@ static WC_INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
 
     return _DtlsUpdateWindow(ssl, next_hi, next_lo, window);
 }
+
+#ifdef WOLFSSL_DTLS13
+static WC_INLINE int Dtls13UpdateWindow(WOLFSSL* ssl)
+{
+    if (ssl->dtls13DecryptEpoch == NULL) {
+        WOLFSSL_MSG("Can't find decrypting Epoch");
+        return 0;
+    }
+
+    return _DtlsUpdateWindow(ssl, &ssl->dtls13DecryptEpoch->nextPeerSeqNumberHi,
+                            &ssl->dtls13DecryptEpoch->nextPeerSeqNumberLo,
+                            ssl->dtls13DecryptEpoch->window);
+
+}
+#endif /* WOLFSSL_DTLS13 */
 
 
 int DtlsMsgDrain(WOLFSSL* ssl)
@@ -17491,7 +17521,21 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
             }
 
 #ifdef WOLFSSL_DTLS
-            if (IsDtlsNotSctpMode(ssl)) {
+#ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
+                if(!Dtls13CheckWindow(ssl)) {
+                    /* drop packet */
+                    WOLFSSL_MSG("Dropping DTLS record outside receiving window");
+                    ssl->options.processReply = doProcessInit;
+                    ssl->buffers.inputBuffer.idx =
+                        ssl->buffers.inputBuffer.length;
+
+                    continue;
+                }
+                Dtls13UpdateWindow(ssl);
+            }
+#endif /* WOLFSSL_DTLS13 */
+            if (IsDtlsNotSctpMode(ssl) && !IsAtLeastTLSv1_3(ssl->version)) {
                 DtlsUpdateWindow(ssl);
             }
 #endif /* WOLFSSL_DTLS */
