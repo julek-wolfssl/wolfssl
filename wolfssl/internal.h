@@ -4443,6 +4443,11 @@ struct WOLFSSL {
                                         * (selected profiles - up to 16) */
     word16         dtlsSrtpId;         /* DTLS-with-SRTP profile ID selected */
 #endif
+#ifdef WOLFSSL_DTLS13
+    Ciphers dtlsRecordNumberEncrypt;
+    Ciphers dtlsRecordNumberDecrypt;
+#endif /* WOLFSSL_DTLS13 */
+
 #endif /* WOLFSSL_DTLS */
 #ifdef WOLFSSL_CALLBACKS
     TimeoutInfo     timeoutInfo;        /* info saved during handshake */
@@ -5195,6 +5200,8 @@ WOLFSSL_LOCAL void Dtls13DoLegacyVersion(WOLFSSL *ssl, ProtocolVersion *pv,
                                          int *wantDowngrade);
 
 WOLFSSL_LOCAL int Dtls13DeriveSnKeys(WOLFSSL *ssl, int provision);
+WOLFSSL_LOCAL int Dtls13SetRecordNumberKeys(
+    WOLFSSL *ssl, enum encrypt_side side);
 
 #endif /* WOLFSSL_DTLS13 */
 #ifdef WOLFSSL_STATIC_EPHEMERAL

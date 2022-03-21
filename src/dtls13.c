@@ -27,8 +27,10 @@
 
 #ifdef WOLFSSL_DTLS13
 
+#include <wolfssl/error-ssl.h>
 #include <wolfssl/ssl.h>
 #include <wolfssl/internal.h>
+#include <wolfssl/wolfcrypt/aes.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -128,6 +130,97 @@ int Dtls13DeriveSnKeys(WOLFSSL *ssl, int provision)
 
 end:
     ForceZero(key_dig, MAX_PRF_DIG);
+    return ret;
+}
+
+static int Dtls13InitAesCipher(WOLFSSL *ssl, Ciphers *cipher)
+{
+    if (cipher->aes == NULL) {
+        cipher->aes =
+            (Aes *)XMALLOC(sizeof(Aes), ssl->heap, DYNAMIC_TYPE_CIPHER);
+        if (cipher->aes == NULL)
+            return MEMORY_E;
+    }
+    else {
+        wc_AesFree(cipher->aes);
+    }
+
+    XMEMSET(cipher->aes, 0, sizeof(*cipher->aes));
+
+    return wc_AesInit(cipher->aes, ssl->heap, INVALID_DEVID);
+}
+
+int Dtls13SetRecordNumberKeys(WOLFSSL *ssl, enum encrypt_side side)
+{
+    Ciphers *enc = NULL;
+    Ciphers *dec = NULL;
+    byte *key;
+    int ret = NOT_COMPILED_IN;
+
+    switch(side) {
+    case ENCRYPT_SIDE_ONLY:
+        enc = &ssl->dtlsRecordNumberEncrypt;
+        break;
+    case DECRYPT_SIDE_ONLY:
+        dec = &ssl->dtlsRecordNumberDecrypt;
+        break;
+    case ENCRYPT_AND_DECRYPT_SIDE:
+        enc = &ssl->dtlsRecordNumberEncrypt;
+        dec = &ssl->dtlsRecordNumberDecrypt;
+        break;
+    }
+
+    /* DTLSv1.3 supposts only AEAD algorithm.  */
+#if defined(BUILD_AESGCM) || defined(HAVE_AESCCM)
+    if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm ||
+        ssl->specs.bulk_cipher_algorithm == wolfssl_aes_ccm) {
+
+        if (enc) {
+            ret = Dtls13InitAesCipher(ssl, enc);
+            if (ret != 0)
+                return ret;
+
+            if (ssl->options.side == WOLFSSL_CLIENT_END)
+                key = ssl->keys.client_sn_key;
+            else
+                key = ssl->keys.server_sn_key;
+
+#ifdef WOLFSSL_DEBUG_TLS
+            WOLFSSL_MSG("Provisioning Record Number enc key:");
+            WOLFSSL_BUFFER(key, ssl->specs.key_size);
+#endif /* WOLFSSL_DEBUG_TLS */
+
+            ret = wc_AesSetKey(
+                enc->aes, key, ssl->specs.key_size, NULL, AES_ENCRYPTION);
+            if (ret != 0)
+                return ret;
+        }
+
+        if (dec) {
+            ret = Dtls13InitAesCipher(ssl, dec);
+            if (ret != 0)
+                return ret;
+
+            if (ssl->options.side == WOLFSSL_CLIENT_END)
+                key = ssl->keys.server_sn_key;
+            else
+                key = ssl->keys.client_sn_key;
+
+#ifdef WOLFSSL_DEBUG_TLS
+            WOLFSSL_MSG("Provisioning Record Number dec key:");
+            WOLFSSL_BUFFER(key, ssl->specs.key_size);
+#endif /* WOLFSSL_DEBUG_TLS */
+
+            ret = wc_AesSetKey(
+                dec->aes, key, ssl->specs.key_size, NULL, AES_ENCRYPTION);
+            if (ret != 0)
+                return ret;
+        }
+    }
+#endif
+
+    /* TODO: support chacha based ciphersuite */
+
     return ret;
 }
 
