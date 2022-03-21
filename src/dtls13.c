@@ -289,7 +289,9 @@ static int Dtls13ProcessBufferedMessages(WOLFSSL *ssl)
 
 static int Dtls13NextMessageComplete(WOLFSSL *ssl) {
     return ssl->dtls_rx_msg_list != NULL &&
-        ssl->dtls_rx_msg_list->fragSz == ssl->dtls_rx_msg_list->sz;
+           ssl->dtls_rx_msg_list->fragSz == ssl->dtls_rx_msg_list->sz &&
+           ssl->dtls_rx_msg_list->seq ==
+               ssl->keys.dtls_expected_peer_handshake_number;
 }
 
 static inline int FragIsInOutputBuffer(WOLFSSL *ssl, const byte *frag)
@@ -1097,6 +1099,7 @@ int Dtls13HandshakeRecv(WOLFSSL *ssl, byte *input, word32 size,
                         word32 *processedSize)
 {
     word32 frag_off, frag_length;
+    byte isComplete, isFirst;
     word32 message_length;
     byte handshake_type;
     Dtls13RtxFSM *fsm;
@@ -1129,7 +1132,25 @@ int Dtls13HandshakeRecv(WOLFSSL *ssl, byte *input, word32 size,
     if (ret != 0)
         return ret;
 
-    if (frag_off != 0 || frag_length < message_length) {
+    if (ssl->keys.dtls_peer_handshake_number <
+        ssl->keys.dtls_expected_peer_handshake_number) {
+
+#ifdef WOLFSSL_DEBUG_TLS
+        WOLFSSL_MSG(
+            "DTLS1.3 retransmission detected - discard and schedule a rtx");
+#endif /* WOLFSSL_DEBUG_TLS */
+
+        /* ignore the message */
+        *processedSize = idx + frag_length + ssl->keys.padSz;
+
+        return 0;
+    }
+
+    isFirst = frag_off == 0;
+    isComplete = isFirst && frag_length == message_length;
+
+    if (!isComplete || ssl->keys.dtls_peer_handshake_number >
+        ssl->keys.dtls_expected_peer_handshake_number) {
         DtlsMsgStore(ssl, ssl->keys.curEpoch,
             ssl->keys.dtls_peer_handshake_number,
             input + DTLS_HANDSHAKE_HEADER_SZ, message_length, handshake_type,
@@ -1145,10 +1166,6 @@ int Dtls13HandshakeRecv(WOLFSSL *ssl, byte *input, word32 size,
         return 0;
     }
 
-    if (ssl->keys.dtls_peer_handshake_number !=
-        ssl->keys.dtls_expected_peer_handshake_number)
-        return WOLFSSL_NOT_IMPLEMENTED;
-
     ssl->keys.dtls_expected_peer_handshake_number++;
 
     ret = DoTls13HandShakeMsgType(
@@ -1157,6 +1174,10 @@ int Dtls13HandshakeRecv(WOLFSSL *ssl, byte *input, word32 size,
         return ret;
 
     *processedSize = idx;
+
+    /* check if we have buffered some message */
+    if (Dtls13NextMessageComplete(ssl))
+        return Dtls13ProcessBufferedMessages(ssl);
 
     return 0;
 }
