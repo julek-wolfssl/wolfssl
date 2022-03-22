@@ -1701,7 +1701,12 @@ static WC_INLINE void WriteSEQTls13(WOLFSSL* ssl, int verifyOrder, byte* out)
 {
     word32 seq[2] = {0, 0};
 
-    if (verifyOrder) {
+    if (ssl->options.dtls) {
+#ifdef WOLFSSL_DTLS13
+        Dtls13GetSeq(ssl, verifyOrder, seq, 1);
+#endif /* WOLFSSL_DTLS13 */
+    }
+    else if (verifyOrder) {
         seq[0] = ssl->keys.peer_sequence_number_hi;
         seq[1] = ssl->keys.peer_sequence_number_lo++;
         /* handle rollover */

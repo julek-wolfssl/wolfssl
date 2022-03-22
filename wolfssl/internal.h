@@ -5266,6 +5266,8 @@ WOLFSSL_LOCAL word32 nid2oid(int nid, int grp);
 
 WOLFSSL_LOCAL struct Dtls13Epoch *Dtls13GetEpoch(WOLFSSL *ssl, word32 epochNumber);
 WOLFSSL_LOCAL int Dtls13NewEpoch(WOLFSSL *ssl, word32 epochNumber, int side);
+WOLFSSL_LOCAL int Dtls13GetSeq(
+    WOLFSSL *ssl, int order, word32 seq[2], byte increment);
 WOLFSSL_LOCAL int Dtls13SetEpochKeys(
     WOLFSSL *ssl, int epochNumber, enum encrypt_side side);
 
