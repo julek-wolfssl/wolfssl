@@ -1016,6 +1016,44 @@ static WC_INLINE void Dtls13MakeRN(
 
 #define DTLS13_MIN_RTX_INTERVAL 1
 
+static void Dtls13RtxMoveToEndOfList(Dtls13RtxRecord **listPtr,
+                                     Dtls13RtxRecord *r)
+{
+    Dtls13RtxRecord *list;
+
+    list = *listPtr;
+
+    /* already at the end */
+    if (r->next == NULL)
+      return;
+
+    /* at the head */
+    if (list == r) {
+
+        while(list->next != NULL)
+            list = list->next;
+
+        list->next = r;
+        *listPtr = r->next;
+        r->next = NULL;
+        return;
+    }
+
+    while(list != NULL && list->next != r)
+        list = list->next;
+
+    /* should never happen */
+    if (list == NULL)
+        return;
+
+    list->next = r->next;
+    while (list->next != NULL)
+        list = list->next;
+
+    list->next = r;
+    r->next = NULL;
+}
+
 static int Dtls13RtxSendBuffered(WOLFSSL *ssl, Dtls13RtxFSM *fsm)
 {
     word16 headerLength;
@@ -1068,7 +1106,7 @@ static int Dtls13RtxSendBuffered(WOLFSSL *ssl, Dtls13RtxFSM *fsm)
 
         ret = Dtls13SendFragment(
             ssl, output, sendSz, r->length + headerLength, r->handshakeType, 0);
-        if (ret != 0)
+        if (ret != 0 && ret != WANT_WRITE)
             return ret;
 
         if (r->rnIdx >= DTLS13_RETRANS_RN_SIZE)
@@ -1077,6 +1115,13 @@ static int Dtls13RtxSendBuffered(WOLFSSL *ssl, Dtls13RtxFSM *fsm)
         r->rn[r->rnIdx][0] = newRn[0];
         r->rn[r->rnIdx][1] = newRn[1];
         r->rnIdx++;
+
+        if (ret == WANT_WRITE) {
+            /* this fragment will be sent eventually. Move it to the end of the
+               list so next time we start with a new one. */
+            Dtls13RtxMoveToEndOfList(&fsm->rtxRecords, r);
+            return ret;
+        }
 
         r = r->next;
     }
@@ -1838,7 +1883,9 @@ int Dtls13DoScheduledWork(WOLFSSL *ssl)
     }
 #endif
 
-    if (ssl->handshakeRtxFSM.sendAcks) {
+    ssl->dtls13SendingAckOrRtx = 1;
+
+   if (ssl->handshakeRtxFSM.sendAcks) {
         ssl->handshakeRtxFSM.sendAcks = 0;
         ret = SendDtls13Ack(ssl);
         if (ret != 0)
@@ -1852,6 +1899,8 @@ int Dtls13DoScheduledWork(WOLFSSL *ssl)
         if (ret != 0)
             return ret;
     }
+
+    ssl->dtls13SendingAckOrRtx = 0;
 
     return 0;
 }
