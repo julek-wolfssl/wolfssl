@@ -2941,7 +2941,7 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 
 #ifdef HAVE_SECURE_RENEGOTIATION
 #ifdef WOLFSSL_DTLS
-    if (ret == 0 && ssl->options.dtls) {
+    if (ret == 0 && ssl->options.dtls && !ssl->options.tls1_3) {
         if (wc_encrypt)
             wc_encrypt->src = keys == &ssl->keys ? KEYS : SCR;
         if (wc_decrypt)
