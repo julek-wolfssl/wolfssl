@@ -1,0 +1,53 @@
+#!/bin/bash
+
+set -e
+
+WOLFSSL_ROOT=$(pwd)
+UDP_PROXY_PATH=$WOLFSSL_ROOT/../udp-proxy/udp_proxy
+PROXY_PORT=12345
+SERVER_PORT=11111
+
+
+echo > /tmp/serr
+echo > /tmp/cerr
+echo > /tmp/udp
+
+(killall udp_proxy || true)
+(killall lt-server || true)
+(killall lt-client || true)
+
+# $WOLFSSL_ROOT/tests/unit.test tests/test-dtls13.conf
+
+for i in $(seq 0 11);do
+    echo -e "\ndropping packet $i\n" | tee -a /tmp/serr | tee -a /tmp/cerr | tee -a /tmp/udp
+    $UDP_PROXY_PATH -p $PROXY_PORT -s 127.0.0.1:$SERVER_PORT -f $i >>/tmp/udp &
+    UDP_PROXY_PID=$!
+    $WOLFSSL_ROOT/examples/server/server -v4 -u -Ta 2>>/tmp/serr &
+    SERVER_PID=$!
+    sleep 0.2
+    now=$(date +%s.%N)
+    $WOLFSSL_ROOT/examples/client/client -v4 -u -p12345 2>>/tmp/cerr
+    elapsed=$(echo $(date +%s.%N) - $now | bc)
+    echo "It tooks ${elapsed} sec(s)" >> /tmp/udp
+    wait $SERVER_PID
+    kill $UDP_PROXY_PID
+done
+
+
+echo -e "\nTesting WANT_WRITE\n" | tee -a /tmp/serr | tee -a /tmp/cerr | tee -a /tmp/udp
+
+# dropping last ack would be client error as wolfssl_read doesn't support WANT_WRITE as returned error
+for i in $(seq 0 10);do
+    echo -e "\ndropping packet $i\n" | tee -a /tmp/serr | tee -a /tmp/cerr | tee -a /tmp/udp
+    $UDP_PROXY_PATH -p $PROXY_PORT -s 127.0.0.1:$SERVER_PORT -f $i >>/tmp/udp &
+    UDP_PROXY_PID=$!
+    $WOLFSSL_ROOT/examples/server/server -v4 -u -Ta -6 2>>/tmp/serr &
+    SERVER_PID=$!
+    sleep 0.2
+    now=$(date +%s.%N)
+    $WOLFSSL_ROOT/examples/client/client -v4 -u -p12345 -6 2>>/tmp/cerr
+    elapsed=$(echo $(date +%s.%N) - $now | bc)
+    echo "It tooks ${elapsed} sec(s)" >> /tmp/udp
+    wait $SERVER_PID
+    kill $UDP_PROXY_PID
+done
