@@ -4258,6 +4258,7 @@ typedef enum EarlyDataState {
 #endif
 
 #ifdef WOLFSSL_DTLS13
+
 typedef struct Dtls13UnifiedHdrInfo {
     word16 recordLength;
     word16 headerLength;
@@ -4266,6 +4267,43 @@ typedef struct Dtls13UnifiedHdrInfo {
     byte seqHiPresent:1;
     byte epochBits;
 } Dtls13UnifiedHdrInfo;
+
+enum  {
+    DTLS13_EPOCH_EARLYDATA = 1,
+    DTLS13_EPOCH_HANDSHAKE = 2,
+    DTLS13_EPOCH_TRAFFIC0 = 3
+};
+
+typedef struct Dtls13Epoch {
+    word32 epochNumber;
+
+    word16 nextSeqNumberHi;
+    word32 nextSeqNumberLo;
+
+    word16 nextPeerSeqNumberHi;
+    word32 nextPeerSeqNumberLo;
+
+    word32 window[WOLFSSL_DTLS_WINDOW_WORDS];
+
+    /* key material for the epoch */
+    byte client_write_key[MAX_SYM_KEY_SIZE];
+    byte server_write_key[MAX_SYM_KEY_SIZE];
+    byte client_write_IV[MAX_WRITE_IV_SZ];
+    byte server_write_IV[MAX_WRITE_IV_SZ];
+
+    byte aead_exp_IV[AEAD_MAX_EXP_SZ];
+    byte aead_enc_imp_IV[AEAD_MAX_IMP_SZ];
+    byte aead_dec_imp_IV[AEAD_MAX_IMP_SZ];
+
+    byte client_sn_key[MAX_SYM_KEY_SIZE];
+    byte server_sn_key[MAX_SYM_KEY_SIZE];
+
+    byte isValid;
+    byte side;
+} Dtls13Epoch;
+
+#define DTLS13_EPOCH_SIZE 3
+
 #endif /* WOLFSSL_DTLS13 */
 
     /* wolfSSL ssl type */
@@ -4459,6 +4497,11 @@ typedef struct Dtls13UnifiedHdrInfo {
 #ifdef WOLFSSL_DTLS13
     Ciphers dtlsRecordNumberEncrypt;
     Ciphers dtlsRecordNumberDecrypt;
+    Dtls13Epoch dtls13Epochs[DTLS13_EPOCH_SIZE];
+    Dtls13Epoch *dtls13EncryptEpoch;
+    Dtls13Epoch *dtls13DecryptEpoch;
+    word32 dtls13Epoch;
+    word32 dtls13PeerEpoch;
 
     word16 dtls13CurRlLength;
 
@@ -4468,6 +4511,7 @@ typedef struct Dtls13UnifiedHdrInfo {
     word32 dtls13MessageLength;
     word32 dtls13FragOffset;
     byte dtls13FragHandshakeType;
+
 #endif /* WOLFSSL_DTLS13 */
 #endif /* WOLFSSL_DTLS */
 #ifdef WOLFSSL_CALLBACKS
@@ -5219,6 +5263,11 @@ WOLFSSL_LOCAL word32 nid2oid(int nid, int grp);
 #endif
 
 #ifdef WOLFSSL_DTLS13
+
+WOLFSSL_LOCAL struct Dtls13Epoch *Dtls13GetEpoch(WOLFSSL *ssl, word32 epochNumber);
+WOLFSSL_LOCAL int Dtls13NewEpoch(WOLFSSL *ssl, word32 epochNumber, int side);
+WOLFSSL_LOCAL int Dtls13SetEpochKeys(
+    WOLFSSL *ssl, int epochNumber, enum encrypt_side side);
 
 WOLFSSL_LOCAL void Dtls13DoLegacyVersion(WOLFSSL *ssl, ProtocolVersion *pv,
                                          int *wantDowngrade);

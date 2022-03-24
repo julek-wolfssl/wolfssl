@@ -8509,6 +8509,24 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         #endif
                 if ((ret = SetKeysSide(ssl, ENCRYPT_AND_DECRYPT_SIDE)) != 0)
                     return ret;
+
+#ifdef WOLFSSL_DTLS13
+                if (ssl->options.dtls) {
+                    ssl->dtls13Epoch = DTLS13_EPOCH_HANDSHAKE;
+                    ssl->dtls13PeerEpoch = DTLS13_EPOCH_HANDSHAKE;
+
+                    ret = Dtls13NewEpoch(
+                        ssl, DTLS13_EPOCH_HANDSHAKE, ENCRYPT_AND_DECRYPT_SIDE);
+                    if (ret != 0)
+                        return ret;
+
+                    ret = Dtls13SetEpochKeys(
+                        ssl, DTLS13_EPOCH_HANDSHAKE, ENCRYPT_AND_DECRYPT_SIDE);
+                    if (ret != 0)
+                        return ret;
+
+                }
+#endif /* WOLFSSL_DTLS13 */
             }
 
             if (type == finished) {

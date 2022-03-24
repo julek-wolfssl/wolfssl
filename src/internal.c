@@ -6724,6 +6724,15 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
+
+#ifdef WOLFSSL_DTLS13
+    /* setup 0 (un-protected) epoch */
+    ssl->dtls13Epochs[0].isValid = 1;
+    ssl->dtls13Epochs[0].side = ENCRYPT_AND_DECRYPT_SIDE;
+    ssl->dtls13EncryptEpoch = &ssl->dtls13Epochs[0];
+    ssl->dtls13DecryptEpoch = &ssl->dtls13Epochs[0];
+#endif /* WOLFSSL_DTLS13 */
+
     return 0;
 }
 
@@ -19902,6 +19911,22 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 #ifdef HAVE_LIBZ
         byte  comp[MAX_RECORD_SIZE + MAX_COMP_EXTRA];
 #endif
+
+#ifdef WOLFSSL_DTLS13
+        if (ssl->options.dtls && ssl->options.tls1_3) {
+            if (ssl->dtls13EncryptEpoch == NULL)
+                return ssl->error = BAD_STATE_E;
+
+            if (ssl->dtls13EncryptEpoch->epochNumber != ssl->dtls13Epoch) {
+                ret = Dtls13SetEpochKeys(
+                    ssl, ssl->dtls13Epoch, ENCRYPT_SIDE_ONLY);
+                if (ret != 0) {
+                    ssl->error = BUILD_MSG_ERROR;
+                    return WOLFSSL_FATAL_ERROR;
+                }
+            }
+        }
+#endif /* WOLFSSL_DTLS13 */
 
 #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls) {

@@ -475,19 +475,26 @@ static int Dtls13SendFragmented(WOLFSSL *ssl, byte *message, word16 length,
 int Dtls13RlAddCiphertextHeader(WOLFSSL *ssl, byte *out, size_t length)
 {
     Dtls13RecordCiphertextHeader *hdr;
+    word16 seqNumber;
+
+    if (out == NULL)
+        return BAD_FUNC_ARG;
+
+    if (ssl->dtls13EncryptEpoch == NULL)
+        return BAD_STATE_E;
 
     hdr = (Dtls13RecordCiphertextHeader *)out;
 
     hdr->unifiedHdrFlags = DTLS13_FIXED_BITS;
-    hdr->unifiedHdrFlags |= (ssl->keys.dtls_epoch & EE_MASK);
+    hdr->unifiedHdrFlags |= (ssl->dtls13EncryptEpoch->epochNumber & EE_MASK);
 
     /* include 16-bit seq */
     hdr->unifiedHdrFlags |= DTLS13_S_BIT;
     /* include 16-bit length */
     hdr->unifiedHdrFlags |= DTLS13_L_BIT;
 
-    hdr->sequenceNumber[0] = (ssl->keys.dtls_sequence_number_lo >> 16) & 0xff;
-    hdr->sequenceNumber[1] = ssl->keys.dtls_sequence_number_lo & 0xff;
+    seqNumber = (word16)(ssl->dtls13EncryptEpoch->nextSeqNumberLo);
+    c16toa(seqNumber, hdr->sequenceNumber);
 
     c16toa(length, hdr->length);
 
@@ -841,6 +848,16 @@ int Dtls13HandshakeSend(WOLFSSL *ssl, byte *message, word16 outputSize,
     int maxLen;
     int ret;
 
+    if (ssl->dtls13EncryptEpoch == NULL)
+        return BAD_STATE_E;
+
+    /* we want to send always with the highest epoch  */
+    if (ssl->dtls13EncryptEpoch->epochNumber != ssl->dtls13Epoch) {
+        ret = Dtls13SetEpochKeys(ssl, ssl->dtls13Epoch, ENCRYPT_SIDE_ONLY);
+        if (ret != 0)
+            return ret;
+    }
+
     maxFrag = wolfSSL_GetMaxFragSize(ssl, MAX_RECORD_SIZE);
     maxLen = length;
 
@@ -916,6 +933,225 @@ static int Dtls13InitAesCipher(WOLFSSL *ssl, Ciphers *cipher)
     XMEMSET(cipher->aes, 0, sizeof(*cipher->aes));
 
     return wc_AesInit(cipher->aes, ssl->heap, INVALID_DEVID);
+}
+
+struct Dtls13Epoch *Dtls13GetEpoch(WOLFSSL *ssl, word32 epochNumber)
+{
+    Dtls13Epoch *e;
+    int i;
+
+    for (i = 0; i < DTLS13_EPOCH_SIZE; ++i) {
+        e = &ssl->dtls13Epochs[i];
+        if (e->epochNumber == epochNumber && e->isValid)
+            return e;
+    }
+
+    return NULL;
+}
+
+/* FIXME: copy only one side */
+static void Dtls13EpochCopyKeys(WOLFSSL *ssl, Dtls13Epoch *e, Keys *k, int side)
+{
+    byte clientWrite, serverWrite;
+    byte enc, dec;
+
+    WOLFSSL_ENTER("Dtls13SetEpochKeys");
+
+    clientWrite = serverWrite = 0;
+    enc = dec = 0;
+    switch (side) {
+
+    case ENCRYPT_SIDE_ONLY:
+        if (ssl->options.side == WOLFSSL_CLIENT_END)
+            clientWrite = 1;
+        if (ssl->options.side == WOLFSSL_SERVER_END)
+            serverWrite = 1;
+        enc = 1;
+        break;
+
+    case DECRYPT_SIDE_ONLY:
+        if (ssl->options.side == WOLFSSL_CLIENT_END)
+            serverWrite = 1;
+        if (ssl->options.side == WOLFSSL_SERVER_END)
+            clientWrite = 1;
+        dec = 1;
+        break;
+
+    case ENCRYPT_AND_DECRYPT_SIDE:
+        clientWrite = serverWrite = 1;
+        enc = dec = 1;
+        break;
+    }
+
+    if (clientWrite) {
+        XMEMCPY(e->client_write_key, k->client_write_key,
+            sizeof(e->client_write_key));
+
+        XMEMCPY(
+            e->client_write_IV, k->client_write_IV, sizeof(e->client_write_IV));
+
+        XMEMCPY(e->client_sn_key, k->client_sn_key, sizeof(e->client_sn_key));
+    }
+
+    if (serverWrite) {
+        XMEMCPY(e->server_write_key, k->server_write_key,
+            sizeof(e->server_write_key));
+        XMEMCPY(
+            e->server_write_IV, k->server_write_IV, sizeof(e->server_write_IV));
+        XMEMCPY(e->server_sn_key, k->server_sn_key, sizeof(e->server_sn_key));
+    }
+
+    /* FIXME:  */
+    /* XMEMCPY(e->aead_exp_IV, k->aead_exp_IV, */
+    /*         sizeof(e->aead_exp_IV)); */
+    if (enc)
+        XMEMCPY(
+            e->aead_enc_imp_IV, k->aead_enc_imp_IV, sizeof(e->aead_enc_imp_IV));
+
+    if (dec)
+        XMEMCPY(
+            e->aead_dec_imp_IV, k->aead_dec_imp_IV, sizeof(e->aead_dec_imp_IV));
+}
+
+static Dtls13Epoch *Dtls13NewEpochSlot(WOLFSSL *ssl)
+{
+    Dtls13Epoch *e, *oldest = NULL;
+    word32 oldestNumber;
+    byte found = 0;
+    int i;
+
+    /* if epochs[0] is not valid, it will be the chosen slot */
+    oldestNumber = ssl->dtls13Epochs[0].epochNumber;
+    oldest = &ssl->dtls13Epochs[0];
+
+    for (i = 0; i < DTLS13_EPOCH_SIZE; ++i) {
+        e = &ssl->dtls13Epochs[i];
+        if (!e->isValid) {
+            found = 1;
+            break;
+        }
+
+        if (e->epochNumber != ssl->dtls13Epoch && e->epochNumber < oldestNumber)
+            oldest = e;
+    }
+
+    if (!found) {
+        e = oldest;
+        XMEMSET(e, 0, sizeof(*e));
+    }
+
+    return e;
+}
+
+int Dtls13NewEpoch(WOLFSSL *ssl, word32 epochNumber, int side)
+{
+    Dtls13Epoch *e;
+
+    WOLFSSL_ENTER("Dtls13NewEpoch");
+
+    e = Dtls13GetEpoch(ssl, epochNumber);
+    if (e == NULL) {
+        e = Dtls13NewEpochSlot(ssl);
+        if (e == NULL)
+            return BAD_STATE_E;
+    }
+
+    Dtls13EpochCopyKeys(ssl, e, &ssl->keys, side);
+
+    if (!e->isValid) {
+        e->epochNumber = epochNumber;
+        e->isValid = 1;
+        e->side = side;
+    }
+    else if (e->side != side) {
+        e->side = ENCRYPT_AND_DECRYPT_SIDE;
+    }
+
+    return 0;
+}
+
+int Dtls13SetEpochKeys(WOLFSSL *ssl, int epochNumber, enum encrypt_side side)
+{
+    byte clientWrite, serverWrite;
+    Dtls13Epoch *e;
+    byte enc, dec;
+
+    WOLFSSL_ENTER("Dtls13SetEpochKeys");
+
+    clientWrite = serverWrite = 0;
+    enc = dec = 0;
+    switch (side) {
+
+    case ENCRYPT_SIDE_ONLY:
+        if (ssl->options.side == WOLFSSL_CLIENT_END)
+            clientWrite = 1;
+        if (ssl->options.side == WOLFSSL_SERVER_END)
+            serverWrite = 1;
+        enc = 1;
+        break;
+
+    case DECRYPT_SIDE_ONLY:
+        if (ssl->options.side == WOLFSSL_CLIENT_END)
+            serverWrite = 1;
+        if (ssl->options.side == WOLFSSL_SERVER_END)
+            clientWrite = 1;
+        dec = 1;
+        break;
+
+    case ENCRYPT_AND_DECRYPT_SIDE:
+        clientWrite = serverWrite = 1;
+        enc = dec = 1;
+        break;
+    }
+
+
+    e = Dtls13GetEpoch(ssl, epochNumber);
+    /* we don't have the requested key */
+    if (e == NULL)
+        return BAD_STATE_E;
+
+    if (e->side != ENCRYPT_AND_DECRYPT_SIDE && e->side != side)
+        return BAD_STATE_E;
+
+    if (enc)
+        ssl->dtls13EncryptEpoch = e;
+    if (dec)
+        ssl->dtls13DecryptEpoch = e;
+
+    /* epoch 0 has no key to copy */
+    if (epochNumber == 0)
+        return 0;
+
+    if (clientWrite) {
+        XMEMCPY(ssl->keys.client_write_key, e->client_write_key,
+            sizeof(ssl->keys.client_write_key));
+
+        XMEMCPY(ssl->keys.client_write_IV, e->client_write_IV,
+            sizeof(ssl->keys.client_write_IV));
+
+        XMEMCPY(ssl->keys.client_sn_key, e->client_sn_key,
+            sizeof(ssl->keys.client_sn_key));
+    }
+
+    if (serverWrite) {
+        XMEMCPY(ssl->keys.server_write_key, e->server_write_key,
+            sizeof(ssl->keys.server_write_key));
+
+        XMEMCPY(ssl->keys.server_write_IV, e->server_write_IV,
+            sizeof(ssl->keys.server_write_IV));
+
+        XMEMCPY(ssl->keys.server_sn_key, e->server_sn_key,
+            sizeof(ssl->keys.server_sn_key));
+    }
+
+    if (enc)
+        XMEMCPY(ssl->keys.aead_enc_imp_IV, e->aead_enc_imp_IV,
+            sizeof(ssl->keys.aead_enc_imp_IV));
+    if (dec)
+        XMEMCPY(ssl->keys.aead_dec_imp_IV, e->aead_dec_imp_IV,
+            sizeof(ssl->keys.aead_dec_imp_IV));
+
+    return SetKeysSide(ssl, side);
 }
 
 int Dtls13SetRecordNumberKeys(WOLFSSL *ssl, enum encrypt_side side)
