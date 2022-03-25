@@ -17236,6 +17236,11 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
         /* get the record layer header */
         case getRecordLayerHeader:
 
+            /* DTLSv1.3 record numbers in the header are encrypted, and AAD
+               uses the unecrypted form. Because of this we need to modify the
+               header, decrypting the numbers inside
+               DtlsParseUnifiedRecordLayer(). This violates the const attribute
+               of the buffer parameter of GetRecordHeader() used here. */
             ret = GetRecordHeader(ssl, ssl->buffers.inputBuffer.buffer,
                                        &ssl->buffers.inputBuffer.idx,
                                        &ssl->curRL, &ssl->curSize);
@@ -17676,11 +17681,24 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                     /* debugging in DoHandShakeMsg */
                     if (ssl->options.dtls) {
 #ifdef WOLFSSL_DTLS
-                        ret = DoDtlsHandShakeMsg(ssl,
-                                            ssl->buffers.inputBuffer.buffer,
-                                            &ssl->buffers.inputBuffer.idx,
-                                            ssl->buffers.inputBuffer.length);
+                        if (!IsAtLeastTLSv1_3(ssl->version)) {
+                                ret = DoDtlsHandShakeMsg(ssl,
+                                                         ssl->buffers.inputBuffer.buffer,
+                                                         &ssl->buffers.inputBuffer.idx,
+                                                         ssl->buffers.inputBuffer.length);
+                        }
 #endif
+#ifdef WOLFSSL_DTLS13
+                        if (IsAtLeastTLSv1_3(ssl->version)) {
+                            word32 processed_size = 0;
+                            ret = Dtls13HandshakeRecv(ssl, ssl->buffers.inputBuffer.buffer +
+                                                      ssl->buffers.inputBuffer.idx,
+                                                      ssl->buffers.inputBuffer.length -
+                                                      ssl->buffers.inputBuffer.idx -
+                                                      ssl->keys.padSz, &processed_size);
+                            ssl->buffers.inputBuffer.idx += processed_size;
+                        }
+#endif /* WOLFSSL_DTLS13 */
                     }
                     else if (!IsAtLeastTLSv1_3(ssl->version)
 #if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12)
