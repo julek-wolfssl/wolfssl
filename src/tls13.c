@@ -3096,6 +3096,16 @@ static int WritePSKBinders(WOLFSSL* ssl, byte* output, word32 idx)
             return ret;
         if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
             return ret;
+
+#ifdef WOLFSSL_DTLS13
+        if (ssl->options.dtls) {
+            ret = Dtls13NewEpoch(
+                ssl, DTLS13_EPOCH_EARLYDATA, ENCRYPT_SIDE_ONLY);
+            if (ret != 0)
+                return ret;
+        }
+#endif /* WOLFSSL_DTLS13 */
+
     }
     #endif
 
@@ -4440,6 +4450,15 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
                     return ret;
                 if ((ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY)) != 0)
                     return ret;
+
+#ifdef WOLFSSL_DTLS13
+                if (ssl->options.dtls) {
+                    ret = Dtls13NewEpoch(
+                        ssl, DTLS13_EPOCH_EARLYDATA, DECRYPT_SIDE_ONLY);
+                    if (ret != 0)
+                        return ret;
+                }
+#endif /* WOLFSSL_DTLS13 */
 
                 ssl->earlyData = process_early_data;
             }
@@ -7394,7 +7413,15 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 #endif
 
-    WOLFSSL_LEAVE("DoTls13Finished", 0);
+#if defined(WOLFSSL_DTLS13) && defined(WOLFSSL_EARLY_DATA)
+    if (ssl->options.dtls && ssl->earlyData != no_early_data) {
+        /* DTLSv1.3 has no EndOfearlydata messages. We stop processing EarlyData
+           as soon we receive the client's finished message */
+        ssl->earlyData = done_early_data;
+    }
+#endif /* WOLFSSL_DTLS13 && WOLFSSL_EARLY_DATA */
+
+        WOLFSSL_LEAVE ("DoTls13Finished", 0);
     WOLFSSL_END(WC_FUNC_FINISHED_DO);
 
     return 0;
@@ -8563,7 +8590,9 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
                     return OUT_OF_ORDER_E;
                 }
             #ifdef WOLFSSL_EARLY_DATA
-                if (ssl->earlyData == process_early_data) {
+                if (ssl->earlyData == process_early_data &&
+                    /* early data may be lost when using DTLS */
+                    !ssl->options.dtls) {
                     return OUT_OF_ORDER_E;
                 }
             #endif
@@ -10605,8 +10634,19 @@ int wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz, int* outSz)
         ret = ReceiveData(ssl, (byte*)data, sz, FALSE);
         if (ret > 0)
             *outSz = ret;
-        if (ssl->error == ZERO_RETURN)
+        if (ssl->error == ZERO_RETURN) {
             ssl->error = WOLFSSL_ERROR_NONE;
+#ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls) {
+                ret = Dtls13DoScheduledWork(ssl);
+                if (ret  < 0) {
+                    ssl->error = ret;
+                    WOLFSSL_ERROR(ssl->error);
+                    return WOLFSSL_FATAL_ERROR;
+                }
+            }
+#endif /* WOLFSSL_DTLS13 */
+        }
     }
     else
         ret = 0;

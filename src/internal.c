@@ -9474,6 +9474,13 @@ static int GetDtls13RecordHeader(WOLFSSL *ssl, const byte *input,
     if (ssl->dtls13DecryptEpoch == NULL)
         return BAD_STATE_E;
 
+#ifdef WOLFSSL_EARLY_DATA
+    if (epochNumber == DTLS13_EPOCH_EARLYDATA && ssl->options.handShakeDone) {
+        WOLFSSL_MSG("discarding early data after handshake");
+        return SEQUENCE_ERROR;
+    }
+#endif /* WOLFSSL_DTLS13 */
+
     if (ssl->dtls13DecryptEpoch->epochNumber != epochNumber) {
         ret = Dtls13SetEpochKeys(ssl, epochNumber, DECRYPT_SIDE_ONLY);
         if (ret != 0)
@@ -17752,6 +17759,21 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                                       ssl->buffers.inputBuffer.idx -
                                                       ssl->keys.padSz, &processed_size);
                             ssl->buffers.inputBuffer.idx += processed_size;
+#ifdef WOLFSSL_EARLY_DATA
+                            if (ret == 0 &&
+                                ssl->options.side == WOLFSSL_SERVER_END &&
+                                ssl->earlyData > early_data_ext &&
+                                ssl->options.handShakeState == HANDSHAKE_DONE) {
+
+                                /* return so wolfSSL_read_early_data can return
+                                   exit */
+                                ssl->earlyData = no_early_data;
+                                ssl->options.processReply = doProcessInit;
+
+                                return ZERO_RETURN;
+                            }
+#endif /* WOLFSSL_EARLY_DATA */
+
                         }
 #endif /* WOLFSSL_DTLS13 */
                     }
@@ -20193,10 +20215,29 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 
 #ifdef WOLFSSL_DTLS13
         if (ssl->options.dtls && ssl->options.tls1_3) {
+            byte isEarlyData;
+
             if (ssl->dtls13EncryptEpoch == NULL)
                 return ssl->error = BAD_STATE_E;
 
-            if (ssl->dtls13EncryptEpoch->epochNumber != ssl->dtls13Epoch) {
+            isEarlyData = 0;
+#ifdef WOLFSSL_EARLY_DATA
+            isEarlyData = ssl->earlyData != no_early_data;
+#endif
+
+            if (isEarlyData) {
+#ifdef WOLFSSL_EARLY_DATA
+                ret = Dtls13SetEpochKeys(
+                    ssl, DTLS13_EPOCH_EARLYDATA, ENCRYPT_SIDE_ONLY);
+                if (ret != 0) {
+                    WOLFSSL_MSG(
+                        "trying to send early data without epoch 1");
+                    ssl->error = BUILD_MSG_ERROR;
+                    return WOLFSSL_FATAL_ERROR;
+                }
+#endif /* WOLFSSL_EARLY_DATA */
+            }
+            else if (ssl->dtls13EncryptEpoch->epochNumber != ssl->dtls13Epoch) {
                 ret = Dtls13SetEpochKeys(
                     ssl, ssl->dtls13Epoch, ENCRYPT_SIDE_ONLY);
                 if (ret != 0) {
