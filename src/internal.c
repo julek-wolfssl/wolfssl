@@ -17565,6 +17565,15 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 else {
                     WOLFSSL_MSG("Decrypt failed");
                     WOLFSSL_ERROR(ret);
+#ifdef WOLFSSL_DTLS13
+                    if (ssl->options.tls1_3 && ssl->options.dtls) {
+                        WOLFSSL_MSG("DTLS: Ignoring decrypted failed record");
+                        ssl->options.processReply = doProcessInit;
+                        ssl->buffers.inputBuffer.idx =
+                            ssl->buffers.inputBuffer.length;
+                        return 0;
+                    }
+#endif /* WOLFSSL_DTLS13 */
                 #ifdef WOLFSSL_EARLY_DATA
                     if (ssl->options.tls1_3) {
                          if (ssl->options.side == WOLFSSL_SERVER_END &&
