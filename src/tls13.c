@@ -8137,6 +8137,11 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
     WOLFSSL_START(WC_FUNC_NEW_SESSION_TICKET_SEND);
     WOLFSSL_ENTER("SendTls13NewSessionTicket");
 
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls)
+        idx = Dtls13GetRlHeaderLength(1) + DTLS_HANDSHAKE_HEADER_SZ;
+#endif /* WOLFSSL_DTLS13 */
+
 #ifdef WOLFSSL_TLS13_TICKET_BEFORE_FINISHED
     if (!ssl->msgsReceived.got_finished) {
         if ((ret = ExpectedResumptionSecret(ssl)) != 0)
@@ -8221,6 +8226,11 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
 #ifndef NO_SESSION_CACHE
     AddSession(ssl);
 #endif
+
+#ifdef WOLFSSL_DTLS13
+    if (ssl->options.dtls)
+        return Dtls13HandshakeSend(ssl, output, sendSz, idx, session_ticket, 0);
+#endif /* WOLFSSL_DTLS13 */
 
     /* This message is always encrypted. */
     sendSz = BuildTls13Message(ssl, output, sendSz, output + RECORD_HEADER_SZ,
