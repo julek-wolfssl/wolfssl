@@ -8480,7 +8480,7 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
              * Handshake Authentication). */
             if (ssl->options.serverState !=
                                          SERVER_ENCRYPTED_EXTENSIONS_COMPLETE &&
-                       (ssl->options.serverState != SERVER_FINISHED_COMPLETE ||
+                       (ssl->options.serverState < SERVER_FINISHED_COMPLETE ||
                         ssl->options.clientState != CLIENT_FINISHED_COMPLETE)) {
                 WOLFSSL_MSG("CertificateRequest received out of order");
                 return OUT_OF_ORDER_E;
@@ -8591,7 +8591,7 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
         #ifndef NO_WOLFSSL_SERVER
             /* Check state on server. */
             if (ssl->options.side == WOLFSSL_SERVER_END) {
-                if (ssl->options.serverState != SERVER_FINISHED_COMPLETE) {
+                if (ssl->options.serverState < SERVER_FINISHED_COMPLETE) {
                     WOLFSSL_MSG("Finished received out of order - serverState");
                     return OUT_OF_ORDER_E;
                 }
