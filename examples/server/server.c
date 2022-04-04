@@ -548,6 +548,11 @@ static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
         }
         else if (SSL_get_error(ssl, 0) == 0 &&
                             tcp_select(SSL_get_fd(ssl), 0) == TEST_RECV_READY) {
+            err = wolfSSL_peek(ssl, buffer, 0);
+            if(err < 0) {
+                err_sys_ex(runWithErrors, "wolfSSL_peek failed");
+            }
+            if (wolfSSL_pending(ssl))
                 err = WOLFSSL_ERROR_WANT_READ;
         }
     } while (err == WC_PENDING_E || err == WOLFSSL_ERROR_WANT_READ);
