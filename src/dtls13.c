@@ -2079,4 +2079,9 @@ int Dtls13RtxProcessingCertificate(WOLFSSL *ssl, byte *input, word32 inputSize)
     return 0;
 }
 
+byte wolfSSL_dtls_has_pending_msg(WOLFSSL *ssl)
+{
+    return ssl->handshakeRtxFSM.rtxRecords != NULL;
+}
+
 #endif /* WOLFSSL_DTLS13 */

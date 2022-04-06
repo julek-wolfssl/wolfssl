@@ -4079,6 +4079,17 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif
 
+#ifdef WOLFSSL_DTLS13
+            if (wolfSSL_dtls(ssl) && version == -4) {
+                byte foo[0];
+                while(wolfSSL_dtls_has_pending_msg(ssl)) {
+                    err = wolfSSL_peek(ssl, foo, 0);
+                    if (err < 0)
+                        err_sys("wolfSSL_peek failed");
+                }
+            }
+#endif /* WOLFSSL_DTLS13 */
+
     if (dtlsUDP == 0) {           /* don't send alert after "break" command */
         ret = wolfSSL_shutdown(ssl);
         if (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE) {
@@ -4308,6 +4319,17 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
         (void)ClientRead(sslResume, reply, sizeof(reply)-1, sendGET,
                          "Server resume: ", 0);
+
+#ifdef WOLFSSL_DTLS13
+            if (wolfSSL_dtls(ssl) && version == -4) {
+                byte foo[0];
+                while(wolfSSL_dtls_has_pending_msg(ssl)) {
+                    err = wolfSSL_peek(ssl, foo, 0);
+                    if (err < 0)
+                        err_sys("wolfSSL_peek failed");
+                }
+            }
+#endif /* WOLFSSL_DTLS13 */
 
         ret = wolfSSL_shutdown(sslResume);
         if (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE)
