@@ -2797,37 +2797,6 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         }
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
-    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-        if (postHandAuth) {
-            unsigned int verify_flags = 0;
-
-            SSL_set_verify(ssl, WOLFSSL_VERIFY_PEER |
-                                ((usePskPlus) ? WOLFSSL_VERIFY_FAIL_EXCEPT_PSK :
-                                WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT), 0);
-
-        #ifdef TEST_BEFORE_DATE
-            verify_flags |= WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY;
-        #endif
-
-            if (wolfSSL_CTX_load_verify_locations_ex(ctx, verifyCert, 0,
-                                                     verify_flags)
-                                                     != WOLFSSL_SUCCESS) {
-                err_sys_ex(runWithErrors, "can't load ca file, Please run from "
-                                          "wolfSSL home dir");
-            }
-            #ifdef WOLFSSL_TRUST_PEER_CERT
-            if (trustCert) {
-                if (wolfSSL_trust_peer_cert(ssl, trustCert,
-                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
-                    err_sys_ex(runWithErrors, "can't load trusted peer cert "
-                                              "file");
-                }
-            }
-            #endif /* WOLFSSL_TRUST_PEER_CERT */
-       }
-    #endif
-#endif
 
 
 #ifndef NO_HANDSHAKE_DONE_CB
@@ -3307,9 +3276,40 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             if (updateKeysIVs)
                 wolfSSL_update_keys(ssl);
 #endif
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-            if (postHandAuth)
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+            if (postHandAuth) {
+                unsigned int verify_flags = 0;
+
+                SSL_set_verify(ssl, WOLFSSL_VERIFY_PEER |
+                               ((usePskPlus) ? WOLFSSL_VERIFY_FAIL_EXCEPT_PSK :
+                                WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT), 0);
+
+#ifdef TEST_BEFORE_DATE
+                verify_flags |= WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY;
+#endif
+
+                if (wolfSSL_CTX_load_verify_locations_ex(ctx, verifyCert, 0,
+                                                         verify_flags)
+                    != WOLFSSL_SUCCESS) {
+                    err_sys_ex(runWithErrors, "can't load ca file, Please run from "
+                               "wolfSSL home dir");
+                }
+#ifdef WOLFSSL_TRUST_PEER_CERT
+                if (trustCert) {
+                    if (wolfSSL_trust_peer_cert(ssl, trustCert,
+                                                WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+                        err_sys_ex(runWithErrors, "can't load trusted peer cert "
+                                   "file");
+                    }
+                }
+#endif /* WOLFSSL_TRUST_PEER_CERT */
+
                 wolfSSL_request_certificate(ssl);
+            }
+
+    #endif
 #endif
 
             /* Write data */
