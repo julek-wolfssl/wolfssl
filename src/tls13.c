@@ -6801,7 +6801,7 @@ exit_scv:
 static int DoTls13Certificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                               word32 totalSz)
 {
-    int ret;
+    int ret = 0;
 
     WOLFSSL_START(WC_FUNC_CERTIFICATE_DO);
     WOLFSSL_ENTER("DoTls13Certificate");
@@ -6809,12 +6809,13 @@ static int DoTls13Certificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls && ssl->options.handShakeDone) {
         /* certificate needs some special care after the handshake */
-        Dtls13RtxProcessingCertificate(
-            ssl, input + *inOutIdx, totalSz - *inOutIdx);
+        ret = Dtls13RtxProcessingCertificate(
+            ssl, input + *inOutIdx, totalSz);
     }
 #endif /* WOLFSSL_DTLS13 */
 
-    ret = ProcessPeerCerts(ssl, input, inOutIdx, totalSz);
+    if (ret == 0)
+        ret = ProcessPeerCerts(ssl, input, inOutIdx, totalSz);
     if (ret == 0) {
 #if !defined(NO_WOLFSSL_CLIENT)
         if (ssl->options.side == WOLFSSL_CLIENT_END)
