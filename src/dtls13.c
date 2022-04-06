@@ -2040,7 +2040,8 @@ static int Dtls13RtxRecordMatchesReqCtx(
 
 int Dtls13RtxProcessingCertificate(WOLFSSL *ssl, byte *input, word32 inputSize)
 {
-    Dtls13RtxRecord *rtxRecord, *r;
+    Dtls13RtxRecord *rtxRecord = ssl->handshakeRtxFSM.rtxRecords;
+    Dtls13RtxRecord **prev_next = &ssl->handshakeRtxFSM.rtxRecords;
     byte ctxLength;
 
     WOLFSSL_ENTER("Dtls13RtxProcessingCertificate");
@@ -2052,29 +2053,24 @@ int Dtls13RtxProcessingCertificate(WOLFSSL *ssl, byte *input, word32 inputSize)
 
     ctxLength = *input;
 
-    if (inputSize < ctxLength + OPAQUE8_LEN) {
+    if (inputSize < (word32)ctxLength + OPAQUE8_LEN) {
         WOLFSSL_MSG("Malformed Certificate");
         return BAD_FUNC_ARG;
     }
 
-    rtxRecord = ssl->handshakeRtxFSM.rtxRecords;
-
-    if (Dtls13RtxRecordMatchesReqCtx(rtxRecord, input + 1, ctxLength)) {
-        ssl->handshakeRtxFSM.rtxRecords = rtxRecord->next;
-        Dtls13FreeRtxBufferRecord(ssl, rtxRecord);
-        return 0;
-    }
-
-    while(rtxRecord->next != NULL) {
-        if (Dtls13RtxRecordMatchesReqCtx(
-                rtxRecord->next, input + 1, ctxLength)) {
-            r = rtxRecord->next;
-            rtxRecord->next = r->next;
+    while(rtxRecord != NULL) {
+        if (Dtls13RtxRecordMatchesReqCtx(rtxRecord, input + 1, ctxLength)) {
+            *prev_next = rtxRecord->next;
             Dtls13FreeRtxBufferRecord(ssl, rtxRecord);
             return 0;
         }
+        prev_next = &rtxRecord->next;
+        rtxRecord = rtxRecord->next;
     }
 
+    /* This isn't an error since we just can't find a Dtls13RtxRecord that
+     * matches the Request Context. Request Context validity is checked
+     * later. */
     WOLFSSL_MSG("Can't find any previous Certificate Request");
     return 0;
 }
