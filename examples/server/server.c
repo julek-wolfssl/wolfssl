@@ -3307,6 +3307,21 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
                 wolfSSL_request_certificate(ssl);
+
+#if defined(WOLFSSL_DTLS13) && defined(KEEP_PEER_CERT)
+                if (wolfSSL_dtls(ssl) && version == -4) {
+                    WOLFSSL_X509 *cert;
+                    char foo[0];
+                    while ((cert = wolfSSL_get_peer_certificate(ssl)) == NULL) {
+                        if (wolfSSL_peek(ssl, foo, 0) < 0)
+                            err_sys_ex(runWithErrors, "wolfSSL_peek() failed");
+                    }
+
+                    if (cert != NULL)
+                        wolfSSL_X509_free(cert);
+                }
+
+#endif /* WOLFSSL_DTLS13 */
             }
 
     #endif
