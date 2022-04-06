@@ -7373,8 +7373,8 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     WOLFSSL_ENTER("FreeHandshakeResources");
 
 #ifdef WOLFSSL_DTLS
-    /* DTLS_POOL */
-    if (ssl->options.dtls) {
+    /* DTLS_POOL (DTLSv1.3 flushes the queue autonomously) */
+    if (ssl->options.dtls && !IsAtLeastTLSv1_3(ssl->version)) {
         DtlsMsgPoolReset(ssl);
         DtlsMsgListDelete(ssl->dtls_rx_msg_list, ssl->heap);
         ssl->dtls_rx_msg_list = NULL;
