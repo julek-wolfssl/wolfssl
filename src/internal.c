@@ -17317,6 +17317,13 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 ssl->replayDropCount++;
 #endif /* WOLFSSL_DTLS_DROP_STATS */
 
+#ifdef WOLFSSL_DTLS13
+                /* return to send ACKS and shortcut rtx timer */
+                if (IsAtLeastTLSv1_3(ssl->version)
+                    && ssl->handshakeRtxFSM.sendAcks)
+                    return 0;
+#endif /* WOLFSSL_DTLS13 */
+
                 continue;
             }
 #endif
