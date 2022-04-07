@@ -2649,6 +2649,8 @@ void FreeCiphers(WOLFSSL* ssl)
 #ifdef HAVE_CHACHA
         XFREE(ssl->dtlsRecordNumberEncrypt.chacha,
               ssl->heap, DYNAMIC_TYPE_CIPHER);
+        XFREE(ssl->dtlsRecordNumberDecrypt.chacha,
+              ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif /* HAVE_CHACHA */
 #endif /* WOLFSSL_DTLS13 */
 }

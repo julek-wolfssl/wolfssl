@@ -198,22 +198,43 @@ static int Dtls13TypeIsEncrypted(enum HandShakeType hs_type)
 static int Dtls13GetRnMask(
     WOLFSSL *ssl, const byte *ciphertext, byte *mask, enum rnDirection dir)
 {
-    Aes *aes;
-
-    /* TODO: implements chacha based ciphers */
-
-    if (ssl->specs.bulk_cipher_algorithm != wolfssl_aes_gcm)
-        return WOLFSSL_NOT_IMPLEMENTED;
+    Ciphers *c;
+    int ret;
 
     if (dir == PROTECT)
-        aes = ssl->dtlsRecordNumberEncrypt.aes;
+        c = &ssl->dtlsRecordNumberEncrypt;
     else
-        aes = ssl->dtlsRecordNumberDecrypt.aes;
+        c = &ssl->dtlsRecordNumberDecrypt;
 
-    if (aes == NULL)
-        return BAD_STATE_E;
+    if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm) {
+#ifdef HAVE_AESGCM
+        if (c->aes == NULL)
+            return BAD_STATE_E;
+        return  wc_AesEncryptDirect(c->aes, mask, ciphertext);
+#endif /* HAVE_AESGCM */
+    }
 
-    return  wc_AesEncryptDirect(aes, mask, ciphertext);
+    if (ssl->specs.bulk_cipher_algorithm == wolfssl_chacha) {
+#ifdef HAVE_CHACHA
+        word32 counter;
+
+        if (c->chacha == NULL)
+            return BAD_STATE_E;
+
+        /* assuming CIPHER[0..3] should be interpreted as big endian 32-bits
+           integer. The draft rfc isn't really clear on that. See sec 4.2.3 */
+        ato32(ciphertext, &counter);
+        ret = wc_Chacha_SetIV(c->chacha, &ciphertext[4], counter);
+        if (ret != 0)
+            return ret;
+
+        XMEMSET(mask, 0, DTLS13_RN_MASK_SIZE);
+
+        return wc_Chacha_Process(c->chacha, mask, mask, DTLS13_RN_MASK_SIZE);
+#endif /* HAVE_CHACHA */
+    }
+
+    return NOT_COMPILED_IN;
 }
 
 static int Dtls13EncryptDecryptRecordNumber(WOLFSSL *ssl, byte *seq,
@@ -1687,12 +1708,28 @@ int Dtls13SetEpochKeys(WOLFSSL *ssl, int epochNumber, enum encrypt_side side)
     return SetKeysSide(ssl, side);
 }
 
+static int Dtls13InitChaChaCipher(
+    Ciphers *c, byte *key, word16 keySize, void *heap)
+{
+    (void)heap;
+
+    if (c->chacha == NULL) {
+        c->chacha =
+            (ChaCha *)XMALLOC(sizeof(ChaCha), heap, DYNAMIC_TYPE_CIPHER);
+    }
+
+    if (c->chacha == NULL)
+        return MEMORY_E;
+
+    return wc_Chacha_SetKey(c->chacha, key, keySize);
+}
+
 int Dtls13SetRecordNumberKeys(WOLFSSL *ssl, enum encrypt_side side)
 {
     Ciphers *enc = NULL;
     Ciphers *dec = NULL;
     byte *key;
-    int ret = NOT_COMPILED_IN;
+    int ret;
 
     switch(side) {
     case ENCRYPT_SIDE_ONLY:
@@ -1753,12 +1790,54 @@ int Dtls13SetRecordNumberKeys(WOLFSSL *ssl, enum encrypt_side side)
             if (ret != 0)
                 return ret;
         }
+
+        return 0;
     }
 #endif
 
-    /* TODO: support chacha based ciphersuite */
+#ifdef HAVE_CHACHA
+    if (ssl->specs.bulk_cipher_algorithm == wolfssl_chacha) {
+        if (enc) {
 
-    return ret;
+            if (ssl->options.side == WOLFSSL_CLIENT_END)
+                key = ssl->keys.client_sn_key;
+            else
+                key = ssl->keys.server_sn_key;
+
+#ifdef WOLFSSL_DEBUG_TLS
+            WOLFSSL_MSG("Provisioning Record Number enc key:");
+            WOLFSSL_BUFFER(key, ssl->specs.key_size);
+#endif /* WOLFSSL_DEBUG_TLS */
+
+            ret = Dtls13InitChaChaCipher(
+                enc, key, ssl->specs.key_size, ssl->heap);
+            if (ret != 0)
+                return ret;
+        }
+
+        if (dec) {
+
+            if (ssl->options.side == WOLFSSL_CLIENT_END)
+                key = ssl->keys.server_sn_key;
+            else
+                key = ssl->keys.client_sn_key;
+
+#ifdef WOLFSSL_DEBUG_TLS
+            WOLFSSL_MSG("Provisioning Record Number dec key:");
+            WOLFSSL_BUFFER(key, ssl->specs.key_size);
+#endif /* WOLFSSL_DEBUG_TLS */
+
+            ret = Dtls13InitChaChaCipher(
+                dec, key, ssl->specs.key_size, ssl->heap);
+            if (ret != 0)
+                return ret;
+        }
+
+        return 0;
+    }
+#endif /* HAVE_CHACHA */
+
+    return NOT_COMPILED_IN;
 }
 
 /* 16 bits epoch + 48 bits sequence */
