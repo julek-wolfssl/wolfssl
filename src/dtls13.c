@@ -123,7 +123,8 @@ WOLFSSL_METHOD* wolfDTLSv1_3_server_method_ex(void* heap)
 
     return method;
 }
-static int Dtls13RlAddPlaintextHeader(
+
+int Dtls13RlAddPlaintextHeader(
     WOLFSSL *ssl, byte *out, enum ContentType content_type, size_t length)
 {
     Dtls13RecordPlaintextHeader *hdr;

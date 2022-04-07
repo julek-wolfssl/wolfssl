@@ -5331,7 +5331,10 @@ WOLFSSL_LOCAL int Dtls13GetHeadersLength(enum HandShakeType type);
 WOLFSSL_LOCAL int Dtls13GetRlHeaderLength(int is_encrypted);
 WOLFSSL_LOCAL int Dtls13RlAddCiphertextHeader(
     WOLFSSL *ssl, byte *out, size_t length);
-WOLFSSL_LOCAL int Dtls13EncryptRecordNumber(WOLFSSL *ssl, byte *hdr, word16 recordLength);
+WOLFSSL_LOCAL int Dtls13RlAddPlaintextHeader(
+    WOLFSSL *ssl, byte *out, enum ContentType content_type, size_t length);
+WOLFSSL_LOCAL int Dtls13EncryptRecordNumber(
+    WOLFSSL *ssl, byte *hdr, word16 recordLength);
 WOLFSSL_LOCAL int Dtls13IsUnifiedHeader(byte header_flags);
 WOLFSSL_LOCAL int Dtls13ParseUnifedRecordLayer(WOLFSSL *ssl, const byte *input,
     word16 input_size, Dtls13UnifiedHdrInfo *hdrInfo);
