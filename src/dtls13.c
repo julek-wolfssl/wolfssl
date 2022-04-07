@@ -89,7 +89,8 @@ typedef struct Dtls13RecordCiphertextHeader {
 /* For now, the size of the outgoing DTLSv1.3 record header is fixed to 5 bytes
    (8 bit header flags + 16bit record number + 16 bit length). In the future, we
    can dinamically choose to remove the length from the header to save
-   space. Also it has to account for client connection ID when supported. */
+   space. Also it will need to account for client connection ID when
+   supported. */
 #define DTLS13_UNIFIED_HEADER_SIZE 5 /*  */
 #define DTLS13_MIN_CIPHERTEXT 16
 
@@ -126,14 +127,19 @@ static int Dtls13RlAddPlaintextHeader(
     WOLFSSL *ssl, byte *out, enum ContentType content_type, size_t length)
 {
     Dtls13RecordPlaintextHeader *hdr;
+    word32 seq[2];
 
     hdr = (Dtls13RecordPlaintextHeader *)out;
     hdr->contentType = content_type;
     hdr->legacyVersionRecord.major = DTLS_MAJOR;
     hdr->legacyVersionRecord.minor = DTLSv1_2_MINOR;
 
-    /* writeSeq updates both epoch and seq */
-    Dtls13GetSeq(ssl, CUR_ORDER, (word32*)hdr->epoch, 1);
+    Dtls13GetSeq(ssl, CUR_ORDER, seq, 1);
+
+    /* seq[0] combines epoch and 16 MSB of sequence number */
+    c32toa(seq[0], hdr->epoch);
+    c32toa(seq[1], &hdr->sequenceNumber[2]);
+
     c16toa(length, hdr->length);
 
     return 0;
@@ -684,21 +690,20 @@ static int Dtls13SendFragmentedInternal(WOLFSSL *ssl)
         fragLength = maxFragment - rlHeaderLength -
             DTLS_HANDSHAKE_HEADER_SZ;
 
-        if (isEncrypted)
-            fragLength -= cipherExtraData(ssl);
+        recordLength = maxFragment;
 
-        if (fragLength > remainingSize)
+        if (fragLength > remainingSize) {
             fragLength = remainingSize;
+            recordLength =
+                fragLength + rlHeaderLength + DTLS_HANDSHAKE_HEADER_SZ;
+        }
 
-        ret = CheckAvailableSize(ssl, maxFragment);
+        ret = CheckAvailableSize(ssl, recordLength + MAX_MSG_EXTRA);
         if (ret != 0)
             return ret;
 
         output = ssl->buffers.outputBuffer.buffer +
             ssl->buffers.outputBuffer.length;
-
-        recordLength = fragLength +
-                        DTLS_HANDSHAKE_HEADER_SZ + rlHeaderLength;
 
         ret = Dtls13HandshakeAddHeaderFrag(ssl, output + rlHeaderLength,
             ssl->dtls13FragHandshakeType, ssl->dtls13FragOffset,
@@ -713,7 +718,7 @@ static int Dtls13SendFragmentedInternal(WOLFSSL *ssl)
             fragLength);
 
         ret = Dtls13SendOneFragmentRtx(ssl, fsm, ssl->dtls13FragHandshakeType,
-            maxFragment, output, recordLength, 0);
+            recordLength + MAX_MSG_EXTRA, output, recordLength, 0);
         if (ret == WANT_WRITE) {
             ssl->dtls13FragOffset += fragLength;
             return ret;
@@ -1755,8 +1760,8 @@ int Dtls13SetRecordNumberKeys(WOLFSSL *ssl, enum encrypt_side side)
     return ret;
 }
 
-#define DTLS13_RN_EPOCH_SIZE (16 / 8)
-#define DTLS13_RN_SEQ_SIZE (48 / 8)
+/* 16 bits epoch + 48 bits sequence */
+#define DTLS13_RN_SIZE 8
 
 static int Dtls13GetAckListLength(Dtls13RecordNumber *list, word16 *length)
 {
@@ -1771,7 +1776,7 @@ static int Dtls13GetAckListLength(Dtls13RecordNumber *list, word16 *length)
         numberElements++;
     }
 
-    *length = (DTLS13_RN_EPOCH_SIZE + DTLS13_RN_SEQ_SIZE) * numberElements;
+    *length = DTLS13_RN_SIZE * numberElements;
     return 0;
 }
 
@@ -1822,9 +1827,10 @@ static int Dtls13WriteAckMessage(
     ackMessage += OPAQUE16_LEN;
 
     while (recordNumberList != NULL) {
-        XMEMCPY(
-            ackMessage, recordNumberList->seq, sizeof(recordNumberList->seq));
-        ackMessage += sizeof(recordNumberList->seq);
+        c32toa(recordNumberList->seq[0], ackMessage);
+        c32toa(recordNumberList->seq[1], ackMessage + OPAQUE32_LEN);
+
+        ackMessage += OPAQUE64_LEN;
         recordNumberList = recordNumberList->next;
     }
 
@@ -1916,6 +1922,7 @@ int DoDtls13Ack(
     Dtls13RtxFSM *fsm;
     const byte *ackMessage;
     word16 length;
+    word32 rn[2];
     int i;
 
     if (inputSize < OPAQUE16_LEN)
@@ -1928,15 +1935,14 @@ int DoDtls13Ack(
     if (inputSize < (word32)(OPAQUE16_LEN + length))
         return BUFFER_ERROR;
 
-    if (length % (DTLS13_RN_EPOCH_SIZE + DTLS13_RN_SEQ_SIZE) != 0)
+    if (length % (DTLS13_RN_SIZE) != 0)
         return PARSE_ERROR;
 
     ackMessage = input + OPAQUE16_LEN;
-    for (i = 0; i < length;
-         i += DTLS13_RN_EPOCH_SIZE + DTLS13_RN_SEQ_SIZE) {
-
-        Dtls13RtxRemoveRecord(ssl, fsm, (const word32*)(ackMessage + i));
-
+    for (i = 0; i < length; i += DTLS13_RN_SIZE) {
+        ato32(ackMessage + i, &rn[0]);
+        ato32(ackMessage + i + OPAQUE32_LEN, &rn[1]);
+        Dtls13RtxRemoveRecord(ssl, fsm, rn);
     }
 
     /* last client flight was completely acknowledged by the server. Handshake
