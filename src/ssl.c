@@ -14087,6 +14087,41 @@ int wolfSSL_dtls_get_current_timeout(WOLFSSL* ssl)
     return timeout;
 }
 
+#ifdef WOLFSSL_DTLS13
+/*
+ * This API returns 1 when the user should set a short timeout for receiving
+ * data. It is recommended that it is at most 1/4 the value returned by
+ * wolfSSL_dtls_get_current_timeout().
+ */
+int wolfSSL_dtls_13_use_quick_timeout(WOLFSSL* ssl)
+{
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+        /* Check if we are in the middle of receiving a flight */
+        if (ssl->options.serverState >= SERVER_HELLO_RETRY_REQUEST_COMPLETE &&
+                ssl->options.serverState < SERVER_FINISHED_COMPLETE)
+            return ssl->dtls13FastTimeout;
+    }
+    else {
+        /* Check if we are in the middle of receiving a flight */
+        if (ssl->options.clientState >= CLIENT_HELLO_COMPLETE &&
+                ssl->options.clientState < HANDSHAKE_DONE)
+            return ssl->dtls13FastTimeout;
+    }
+    return 0;
+}
+
+/*
+ * When this is set, a DTLS 1.3 connection will send acks immediately when a
+ * disruption is detected to shortcut timeouts. This results in potentially
+ * more traffic but may make the handshake quicker.
+ */
+void wolfSSL_dtls_13_send_more_acks(WOLFSSL* ssl)
+{
+    if (ssl != NULL)
+        ssl->options.sendMoreAcks = 1;
+}
+#endif /* WOLFSSL_DTLS13 */
+
 int wolfSSL_DTLSv1_get_timeout(WOLFSSL* ssl, WOLFSSL_TIMEVAL* timeleft)
 {
     if (ssl && timeleft) {

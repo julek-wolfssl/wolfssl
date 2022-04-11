@@ -3775,6 +3775,10 @@ typedef struct Options {
     word16            startedETMRead:1;       /* Doing Encrypt-Then-MAC read */
     word16            startedETMWrite:1;      /* Doing Encrypt-Then-MAC write */
 #endif
+#ifdef WOLFSSL_DTLS13
+    word16            sendMoreAcks:1;         /* Send more acks during the
+                                               * handshake process */
+#endif
 
     /* need full byte values for this section */
     byte            processReply;           /* nonblocking resume */
@@ -4553,6 +4557,8 @@ typedef struct Dtls13RtxFSM {
     buffer dtls13FragmentsBuffer;
     byte dtls13SendingFragments:1;
     byte dtls13SendingAckOrRtx:1;
+    byte dtls13FastTimeout:1;
+    byte dtls13DoingProcessReply:1;
     word32 dtls13MessageLength;
     word32 dtls13FragOffset;
     byte dtls13FragHandshakeType;

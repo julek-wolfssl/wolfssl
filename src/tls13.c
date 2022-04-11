@@ -7411,6 +7411,9 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ssl->options.clientState = CLIENT_FINISHED_COMPLETE;
         ssl->options.handShakeState = HANDSHAKE_DONE;
         ssl->options.handShakeDone  = 1;
+#ifdef WOLFSSL_DTLS13
+        ssl->handshakeRtxFSM.sendAcks = 1; /* Need to ack last flight */
+#endif
     }
 #endif
 
@@ -8866,7 +8869,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         break;
 
     case key_update:
-        WOLFSSL_MSG("processing finished");
+        WOLFSSL_MSG("processing key update");
         ret = DoTls13KeyUpdate(ssl, input, inOutIdx, size);
         break;
 

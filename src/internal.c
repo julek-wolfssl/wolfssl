@@ -20462,7 +20462,7 @@ startScr:
                wolfssl_read_internal() does not support it */
             if ((ssl->error = Dtls13DoScheduledWork(ssl)) < 0) {
                 WOLFSSL_ERROR(ssl->error);
-                return WOLFSSL_FATAL_ERROR;
+                return ssl->error;
             }
         }
 #endif /* WOLFSSL_DTLS13 */

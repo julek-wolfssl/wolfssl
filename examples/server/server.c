@@ -420,6 +420,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
                     else
                 #endif
                     if (err != WOLFSSL_ERROR_WANT_READ &&
+                                             err != WOLFSSL_ERROR_WANT_WRITE &&
                                              err != WOLFSSL_ERROR_ZERO_RETURN &&
                                              err != APP_DATA_READY) {
                         printf("SSL_read echo error %d\n", err);
@@ -536,7 +537,8 @@ static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
             }
             else
         #endif
-            if (err != WOLFSSL_ERROR_WANT_READ
+            if (err != WOLFSSL_ERROR_WANT_READ &&
+                    err != WOLFSSL_ERROR_WANT_WRITE
         #ifdef HAVE_SECURE_RENEGOTIATION
                     && err != APP_DATA_READY
         #endif

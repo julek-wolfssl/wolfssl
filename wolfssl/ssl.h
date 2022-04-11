@@ -1292,6 +1292,8 @@ WOLFSSL_API int  wolfSSL_dtls_get_using_nonblock(WOLFSSL* ssl);
 #define wolfSSL_get_using_nonblock wolfSSL_dtls_get_using_nonblock
     /* The old names are deprecated. */
 WOLFSSL_API int  wolfSSL_dtls_get_current_timeout(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_dtls_13_use_quick_timeout(WOLFSSL* ssl);
+WOLFSSL_API void wolfSSL_dtls_13_send_more_acks(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_DTLSv1_get_timeout(WOLFSSL* ssl,
         WOLFSSL_TIMEVAL* timeleft);
 WOLFSSL_API void wolfSSL_DTLSv1_set_initial_timeout_duration(WOLFSSL* ssl,

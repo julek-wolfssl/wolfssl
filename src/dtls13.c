@@ -258,7 +258,10 @@ static int Dtls13RtxNeedsExplicitAck(WOLFSSL *ssl, enum HandShakeType hs)
     (void)hs;
 
 #ifndef NO_WOLFSSL_SERVER
-    if (ssl->options.side == WOLFSSL_SERVER_END && hs == finished)
+    /* Entire client's last flight needs to be acked */
+    if (ssl->options.side == WOLFSSL_SERVER_END && (hs == certificate ||
+                                                    hs == certificate_verify ||
+                                                    hs == finished))
         return 1;
 #endif /* NO_WOLFSSL_SERVER */
 
@@ -279,7 +282,7 @@ static int Dtls13ProcessBufferedMessages(WOLFSSL *ssl)
        duplicated fsm */
     fsm = &ssl->handshakeRtxFSM;
 
-    WOLFSSL_ENTER("dtls13_process_buffered_messages()");
+    WOLFSSL_ENTER("Dtls13ProcessBufferedMessages()");
 
     while (msg != NULL) {
         idx = 0;
@@ -584,8 +587,10 @@ static int Dtls13DetectDisruption(WOLFSSL *ssl, word32 fragOffset)
 
     /* out of order message */
     if (ssl->keys.dtls_peer_handshake_number >
-        ssl->keys.dtls_expected_peer_handshake_number)
-        return 1;
+        ssl->keys.dtls_expected_peer_handshake_number) {
+        WOLFSSL_MSG("Disruption detected");
+        return ssl->options.sendMoreAcks;
+    }
 
     /* first fragment of in-order message */
     if (fragOffset == 0)
@@ -595,8 +600,10 @@ static int Dtls13DetectDisruption(WOLFSSL *ssl, word32 fragOffset)
        in the worst case, we don't detect the disruption and wait for the other
        peer retransmission) */
     if (ssl->dtls_rx_msg_list == NULL ||
-        ssl->dtls_rx_msg_list->fragSz != fragOffset)
-        return 1;
+        ssl->dtls_rx_msg_list->fragSz != fragOffset) {
+        WOLFSSL_MSG("Disruption detected");
+        return ssl->options.sendMoreAcks;
+    }
 
     return 0;
 }
@@ -608,6 +615,8 @@ static int Dtls13RtxRecordRecvd(WOLFSSL *ssl, enum HandShakeType hs,
     int ret;
 
     WOLFSSL_ENTER("Dtls13RtxRecordRecvd");
+
+    ssl->dtls13FastTimeout = 1;
 
     if (!ssl->options.handShakeDone || hs != certificate_request) {
         /* After handshake we don't save certificate_req in the seen
@@ -639,15 +648,17 @@ static int Dtls13RtxRecordRecvd(WOLFSSL *ssl, enum HandShakeType hs,
         fsm->retransmit = 1;
 
         /* the other peer may have retransmitted because an ACK for a flight
-           that needs explicit ACK was lost */
+           that needs explicit ACK was lost. This can also happen when we
+           receive a flight out of order */
         if (fsm->ackRecords != NULL)
-            fsm->sendAcks = 1;
+            fsm->sendAcks = ssl->options.sendMoreAcks;
     }
 
-    if (Dtls13RtxNeedsExplicitAck(ssl, hs)
-        || Dtls13DetectDisruption(ssl, fragOffset)) {
+    /* Don't send explicit acks immediately when in a handshake */
+    if (ssl->options.handShakeDone && Dtls13RtxNeedsExplicitAck(ssl, hs))
         fsm->sendAcks = 1;
-    }
+    else if (Dtls13DetectDisruption(ssl, fragOffset))
+        fsm->sendAcks = 1;
 
     return 0;
 }
@@ -1105,6 +1116,8 @@ static int Dtls13RtxSendBuffered(WOLFSSL *ssl, Dtls13RtxFSM *fsm)
 
     r = fsm->rtxRecords;
     while (r != NULL) {
+        WOLFSSL_MSG("Dtls13Rtx One Record");
+
         headerLength = Dtls13GetRlHeaderLength(r->epoch != 0);
 
         sendSz = r->length + headerLength;
@@ -1194,8 +1207,6 @@ int Dtls13HandshakeRecv(WOLFSSL *ssl, byte *input, word32 size,
     if (frag_off + frag_length > message_length)
         return BUFFER_ERROR;
 
-    /* TODO: handshake messages after initial handhsake will have their
-       duplicated fsm */
     fsm = &ssl->handshakeRtxFSM;
 
     epoch = ssl->keys.curEpoch;
@@ -1909,6 +1920,8 @@ static int Dtls13WriteAckMessage(
     while (recordNumberList != NULL) {
         c32toa(recordNumberList->seq[0], ackMessage);
         c32toa(recordNumberList->seq[1], ackMessage + OPAQUE32_LEN);
+        fprintf(stderr, "Entering SendDtls13Ack %d %d\n", recordNumberList->seq[0] >> 16,
+                recordNumberList->seq[1]);
 
         ackMessage += OPAQUE64_LEN;
         recordNumberList = recordNumberList->next;
@@ -1962,16 +1975,9 @@ int Dtls13DoScheduledWork(WOLFSSL *ssl)
 
     WOLFSSL_ENTER("Dtls13DoScheduledWork");
 
-#ifdef WOLFSSL_DTLS13_DATAPENDING
-    if(Dtls13DataPending(ssl, (WOLFSSL_DTLS_CTX *)ssl->IOCB_ReadCtx)) {
-        WOLFSSL_MSG("deferring scheduled  work to process pending messages");
-        return 0;
-    }
-#endif
-
     ssl->dtls13SendingAckOrRtx = 1;
 
-   if (ssl->handshakeRtxFSM.sendAcks) {
+    if (ssl->handshakeRtxFSM.sendAcks) {
         ssl->handshakeRtxFSM.sendAcks = 0;
         ret = SendDtls13Ack(ssl);
         if (ret != 0)
@@ -1979,7 +1985,6 @@ int Dtls13DoScheduledWork(WOLFSSL *ssl)
     }
 
     if (ssl->handshakeRtxFSM.retransmit) {
-
         ssl->handshakeRtxFSM.retransmit = 0;
         ret = Dtls13RtxSendBuffered(ssl, &ssl->handshakeRtxFSM);
         if (ret != 0)
@@ -1991,9 +1996,19 @@ int Dtls13DoScheduledWork(WOLFSSL *ssl)
     return 0;
 }
 
+/* Send ACKs when available after a timeout but only retransmit the last
+ * flight after a long timeout */
 int Dtls13RtxTimeout(WOLFSSL *ssl)
 {
-    return Dtls13RtxSendBuffered(ssl, &ssl->handshakeRtxFSM);
+    int ret = 0;
+    if (ssl->handshakeRtxFSM.ackRecords != NULL) {
+        ssl->handshakeRtxFSM.sendAcks = 0;
+        ret = SendDtls13Ack(ssl);
+    }
+    if (ret == 0 && !ssl->dtls13FastTimeout)
+        ret = Dtls13RtxSendBuffered(ssl, &ssl->handshakeRtxFSM);
+    ssl->dtls13FastTimeout = 0;
+    return ret;
 }
 
 int DoDtls13Ack(

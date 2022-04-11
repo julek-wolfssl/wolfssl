@@ -832,7 +832,8 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
                                 }
                                 else
                             #endif
-                                if (err != WOLFSSL_ERROR_WANT_READ) {
+                                if (err != WOLFSSL_ERROR_WANT_READ &&
+                                        err != WOLFSSL_ERROR_WANT_WRITE) {
                                     printf("SSL_read bench error %d\n", err);
                                     err_sys("SSL_read failed");
                                 }
@@ -1084,7 +1085,9 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
             }
             else
         #endif
-            if (err != WOLFSSL_ERROR_WANT_READ && err != APP_DATA_READY) {
+            if (err != WOLFSSL_ERROR_WANT_READ
+                    && err != WOLFSSL_ERROR_WANT_WRITE
+                    && err != APP_DATA_READY) {
                 printf("SSL_read reply error %d, %s\n", err,
                                          wolfSSL_ERR_error_string(err, buffer));
                 if (!exitWithRet) {

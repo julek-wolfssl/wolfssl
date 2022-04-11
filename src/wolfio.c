@@ -320,65 +320,6 @@ int EmbedSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 #define SENDTO_FUNCTION sendto
 #define RECVFROM_FUNCTION recvfrom
 
-
-#ifdef WOLFSSL_DTLS13
-
-#ifdef WOLFSSL_DTLS13_DATAPENDING
-int Dtls13DataPending(WOLFSSL *ssl, WOLFSSL_DTLS_CTX *dtlsCtx)
-{
-    struct timeval oldTimeout, timeout;
-    byte dummy, dataPending;
-    int fd = dtlsCtx->rfd;
-    byte oldTimeoutValid;
-    XSOCKLENT optLen;
-    int err;
-
-    oldTimeoutValid = 0;
-    if (!wolfSSL_get_using_nonblock(ssl)) {
-        optLen = (socklen_t)sizeof(oldTimeout);
-        err = getsockopt(fd, SOL_SOCKET, SO_RCVTIMEO,
-                         (char*)&oldTimeout, &optLen);
-        if (err != 0)
-            WOLFSSL_MSG("failed to retrieve timeout option from the socket");
-        else
-            oldTimeoutValid = 1;
-
-        XMEMSET(&timeout, 0, sizeof(timeout));
-        timeout.tv_usec = 1;
-        err = setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO,
-                         (char*)&timeout, sizeof(timeout));
-        if (err != 0) {
-            WOLFSSL_MSG("failed to set timeout option");
-            return 0;
-        }
-
-    }
-
-    err = (int)RECVFROM_FUNCTION(fd, &dummy, 1, ssl->rflags | MSG_PEEK,
-                                 NULL, 0);
-
-    err = TranslateReturnCode(err, fd);
-    if (err < 0) {
-        err = TranslateIoError(err);
-    }
-
-    dataPending = err != WOLFSSL_CBIO_ERR_WANT_READ;
-
-    if (oldTimeoutValid) {
-        err = setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO,
-                         (char*)&oldTimeout, sizeof(oldTimeout));
-        if (err != 0) {
-            WOLFSSL_MSG("can't restore timeout option");
-            return 0;
-        }
-    }
-
-    return dataPending;
-}
-#endif /* WOLFSSL_DTLS13_DATAPENDING */
-
-#endif /* WOLFSSL_DTLS13 */
-
 /* The receive embedded callback
  *  return : nb bytes read, or error
  */
@@ -411,10 +352,19 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     if (!wolfSSL_get_using_nonblock(ssl)) {
         #ifdef USE_WINDOWS_API
             DWORD timeout = dtls_timeout * 1000;
+            if (wolfSSL_dtls_13_use_quick_timeout(ssl))
+                timeout /= 4;
         #else
             struct timeval timeout;
             XMEMSET(&timeout, 0, sizeof(timeout));
-            timeout.tv_sec = dtls_timeout;
+            if (wolfSSL_dtls_13_use_quick_timeout(ssl)) {
+                if (dtls_timeout >= 4)
+                    timeout.tv_sec = dtls_timeout / 4;
+                else
+                    timeout.tv_usec = dtls_timeout * 1000000 / 4;
+            }
+            else
+                timeout.tv_sec = dtls_timeout;
         #endif
         if (setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout,
                        sizeof(timeout)) != 0) {

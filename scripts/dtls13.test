@@ -2,6 +2,21 @@
 
 set -e
 
+cleanup () {
+    echo
+    echo "Cleaning up..."
+    if [ ! -z "$UDP_PROXY_PID" ];then
+        echo "Killing udp_proxy $UDP_PROXY_PID"
+        kill $UDP_PROXY_PID
+    fi
+    if [ ! -z "$SERVER_PID" ];then
+        echo "Killing server $SERVER_PID"
+        kill $SERVER_PID
+    fi
+}
+
+trap cleanup err exit
+
 WOLFSSL_ROOT=$(pwd)
 UDP_PROXY_PATH=$WOLFSSL_ROOT/../udp-proxy/udp_proxy
 PROXY_PORT=12345
@@ -30,7 +45,9 @@ for i in $(seq 0 11);do
     elapsed=$(echo $(date +%s.%N) - $now | bc)
     echo "It tooks ${elapsed} sec(s)" >> /tmp/udp
     wait $SERVER_PID
+    SERVER_PID=
     kill $UDP_PROXY_PID
+    UDP_PROXY_PID=
 done
 
 
@@ -49,36 +66,44 @@ for i in $(seq 0 10);do
     elapsed=$(echo $(date +%s.%N) - $now | bc)
     echo "It tooks ${elapsed} sec(s)" >> /tmp/udp
     wait $SERVER_PID
+    SERVER_PID=
     kill $UDP_PROXY_PID
+    UDP_PROXY_PID=
 done
 
-SERVER_PERMUTATIONS=$(python3 << EOF
+test_permutations () {
+    (killall udp_proxy || true)
+    (killall server || true)
+    (killall client || true)
+    SIDE=$1
+    PERMUTATIONS=$(python3 << EOF
 import itertools
-for p in list(itertools.permutations("0123456")):
+for p in list(itertools.permutations("$2")):
     print(''.join(p))
 EOF
-)
+    )
+    echo "Testing $SIDE msg permutations"
+    for i in $PERMUTATIONS;do
+        echo -n "Testing $SIDE order $i"
+        UDP_LOGFILE=/tmp/udp-$SIDE-$i
+        $UDP_PROXY_PATH -p $PROXY_PORT -s 127.0.0.1:$SERVER_PORT -u -r $i -l $UDP_LOGFILE -S $SIDE &
+        UDP_PROXY_PID=$!
+        $WOLFSSL_ROOT/examples/server/server -v4 -u -Ta -w &> /tmp/serr &
+        SERVER_PID=$!
+        sleep 0.2
+        now=$(date +%s.%N)
+        $WOLFSSL_ROOT/examples/client/client -v4 -u -p$PROXY_PORT -w &> /tmp/cerr
+        elapsed=$(echo $(date +%s.%N) - $now | bc)
+        udp_lines=$(grep -P 'client:|server:' $UDP_LOGFILE | wc -l)
+        echo " took ${elapsed} sec(s) and produced ${udp_lines} messages"
+        wait $SERVER_PID
+        SERVER_PID=
+        kill $UDP_PROXY_PID
+        UDP_PROXY_PID=
+        rm $UDP_LOGFILE
+    done
+    echo "All $SIDE msg permutations succeeded"
+}
 
-(killall udp_proxy || true)
-(killall server || true)
-(killall client || true)
-
-echo "Testing reordering server messages"
-for i in $SERVER_PERMUTATIONS;do
-    echo -n "Testing order $i"
-    UDP_LOGFILE=/tmp/udp-$i
-    $UDP_PROXY_PATH -p $PROXY_PORT -s 127.0.0.1:$SERVER_PORT -u -r $i -l $UDP_LOGFILE &
-    UDP_PROXY_PID=$!
-    $WOLFSSL_ROOT/examples/server/server -v4 -u -Ta -w &> /tmp/serr &
-    SERVER_PID=$!
-    sleep 0.2
-    now=$(date +%s.%N)
-    $WOLFSSL_ROOT/examples/client/client -v4 -u -p$PROXY_PORT -w &> /tmp/cerr
-    elapsed=$(echo $(date +%s.%N) - $now | bc)
-    udp_lines=$(wc -l $UDP_LOGFILE | cut -d ' ' -f 1 -)
-    echo " took ${elapsed} sec(s) and produced ${udp_lines} messages"
-    wait $SERVER_PID
-    kill $UDP_PROXY_PID
-    rm $UDP_LOGFILE
-done
-echo "All server re-orderings succeeded"
+test_permutations server 0123456
+test_permutations client 012
