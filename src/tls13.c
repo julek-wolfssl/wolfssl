@@ -11791,11 +11791,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
         case TLS13_ACCEPT_CLIENT_HELLO_DONE :
             if (ssl->options.serverState ==
                                           SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
-                if ((ssl->error = SendTls13ServerHello(ssl,
-                                                   hello_retry_request)) != 0) {
-                    WOLFSSL_ERROR(ssl->error);
-                    return WOLFSSL_FATAL_ERROR;
-                }
+                ssl->error = SendTls13ServerHello(ssl, hello_retry_request);
 #ifdef WOLFSSL_DTLS13
                 if (ssl->options.dtls && wolfSSL_dtls_get_using_nonblock(ssl)) {
                     /* Reset the state so that we can statelessly await the
@@ -11825,11 +11821,18 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                     ssl->options.acceptState  = ACCEPT_BEGIN;
                     ssl->options.handShakeState  = NULL_STATE;
 
-                    ssl->error = WANT_READ;
+                    /* Reset ack list */
+                    Dtls13RtxFlushAcks(ssl);
+
+                    /* Don't override other errors */
+                    if (ssl->error == 0)
+                        ssl->error = WANT_READ;
+                }
+#endif /* WOLFSSL_DTLS13 */
+                if (ssl->error != 0) {
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
-#endif /* WOLFSSL_DTLS13 */
             }
 
             ssl->options.acceptState = TLS13_ACCEPT_HELLO_RETRY_REQUEST_DONE;

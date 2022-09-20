@@ -637,7 +637,7 @@ static int Dtls13RtxAddAck(WOLFSSL* ssl, w64wrapper epoch, w64wrapper seq)
     return 0;
 }
 
-static void Dtls13RtxFlushAcks(WOLFSSL* ssl)
+void Dtls13RtxFlushAcks(WOLFSSL* ssl)
 {
     Dtls13RecordNumber *list, *rn;
 
