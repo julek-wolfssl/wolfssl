@@ -4584,6 +4584,17 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_XCHACHA"
 fi
 
+# ASCON
+AC_ARG_ENABLE([ascon],
+    [AS_HELP_STRING([--enable-ascon],[Enable ASCON (default: disabled).])],
+    [ ENABLED_ASCON=$enableval ],
+    [ ENABLED_ASCON=no]
+    )
+
+if test "$ENABLED_ASCON" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_ASCON"
+fi
 
 # Hash DRBG
 AC_ARG_ENABLE([hashdrbg],
@@ -8450,6 +8461,7 @@ AM_CONDITIONAL([BUILD_SHA3],[test "x$ENABLED_SHA3" != "xno" || test "x$ENABLED_U
 AM_CONDITIONAL([BUILD_POLY1305],[test "x$ENABLED_POLY1305" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CHACHA],[test "x$ENABLED_CHACHA" = "xyes" || test "x$ENABLED_CHACHA" = "xnoasm" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_XCHACHA],[test "x$ENABLED_XCHACHA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_ASCON],[test "x$ENABLED_ASCON" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_INLINE],[test "x$ENABLED_INLINE" = "xyes"])
 AM_CONDITIONAL([BUILD_OCSP],[test "x$ENABLED_OCSP" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_OCSP_STAPLING],[test "x$ENABLED_CERTIFICATE_STATUS_REQUEST" = "xyes"])

@@ -596,6 +596,10 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/chacha20_poly1305.c
 endif
 endif
 
+if BUILD_ASCON
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/ascon.c
+endif
+
 if !BUILD_INLINE
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/misc.c
 endif

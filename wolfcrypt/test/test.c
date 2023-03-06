@@ -249,6 +249,7 @@
 #include <wolfssl/wolfcrypt/srp.h>
 #include <wolfssl/wolfcrypt/chacha.h>
 #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
+#include <wolfssl/wolfcrypt/ascon.h>
 #include <wolfssl/wolfcrypt/pwdbased.h>
 #include <wolfssl/wolfcrypt/ripemd.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -456,6 +457,7 @@ WOLFSSL_TEST_SUBROUTINE int  chacha_test(void);
 WOLFSSL_TEST_SUBROUTINE int  XChaCha_test(void);
 WOLFSSL_TEST_SUBROUTINE int  chacha20_poly1305_aead_test(void);
 WOLFSSL_TEST_SUBROUTINE int  XChaCha20Poly1305_test(void);
+WOLFSSL_TEST_SUBROUTINE int  ascon_hash_test(void);
 WOLFSSL_TEST_SUBROUTINE int  des_test(void);
 WOLFSSL_TEST_SUBROUTINE int  des3_test(void);
 WOLFSSL_TEST_SUBROUTINE int  aes_test(void);
@@ -1228,6 +1230,13 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         return err_sys("ChaCha20-Poly1305 AEAD test failed!\n", ret);
     else
         TEST_PASS("ChaCha20-Poly1305 AEAD test passed!\n");
+#endif
+
+#ifdef HAVE_ASCON
+    if ( (ret = ascon_hash_test()) != 0)
+        return err_sys("ASCON Hash test failed!\n", ret);
+    else
+        TEST_PASS("ASCON Hash test passed!\n");
 #endif
 
 #if defined(HAVE_XCHACHA) && defined(HAVE_POLY1305)
@@ -7293,6 +7302,60 @@ WOLFSSL_TEST_SUBROUTINE int chacha20_poly1305_aead_test(void)
 }
 #endif /* HAVE_CHACHA && HAVE_POLY1305 */
 
+#ifdef HAVE_ASCON
+WOLFSSL_TEST_SUBROUTINE int ascon_hash_test(void)
+{
+    WOLFSSL_SMALL_STACK_STATIC byte msg[1024];
+    WOLFSSL_SMALL_STACK_STATIC const byte md0[] = {
+        0x73, 0x46, 0xBC, 0x14, 0xF0, 0x36, 0xE8, 0x7A, 0xE0, 0x3D, 0x09, 0x97,
+        0x91, 0x30, 0x88, 0xF5, 0xF6, 0x84, 0x11, 0x43, 0x4B, 0x3C, 0xF8, 0xB5,
+        0x4F, 0xA7, 0x96, 0xA8, 0x0D, 0x25, 0x1F, 0x91,
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte md404[] = {
+        0x9C, 0xD5, 0x48, 0xCB, 0x4C, 0xD3, 0x0F, 0x57, 0x1E, 0x5F, 0xA4, 0xDF,
+        0x17, 0xC9, 0x22, 0x21, 0xC4, 0xEF, 0x2B, 0x03, 0xA7, 0xEB, 0x7B, 0x6D,
+        0x35, 0xEA, 0xE0, 0x84, 0xE6, 0xB3, 0x62, 0xBE,
+    };
+    byte mdOut[ASCON_HASH_SZ];
+
+    wc_AsconHash ascon;
+    int err;
+    size_t i;
+
+    /* init msg buffer */
+    for (i = 0; i < sizeof(msg); i++)
+        msg[i] = (byte)i;
+
+    err = wc_AsconHash_Init(&ascon);
+    if (err != 0)
+        return WC_TEST_RET_ENC_EC(err);
+    err = wc_AsconHash_Update(&ascon, NULL, 0);
+    if (err != 0)
+        return WC_TEST_RET_ENC_EC(err);
+    err = wc_AsconHash_Final(&ascon, mdOut);
+    if (err != 0)
+        return WC_TEST_RET_ENC_EC(err);
+    if (XMEMCMP(mdOut, md0, ASCON_HASH_SZ))
+        return WC_TEST_RET_ENC_NC;
+
+    err = wc_AsconHash_Init(&ascon);
+    if (err != 0)
+        return WC_TEST_RET_ENC_EC(err);
+    err = wc_AsconHash_Update(&ascon, msg, 202);
+    if (err != 0)
+        return WC_TEST_RET_ENC_EC(err);
+    err = wc_AsconHash_Update(&ascon, msg + 202, 202);
+    if (err != 0)
+        return WC_TEST_RET_ENC_EC(err);
+    err = wc_AsconHash_Final(&ascon, mdOut);
+    if (err != 0)
+        return WC_TEST_RET_ENC_EC(err);
+    if (XMEMCMP(mdOut, md404, ASCON_HASH_SZ))
+        return WC_TEST_RET_ENC_NC;
+
+    return 0;
+}
+#endif /* HAVE_ASCON */
 
 #ifndef NO_DES3
 WOLFSSL_TEST_SUBROUTINE int des_test(void)
