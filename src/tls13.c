@@ -10357,7 +10357,10 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
     idx += LENGTH_SZ;
     /* ticket */
     if ((ssl->options.mask & WOLFSSL_OP_NO_TICKET) != 0) {
-        XMEMCPY(output + idx, ssl->session->altSessionID, ID_LEN);
+        if (ssl->session->haveAltSessionID)
+            XMEMCPY(output + idx, ssl->session->altSessionID, ID_LEN);
+        else
+            XMEMCPY(output + idx, ssl->session->sessionID, ID_LEN);
         idx += ID_LEN;
     }
     else {
