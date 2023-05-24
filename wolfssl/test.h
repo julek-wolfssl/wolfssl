@@ -633,8 +633,10 @@ typedef struct func_args {
 
 void wait_tcp_ready(func_args* args);
 
+#ifndef SINGLE_THREADED
 void start_thread(THREAD_CB fun, func_args* args, THREAD_TYPE* thread);
 void join_thread(THREAD_TYPE thread);
+#endif
 
 typedef int (*cbType)(WOLFSSL_CTX *ctx, WOLFSSL *ssl);
 

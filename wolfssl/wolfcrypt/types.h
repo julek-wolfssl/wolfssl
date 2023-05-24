@@ -1381,7 +1381,7 @@ typedef struct w64wrapper {
 
     #ifndef SINGLE_THREADED
         /* Necessary headers should already be included. */
-        
+
         /* We don't support returns from threads */
         typedef THREAD_RETURN (WOLFSSL_THREAD *THREAD_CB)(void* arg);
 

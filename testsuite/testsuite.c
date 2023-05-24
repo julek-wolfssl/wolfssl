@@ -57,7 +57,10 @@ static THREAD_RETURN simple_test(func_args *args);
 static void simple_test(func_args *args);
 #endif
 static int test_tls(func_args* server_args);
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(HAVE_CRL_MONITOR)
 static int test_crl_monitor(void);
+#endif
 static void show_ciphers(void);
 static void cleanup_output(void);
 static int validate_cleanup_output(void);
@@ -216,7 +219,8 @@ int testsuite_test(int argc, char** argv)
         return server_args.return_code;
     }
 
-#ifdef HAVE_CRL_MONITOR
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(HAVE_CRL_MONITOR)
     ret = test_crl_monitor();
     if (ret != 0) {
         cleanup_output();
@@ -333,7 +337,7 @@ static int test_crl_monitor(void)
             rem_file(buf);
             expectFail = 1;
         }
-        
+
         client_args.return_code = 0;
         client_test(&client_args);
 
@@ -575,6 +579,7 @@ void wait_tcp_ready(func_args* args)
 #endif /* thread checks */
 }
 
+#ifndef SINGLE_THREADED
 
 /* Start a thread.
  *
@@ -674,6 +679,8 @@ void join_thread(THREAD_TYPE thread)
     (void)res; /* Suppress un-used variable warning */
 #endif
 }
+
+#endif /* SINGLE_THREADED */
 
 #ifndef NO_FILESYSTEM
 
