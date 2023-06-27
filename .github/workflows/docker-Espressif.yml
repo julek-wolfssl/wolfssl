@@ -1,6 +1,7 @@
 name: Espressif examples tests
 on:
   workflow_call:
+  push:
 
 jobs:
   espressif_latest:

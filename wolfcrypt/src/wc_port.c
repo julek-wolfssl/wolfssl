@@ -3439,7 +3439,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
     }
 #endif /* WOLFSSL_COND */
 
-#else /* pthread */
+#elif defined(WOLFSSL_PTHREADS)
 
     int wolfSSL_NewThread(THREAD_TYPE* thread,
         THREAD_CB cb, void* arg)
