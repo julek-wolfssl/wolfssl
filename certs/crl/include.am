@@ -15,15 +15,17 @@ EXTRA_DIST += \
 	     certs/crl/crl2.der
 
 EXTRA_DIST += \
-	     certs/crl/crl.revoked
+		certs/crl/crl.revoked \
+		certs/crl/extra-crls/ca-int-cert-revoked.pem \
+		certs/crl/extra-crls/general-server-crl.pem
 
 # Intermediate cert CRL's
 EXTRA_DIST += \
-		 certs/crl/ca-int.pem \
-		 certs/crl/ca-int2.pem \
-		 certs/crl/client-int.pem \
-	     certs/crl/server-int.pem \
-	     certs/crl/ca-int-ecc.pem \
-		 certs/crl/ca-int2-ecc.pem \
-		 certs/crl/client-int-ecc.pem \
-	     certs/crl/server-int-ecc.pem
+		certs/crl/ca-int.pem \
+		certs/crl/ca-int2.pem \
+		certs/crl/client-int.pem \
+		certs/crl/server-int.pem \
+		certs/crl/ca-int-ecc.pem \
+		certs/crl/ca-int2-ecc.pem \
+		certs/crl/client-int-ecc.pem \
+		certs/crl/server-int-ecc.pem

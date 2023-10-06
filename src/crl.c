@@ -239,9 +239,11 @@ void FreeCRL(WOLFSSL_CRL* crl, int dynamic)
         XFREE(crl, crl->heap, DYNAMIC_TYPE_CRL);
 }
 
-static int FindRevokedSerial(DecodedCert* cert, RevokedCert* rc, int totalCerts)
+static int FindRevokedSerial(RevokedCert* rc, byte* serial, int serialSz,
+        byte* serialHash, int totalCerts)
 {
     int ret = 0;
+    byte hash[SIGNER_DIGEST_SIZE];
 #ifdef CRL_STATIC_REVOKED_LIST
     /* do binary search */
     int low, high, mid;
@@ -252,11 +254,10 @@ static int FindRevokedSerial(DecodedCert* cert, RevokedCert* rc, int totalCerts)
     while (low <= high) {
         mid = (low + high) / 2;
 
-        if (XMEMCMP(rc[mid].serialNumber, cert->serial, rc->serialSz) < 0) {
+        if (XMEMCMP(rc[mid].serialNumber, serial, rc->serialSz) < 0) {
             low = mid + 1;
         }
-        else if (XMEMCMP(rc[mid].serialNumber, cert->serial,
-                                                        rc->serialSz) > 0) {
+        else if (XMEMCMP(rc[mid].serialNumber, serial, rc->serialSz) > 0) {
             high = mid - 1;
         }
         else {
@@ -270,18 +271,32 @@ static int FindRevokedSerial(DecodedCert* cert, RevokedCert* rc, int totalCerts)
     /* search in the linked list*/
 
     while (rc) {
-        if (rc->serialSz == cert->serialSz &&
-               XMEMCMP(rc->serialNumber, cert->serial, rc->serialSz) == 0) {
-            WOLFSSL_MSG("Cert revoked");
-            ret = CRL_CERT_REVOKED;
-            break;
+        if (serialHash == NULL) {
+            if (rc->serialSz == serialSz &&
+                   XMEMCMP(rc->serialNumber, serial, rc->serialSz) == 0) {
+                WOLFSSL_MSG("Cert revoked");
+                ret = CRL_CERT_REVOKED;
+                break;
+            }
+        }
+        else {
+            ret = CalcHashId(rc->serialNumber, rc->serialSz, hash);
+            if (ret != 0)
+                break;
+            if (XMEMCMP(hash, serialHash, SIGNER_DIGEST_SIZE) == 0) {
+                WOLFSSL_MSG("Cert revoked");
+                ret = CRL_CERT_REVOKED;
+                break;
+            }
         }
         rc = rc->next;
     }
 #endif
     return ret;
 }
-static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntry)
+
+static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
+        int serialSz, byte* serialHash, int *pFoundEntry)
 {
     CRL_Entry* crle;
     int        foundEntry = 0;
@@ -295,15 +310,16 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
     crle = crl->crlList;
 
     while (crle) {
-        if (XMEMCMP(crle->issuerHash, cert->issuerHash, CRL_DIGEST_SIZE) == 0) {
+        if (XMEMCMP(crle->issuerHash, issuerHash, CRL_DIGEST_SIZE) == 0) {
             WOLFSSL_MSG("Found CRL Entry on list");
 
             if (crle->verified == 0) {
                 Signer* ca = NULL;
             #ifndef NO_SKID
                 byte extAuthKeyId[KEYID_SIZE];
+                byte extAuthKeyIdSet;
             #endif
-                byte issuerHash[CRL_DIGEST_SIZE];
+                byte crleIssuerHash[CRL_DIGEST_SIZE];
                 byte* tbs;
                 word32 tbsSz = crle->tbsSz;
                 byte* sig = NULL;
@@ -328,18 +344,20 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
             #ifndef NO_SKID
                 XMEMCPY(extAuthKeyId, crle->extAuthKeyId,
                                                           sizeof(extAuthKeyId));
+                extAuthKeyIdSet = crle->extAuthKeyIdSet;
             #endif
-                XMEMCPY(issuerHash, crle->issuerHash, sizeof(issuerHash));
+                XMEMCPY(crleIssuerHash, crle->issuerHash, sizeof(crleIssuerHash));
 
                 wc_UnLockMutex(&crl->crlLock);
+                crle = NULL;
 
             #ifndef NO_SKID
-                if (crle->extAuthKeyIdSet)
+                if (extAuthKeyIdSet)
                     ca = GetCA(crl->cm, extAuthKeyId);
                 if (ca == NULL)
-                    ca = GetCAByName(crl->cm, issuerHash);
+                    ca = GetCAByName(crl->cm, crleIssuerHash);
             #else /* NO_SKID */
-                ca = GetCA(crl->cm, issuerHash);
+                ca = GetCA(crl->cm, crleIssuerHash);
             #endif /* NO_SKID */
                 if (ca == NULL) {
                     XFREE(sig, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
@@ -361,7 +379,7 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
 
                 crle = crl->crlList;
                 while (crle) {
-                    if (XMEMCMP(crle->issuerHash, cert->issuerHash,
+                    if (XMEMCMP(crle->issuerHash, issuerHash,
                         CRL_DIGEST_SIZE) == 0) {
 
                         if (ret == 0)
@@ -379,7 +397,7 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
                     }
                     crle = crle->next;
                 }
-                if (crle == NULL || crle->verified < 0)
+                if (crle == NULL || ret < 0)
                     break;
             }
             else if (crle->verified < 0) {
@@ -403,14 +421,15 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
             }
             if (ret == 0) {
                 foundEntry = 1;
+                ret = FindRevokedSerial(crle->certs, serial, serialSz,
+                        serialHash, crle->totalCerts);
+                if (ret != 0)
+                    break;
             }
-            break;
+            else
+                break;
         }
         crle = crle->next;
-    }
-
-    if (foundEntry) {
-        ret = FindRevokedSerial(cert, crle->certs, crle->totalCerts);
     }
 
     wc_UnLockMutex(&crl->crlLock);
@@ -420,35 +439,43 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
     return ret;
 }
 
-/* Is the cert ok with CRL, return 0 on success */
-int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
+int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
+        int serialSz, byte* serialHash, const byte* extCrlInfo,
+        int extCrlInfoSz, void* issuerName)
 {
     int        foundEntry = 0;
     int        ret = 0;
 
     WOLFSSL_ENTER("CheckCertCRL");
+    (void)issuerName;
+
+    if ((serial == NULL || serialSz == 0) && serialHash == NULL) {
+        WOLFSSL_MSG("Either serial or hash has to be provided");
+        return BUFFER_ERROR;
+    }
 
 #ifdef WOLFSSL_CRL_ALLOW_MISSING_CDP
     /* Skip CRL verification in case no CDP in peer cert */
-    if (!cert->extCrlInfo) {
+    if (!extCrlInfo) {
         return ret;
     }
 #endif
 
-    ret = CheckCertCRLList(crl, cert, &foundEntry);
+    ret = CheckCertCRLList(crl, issuerHash, serial, serialSz, serialHash,
+            &foundEntry);
 
 #ifdef HAVE_CRL_IO
     if (foundEntry == 0) {
         /* perform embedded lookup */
         if (crl->crlIOCb) {
-            ret = crl->crlIOCb(crl, (const char*)cert->extCrlInfo,
-                                                        cert->extCrlInfoSz);
+            ret = crl->crlIOCb(crl, (const char*)extCrlInfo, extCrlInfoSz);
             if (ret == WOLFSSL_CBIO_ERR_WANT_READ) {
                 ret = OCSP_WANT_READ;
             }
             else if (ret >= 0) {
                 /* try again */
-                ret = CheckCertCRLList(crl, cert, &foundEntry);
+                ret = CheckCertCRLList(crl, issuerHash, serial, serialSz,
+                        serialHash, &foundEntry);
             }
         }
     }
@@ -465,10 +492,11 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
     if ((foundEntry == 0) && (ret != OCSP_WANT_READ)) {
         if (crl->cm->x509_store_p != NULL) {
             ret = LoadCertByIssuer(crl->cm->x509_store_p,
-                          (WOLFSSL_X509_NAME*)cert->issuerName, X509_LU_CRL);
+                          (WOLFSSL_X509_NAME*)issuerName, X509_LU_CRL);
             if (ret == WOLFSSL_SUCCESS) {
                 /* try again */
-                ret = CheckCertCRLList(crl, cert, &foundEntry);
+                ret = CheckCertCRLList(crl, issuerHash, serial, serialSz,
+                        serialHash, &foundEntry);
             }
         }
     }
@@ -484,10 +512,10 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
 
             WOLFSSL_MSG("Issuing missing CRL callback");
             url[0] = '\0';
-            if (cert->extCrlInfo) {
-                if (cert->extCrlInfoSz < (int)sizeof(url) -1 ) {
-                    XMEMCPY(url, cert->extCrlInfo, cert->extCrlInfoSz);
-                    url[cert->extCrlInfoSz] = '\0';
+            if (extCrlInfo) {
+                if (extCrlInfoSz < (int)sizeof(url) -1 ) {
+                    XMEMCPY(url, extCrlInfo, extCrlInfoSz);
+                    url[extCrlInfoSz] = '\0';
                 }
                 else  {
                     WOLFSSL_MSG("CRL url too long");
@@ -499,6 +527,18 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
     }
 
     return ret;
+}
+
+/* Is the cert ok with CRL, return 0 on success */
+int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
+{
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    void* issuerName = cert->issuerName;
+#else
+    void* issuerName = NULL;
+#endif
+    return CheckCertCRL_ex(crl, cert->issuerHash, cert->serial, cert->serialSz,
+            NULL, cert->extCrlInfo, cert->extCrlInfoSz, issuerName);
 }
 
 

@@ -13025,6 +13025,24 @@ static int ProcessPeerCertCheckKey(WOLFSSL* ssl, ProcPeerCertArgs* args)
     return ret;
 }
 
+#ifdef HAVE_CRL
+static int ProcessPeerCertsChainCRLCheck(WOLFSSL_CERT_MANAGER* cm, Signer* ca)
+{
+    Signer* prev = NULL;
+    int ret = 0;
+    /* End loop if no more issuers found or if we have
+     * found a self signed cert (ca == prev) */
+    for (; ret == 0 && ca != NULL && ca != prev;
+            prev = ca, ca = GetCAByName(cm, ca->issuerNameHash)) {
+        ret = CheckCertCRL_ex(cm->crl, ca->issuerNameHash, NULL, 0,
+                ca->serialHash, NULL, 0, NULL);
+        if (ret != 0)
+            break;
+    }
+    return ret;
+}
+#endif
+
 int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                      word32 totalSz)
 {
@@ -13481,6 +13499,17 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 WOLFSSL_ERROR_VERBOSE(ret);
                                 WOLFSSL_MSG("\tCRL check not ok");
                             }
+
+                            if (ret == 0 &&
+                                    args->certIdx == args->totalCerts-1) {
+                                ret = ProcessPeerCertsChainCRLCheck(
+                                        SSL_CM(ssl), args->dCert->ca);
+                                if (ret != 0) {
+                                    WOLFSSL_ERROR_VERBOSE(ret);
+                                    WOLFSSL_MSG("\tCRL chain check not ok");
+                                    args->fatal = 0;
+                                }
+                            }
                         }
                 #endif /* HAVE_CRL */
                         (void)doCrlLookup;
@@ -13858,6 +13887,22 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                             : X509_V_ERR_CERT_REJECTED;;
                             }
                         #endif
+                        }
+                    }
+                    if (ret == 0 && doLookup && SSL_CM(ssl)->crlEnabled &&
+                            SSL_CM(ssl)->crlCheckAll && args->totalCerts == 1) {
+                        /* Check the entire cert chain */
+                        if (args->dCert->ca != NULL) {
+                            ret = ProcessPeerCertsChainCRLCheck(SSL_CM(ssl),
+                                    args->dCert->ca);
+                            if (ret != 0) {
+                                WOLFSSL_ERROR_VERBOSE(ret);
+                                WOLFSSL_MSG("\tCRL chain check not ok");
+                                args->fatal = 0;
+                            }
+                        }
+                        else {
+                            WOLFSSL_MSG("No CA signer set");
                         }
                     }
                 #endif /* HAVE_CRL */

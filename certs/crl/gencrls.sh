@@ -96,11 +96,11 @@ mv tmp crl.revoked
 cp blank.index.txt demoCA/index.txt
 
 # caEccCrl
-echo "Step 10"
+echo "Step 13"
 openssl ca -config ../renewcerts/wolfssl.cnf -revoke ../server-revoked-cert.pem -keyfile ../ca-ecc-key.pem -cert ../ca-ecc-cert.pem
 check_result $?
 
-echo "Step 11"
+echo "Step 14"
 openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out caEccCrl.pem -keyfile ../ca-ecc-key.pem -cert ../ca-ecc-cert.pem
 check_result $?
 

@@ -59660,6 +59660,127 @@ static int test_ticket_nonce_malloc(void)
 
 #endif /* WOLFSSL_TICKET_NONCE_MALLOC */
 
+
+#if defined(HAVE_CRL) && defined(HAVE_IO_TESTS_DEPENDENCIES)
+static void test_revoked_loaded_int_cert_ctx_ready1(WOLFSSL_CTX* ctx)
+{
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, myVerify);
+    myVerifyAction = VERIFY_USE_PREVERFIY;
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx,
+            "./certs/ca-cert.pem", NULL, 0), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx,
+            "./certs/intermediate/ca-int-cert.pem", NULL, 0), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECKALL),
+            WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_LoadCRLFile(ctx,
+            "./certs/crl/extra-crls/ca-int-cert-revoked.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_LoadCRLFile(ctx,
+            "./certs/crl/ca-int.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+}
+
+static void test_revoked_loaded_int_cert_ctx_ready2(WOLFSSL_CTX* ctx)
+{
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, myVerify);
+    myVerifyAction = VERIFY_USE_PREVERFIY;
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx,
+            "./certs/ca-cert.pem", NULL, 0), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx,
+            "./certs/intermediate/ca-int-cert.pem", NULL, 0), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx,
+            "./certs/intermediate/ca-int2-cert.pem", NULL, 0), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECKALL),
+            WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_LoadCRLFile(ctx,
+            "./certs/crl/ca-int2.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_LoadCRLFile(ctx,
+            "./certs/crl/extra-crls/ca-int-cert-revoked.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_LoadCRLFile(ctx,
+            "./certs/crl/ca-int.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+}
+
+static void test_revoked_loaded_int_cert_server_ssl_ready1(WOLFSSL* ssl)
+{
+    AssertIntEQ(wolfSSL_use_certificate_chain_file(ssl,
+            "./certs/intermediate/ca-int2-cert.pem"),
+            WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_use_PrivateKey_file(ssl,
+            "./certs/intermediate/ca-int2-key.pem", WOLFSSL_FILETYPE_PEM),
+            WOLFSSL_SUCCESS);
+}
+
+static void test_revoked_loaded_int_cert_server_ssl_ready2(WOLFSSL* ssl)
+{
+    AssertIntEQ(wolfSSL_use_certificate_chain_file(ssl,
+            "./certs/intermediate/server-chain.pem"),
+            WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_use_PrivateKey_file(ssl,
+            "./certs/server-key.pem", WOLFSSL_FILETYPE_PEM),
+            WOLFSSL_SUCCESS);
+}
+
+static void test_revoked_loaded_int_cert_server_ssl_ready3(WOLFSSL* ssl)
+{
+    AssertIntEQ(wolfSSL_use_certificate_chain_file(ssl,
+            "./certs/intermediate/server-chain-short.pem"),
+            WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_use_PrivateKey_file(ssl,
+            "./certs/server-key.pem", WOLFSSL_FILETYPE_PEM),
+            WOLFSSL_SUCCESS);
+}
+
+static int test_revoked_loaded_int_cert(void)
+{
+    callback_functions func_cb_client;
+    callback_functions func_cb_server;
+    struct {
+        ssl_callback server_ssl_ready;
+        ctx_callback client_ctx_ready;
+    } test_params[] = {
+        {test_revoked_loaded_int_cert_server_ssl_ready1,
+            test_revoked_loaded_int_cert_ctx_ready1},
+        {test_revoked_loaded_int_cert_server_ssl_ready2,
+            test_revoked_loaded_int_cert_ctx_ready2},
+        {test_revoked_loaded_int_cert_server_ssl_ready3,
+            test_revoked_loaded_int_cert_ctx_ready2},
+    };
+    size_t i;
+
+    printf("\n");
+
+    for (i = 0; i < XELEM_CNT(test_params); i++) {
+        XMEMSET(&func_cb_client, 0, sizeof(func_cb_client));
+        XMEMSET(&func_cb_server, 0, sizeof(func_cb_server));
+
+        func_cb_client.ctx_ready = test_params[i].client_ctx_ready;
+        func_cb_server.ssl_ready = test_params[i].server_ssl_ready;
+        func_cb_client.method  = wolfTLSv1_2_client_method;
+        func_cb_server.method  = wolfTLSv1_2_server_method;
+
+        test_wolfSSL_client_server_nofail(&func_cb_client, &func_cb_server);
+
+#ifndef WOLFSSL_HAPROXY
+        AssertIntEQ(func_cb_client.last_err, CRL_CERT_REVOKED);
+#else
+        AssertIntEQ(func_cb_client.last_err, WOLFSSL_X509_V_ERR_CERT_REVOKED);
+#endif
+        AssertTrue(func_cb_server.last_err == SOCKET_ERROR_E ||
+                   func_cb_server.last_err == FATAL_ERROR);
+    }
+
+    return 0;
+}
+#else
+static int test_revoked_loaded_int_cert(void)
+{
+    return 0;
+}
+#endif
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -59673,6 +59794,7 @@ typedef struct {
 #define TEST_DECL(func) { #func, func }
 
 TEST_CASE testCases[] = {
+    TEST_DECL(test_revoked_loaded_int_cert),
     TEST_DECL(test_fileAccess),
     TEST_DECL(test_wolfSSL_Init),
     TEST_DECL(test_wolfSSL_Method_Allocators),
