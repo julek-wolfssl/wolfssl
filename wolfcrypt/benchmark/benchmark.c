@@ -268,6 +268,9 @@
 #ifdef WOLFCRYPT_HAVE_SAKKE
     #include <wolfssl/wolfcrypt/sakke.h>
 #endif
+#ifdef HAVE_ASCON
+    #include <wolfssl/wolfcrypt/ascon.h>
+#endif
 
 #if defined(HAVE_PQC)
     #if defined(HAVE_FALCON)
@@ -414,6 +417,7 @@
 #define BENCH_RIPEMD             0x00004000
 #define BENCH_BLAKE2B            0x00008000
 #define BENCH_BLAKE2S            0x00010000
+#define BENCH_ASCON_HASH         0x00020000
 
 /* MAC algorithms. */
 #define BENCH_CMAC               0x00000001
@@ -632,6 +636,9 @@ static const bench_alg bench_digest_opt[] = {
 #endif
 #ifdef HAVE_BLAKE2S
     { "-blake2s",            BENCH_BLAKE2S           },
+#endif
+#ifdef HAVE_ASCON
+    { "-ascon-hash",         BENCH_ASCON_HASH        },
 #endif
     { NULL, 0 }
 };
@@ -2463,6 +2470,10 @@ static void* benchmarks_do(void* args)
 #ifdef HAVE_BLAKE2S
     if (bench_all || (bench_digest_algs & BENCH_BLAKE2S))
         bench_blake2s();
+#endif
+#ifdef HAVE_ASCON
+    if (bench_all || (bench_digest_algs & BENCH_ASCON_HASH))
+        bench_ascon_hash();
 #endif
 #ifdef WOLFSSL_CMAC
     if (bench_all || (bench_mac_algs & BENCH_CMAC)) {
@@ -5806,6 +5817,64 @@ void bench_blake2s(void)
 }
 #endif
 
+#ifdef HAVE_ASCON
+void bench_ascon_hash(void)
+{
+    wc_AsconHash ascon;
+    byte    digest[ASCON_HASH_SZ];
+    double  start;
+    int     ret = 0, i, count;
+
+    if (digest_stream) {
+        ret = wc_AsconHash_Init(&ascon);
+        if (ret != 0) {
+            printf("wc_AsconHash_Init failed, ret = %d\n", ret);
+            return;
+        }
+
+        bench_stats_start(&count, &start);
+        do {
+            for (i = 0; i < numBlocks; i++) {
+                ret = wc_AsconHash_Update(&ascon, bench_plain, bench_size);
+                if (ret != 0) {
+                    printf("wc_AsconHash_Update failed, ret = %d\n", ret);
+                    return;
+                }
+            }
+            ret = wc_AsconHash_Final(&ascon, digest);
+            if (ret != 0) {
+                printf("wc_AsconHash_Final failed, ret = %d\n", ret);
+                return;
+            }
+            count += i;
+        } while (bench_stats_check(start));
+    }
+    else {
+        bench_stats_start(&count, &start);
+        do {
+            for (i = 0; i < numBlocks; i++) {
+                ret = wc_AsconHash_Init(&ascon);
+                if (ret != 0) {
+                    printf("wc_AsconHash_Init failed, ret = %d\n", ret);
+                    return;
+                }
+                ret = wc_AsconHash_Update(&ascon, bench_plain, bench_size);
+                if (ret != 0) {
+                    printf("wc_AsconHash_Update failed, ret = %d\n", ret);
+                    return;
+                }
+                ret = wc_AsconHash_Final(&ascon, digest);
+                if (ret != 0) {
+                    printf("wc_AsconHash_Final failed, ret = %d\n", ret);
+                    return;
+                }
+            }
+            count += i;
+        } while (bench_stats_check(start));
+    }
+    bench_stats_sym_finish("ASCON hash", 0, count, bench_size, start, ret);
+}
+#endif
 
 #ifdef WOLFSSL_CMAC
 
