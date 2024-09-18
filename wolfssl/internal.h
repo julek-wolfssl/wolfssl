@@ -2993,9 +2993,6 @@ typedef enum {
     TLSX_EXTENDED_MASTER_SECRET     = TLSXT_EXTENDED_MASTER_SECRET,
     TLSX_SESSION_TICKET             = TLSXT_SESSION_TICKET,
 #ifdef WOLFSSL_TLS13
-    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-    TLSX_PRE_SHARED_KEY             = TLSXT_PRE_SHARED_KEY,
-    #endif
     #ifdef WOLFSSL_EARLY_DATA
     TLSX_EARLY_DATA                 = TLSXT_EARLY_DATA,
     #endif
@@ -3015,7 +3012,6 @@ typedef enum {
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
     TLSX_SIGNATURE_ALGORITHMS_CERT  = TLSXT_SIGNATURE_ALGORITHMS_CERT,
     #endif
-    TLSX_KEY_SHARE                  = TLSXT_KEY_SHARE,
     #if defined(WOLFSSL_DTLS_CID)
     TLSX_CONNECTION_ID              = TLSXT_CONNECTION_ID,
     #endif /* defined(WOLFSSL_DTLS_CID) */
@@ -3025,6 +3021,12 @@ typedef enum {
     #ifdef HAVE_ECH
     TLSX_ECH                        = TLSXT_ECH,
     #endif
+#endif
+#if defined(WOLFSSL_TLS13) || !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
+    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+    TLSX_PRE_SHARED_KEY             = TLSXT_PRE_SHARED_KEY,
+    #endif
+    TLSX_KEY_SHARE                  = TLSXT_KEY_SHARE,
 #endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DUAL_ALG_CERTS)
     TLSX_CKS                        = TLSXT_CKS,

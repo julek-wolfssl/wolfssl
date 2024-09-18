@@ -12450,6 +12450,26 @@ void TLSX_FreeAll(TLSX* list, void* heap)
                 WOLFSSL_MSG("Encrypt-Then-Mac extension free");
                 break;
 #endif
+
+#if defined(WOLFSSL_TLS13) || !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
+    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+            case TLSX_PRE_SHARED_KEY:
+                WOLFSSL_MSG("Pre-Shared Key extension free");
+                PSK_FREE_ALL((PreSharedKey*)extension->data, heap);
+                break;
+
+        #ifdef WOLFSSL_TLS13
+            case TLSX_PSK_KEY_EXCHANGE_MODES:
+                WOLFSSL_MSG("PSK Key Exchange Modes extension free");
+                break;
+        #endif
+    #endif
+
+            case TLSX_KEY_SHARE:
+                WOLFSSL_MSG("Key Share extension free");
+                KS_FREE_ALL((KeyShareEntry*)extension->data, heap);
+                break;
+#endif
 #ifdef WOLFSSL_TLS13
             case TLSX_SUPPORTED_VERSIONS:
                 WOLFSSL_MSG("Supported Versions extension free");
@@ -12459,17 +12479,6 @@ void TLSX_FreeAll(TLSX* list, void* heap)
             case TLSX_COOKIE:
                 WOLFSSL_MSG("Cookie extension free");
                 CKE_FREE_ALL((Cookie*)extension->data, heap);
-                break;
-    #endif
-
-    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-            case TLSX_PRE_SHARED_KEY:
-                WOLFSSL_MSG("Pre-Shared Key extension free");
-                PSK_FREE_ALL((PreSharedKey*)extension->data, heap);
-                break;
-
-            case TLSX_PSK_KEY_EXCHANGE_MODES:
-                WOLFSSL_MSG("PSK Key Exchange Modes extension free");
                 break;
     #endif
 
@@ -12490,11 +12499,6 @@ void TLSX_FreeAll(TLSX* list, void* heap)
                 WOLFSSL_MSG("Signature Algorithms extension free");
                 break;
     #endif
-
-            case TLSX_KEY_SHARE:
-                WOLFSSL_MSG("Key Share extension free");
-                KS_FREE_ALL((KeyShareEntry*)extension->data, heap);
-                break;
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
             case TLSX_CERTIFICATE_AUTHORITIES:
                 WOLFSSL_MSG("Certificate Authorities extension free");
@@ -12645,6 +12649,24 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
                 ret = ETM_GET_SIZE(msgType, &length);
                 break;
 #endif /* HAVE_ENCRYPT_THEN_MAC */
+
+#if defined(WOLFSSL_TLS13) || !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
+    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+            case TLSX_PRE_SHARED_KEY:
+                ret = PSK_GET_SIZE((PreSharedKey*)extension->data, msgType,
+                                                                       &length);
+                break;
+        #ifdef WOLFSSL_TLS13
+            case TLSX_PSK_KEY_EXCHANGE_MODES:
+                ret = PKM_GET_SIZE((byte)extension->val, msgType, &length);
+                break;
+        #endif
+    #endif
+            case TLSX_KEY_SHARE:
+                length += KS_GET_SIZE((KeyShareEntry*)extension->data, msgType);
+                break;
+#endif
+
 #ifdef WOLFSSL_TLS13
             case TLSX_SUPPORTED_VERSIONS:
                 ret = SV_GET_SIZE(extension->data, msgType, &length);
@@ -12653,17 +12675,6 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
     #ifdef WOLFSSL_SEND_HRR_COOKIE
             case TLSX_COOKIE:
                 ret = CKE_GET_SIZE((Cookie*)extension->data, msgType, &length);
-                break;
-    #endif
-
-    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-            case TLSX_PRE_SHARED_KEY:
-                ret = PSK_GET_SIZE((PreSharedKey*)extension->data, msgType,
-                                                                       &length);
-                break;
-
-            case TLSX_PSK_KEY_EXCHANGE_MODES:
-                ret = PKM_GET_SIZE((byte)extension->val, msgType, &length);
                 break;
     #endif
 
@@ -12685,9 +12696,6 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
                 break;
     #endif
 
-            case TLSX_KEY_SHARE:
-                length += KS_GET_SIZE((KeyShareEntry*)extension->data, msgType);
-                break;
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
             case TLSX_CERTIFICATE_AUTHORITIES:
                 length += CAN_GET_SIZE(extension->data);
@@ -12869,6 +12877,29 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 ret = ETM_WRITE(extension->data, output, msgType, &offset);
                 break;
 #endif /* HAVE_ENCRYPT_THEN_MAC */
+
+#if defined(WOLFSSL_TLS13) || !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
+    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+            case TLSX_PRE_SHARED_KEY:
+                WOLFSSL_MSG("Pre-Shared Key extension to write");
+                ret = PSK_WRITE((PreSharedKey*)extension->data, output + offset,
+                                                              msgType, &offset);
+                break;
+
+        #ifdef WOLFSSL_TLS13
+            case TLSX_PSK_KEY_EXCHANGE_MODES:
+                WOLFSSL_MSG("PSK Key Exchange Modes extension to write");
+                ret = PKM_WRITE((byte)extension->val, output + offset, msgType,
+                                                                       &offset);
+                break;
+        #endif
+    #endif
+            case TLSX_KEY_SHARE:
+                WOLFSSL_MSG("Key Share extension to write");
+                offset += KS_WRITE((KeyShareEntry*)extension->data,
+                                                      output + offset, msgType);
+                break;
+#endif
 #ifdef WOLFSSL_TLS13
             case TLSX_SUPPORTED_VERSIONS:
                 WOLFSSL_MSG("Supported Versions extension to write");
@@ -12880,20 +12911,6 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 WOLFSSL_MSG("Cookie extension to write");
                 ret = CKE_WRITE((Cookie*)extension->data, output + offset,
                                 msgType, &offset);
-                break;
-    #endif
-
-    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-            case TLSX_PRE_SHARED_KEY:
-                WOLFSSL_MSG("Pre-Shared Key extension to write");
-                ret = PSK_WRITE((PreSharedKey*)extension->data, output + offset,
-                                                              msgType, &offset);
-                break;
-
-            case TLSX_PSK_KEY_EXCHANGE_MODES:
-                WOLFSSL_MSG("PSK Key Exchange Modes extension to write");
-                ret = PKM_WRITE((byte)extension->val, output + offset, msgType,
-                                                                       &offset);
                 break;
     #endif
 
@@ -12919,11 +12936,6 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 break;
     #endif
 
-            case TLSX_KEY_SHARE:
-                WOLFSSL_MSG("Key Share extension to write");
-                offset += KS_WRITE((KeyShareEntry*)extension->data,
-                                                      output + offset, msgType);
-                break;
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
             case TLSX_CERTIFICATE_AUTHORITIES:
                 WOLFSSL_MSG("Certificate Authorities extension to write");
@@ -14341,8 +14353,8 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
             #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
                     TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
             #endif
-                    WC_DO_NOTHING; /* avoid empty brackets */
         #endif
+                    WC_DO_NOTHING; /* avoid empty brackets */
                 }
         #ifdef WOLFSSL_DTLS_CID
                 TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_CONNECTION_ID));
