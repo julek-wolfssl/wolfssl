@@ -6576,6 +6576,7 @@ WOLFSSL_LOCAL void DoCertFatalAlert(WOLFSSL* ssl, int ret);
 #endif
 
 WOLFSSL_LOCAL int cipherExtraData(WOLFSSL* ssl);
+WOLFSSL_LOCAL word32 MacSize(const WOLFSSL* ssl);
 
 #ifndef NO_WOLFSSL_CLIENT
     WOLFSSL_LOCAL int HaveUniqueSessionObj(WOLFSSL* ssl);

@@ -4752,8 +4752,7 @@ static void SetDigest(WOLFSSL* ssl, int hashAlgo)
 #endif /* !NO_WOLFSSL_SERVER || !NO_WOLFSSL_CLIENT */
 #endif /* !NO_CERTS */
 
-#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
-static word32 MacSize(const WOLFSSL* ssl)
+word32 MacSize(const WOLFSSL* ssl)
 {
 #ifdef HAVE_TRUNCATED_HMAC
     word32 digestSz = ssl->truncated_hmac ? (byte)TRUNCATED_HMAC_SZ
@@ -4764,7 +4763,6 @@ static word32 MacSize(const WOLFSSL* ssl)
 
     return digestSz;
 }
-#endif /* HAVE_ENCRYPT_THEN_MAC && !WOLFSSL_AEAD_ONLY */
 
 #ifndef NO_RSA
 #if !defined(WOLFSSL_NO_TLS12) || \
@@ -21707,14 +21705,22 @@ default:
                 }
                 else
 #endif
-                /* With atomicUser the callback should have already included
-                 * the mac in the padding size. The ETM callback doesn't do this
-                 * for some reason. */
-                if (ssl->specs.cipher_type != aead &&
-                        (!atomicUser || ssl->options.startedETMRead)) {
-                    /* consider MAC as padding */
-                    ssl->keys.padSz += MacSize(ssl);
+                {
+#ifdef HAVE_ENCRYPT_THEN_MAC
+                    word16 startedETMRead = ssl->options.startedETMRead;
+#else
+                    word16 startedETMRead = 0;
+#endif
+                    /* With atomicUser the callback should have already included
+                     * the mac in the padding size. The ETM callback doesn't do
+                     * this for some reason. */
+                    if (ssl->specs.cipher_type != aead &&
+                            (!atomicUser || startedETMRead)) {
+                        /* consider MAC as padding */
+                        ssl->keys.padSz += MacSize(ssl);
+                    }
                 }
+
             }
 
             /* in case > 1 msg per record */

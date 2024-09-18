@@ -94273,12 +94273,12 @@ static int test_dtls12_basic_connection_id(void)
 
             /* Write some data */
             wolfSSL_SetLoggingPrefix("client");
-            ExpectIntEQ(wolfSSL_write(ssl_c, params[i], XSTRLEN(params[i])),
-                    XSTRLEN(params[i]));
+            ExpectIntEQ(wolfSSL_write(ssl_c, params[i],
+                    (int)XSTRLEN(params[i])), XSTRLEN(params[i]));
             ExpectNotNull(CLIENT_CID());
             wolfSSL_SetLoggingPrefix("server");
-            ExpectIntEQ(wolfSSL_write(ssl_s, params[i], XSTRLEN(params[i])),
-                    XSTRLEN(params[i]));
+            ExpectIntEQ(wolfSSL_write(ssl_s, params[i],
+                    (int)XSTRLEN(params[i])), XSTRLEN(params[i]));
             ExpectNotNull(SERVER_CID());
             /* Read the data */
             wolfSSL_SetLoggingPrefix("client");
@@ -94389,8 +94389,8 @@ static int test_dtls12_basic_connection_id(void)
                 ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), 1);
                 ExpectNotNull(CLIENT_CID());
             }
-            ExpectIntEQ(wolfSSL_write(ssl_c, params[i], XSTRLEN(params[i])),
-                    XSTRLEN(params[i]));
+            ExpectIntEQ(wolfSSL_write(ssl_c, params[i],
+                    (int)XSTRLEN(params[i])), XSTRLEN(params[i]));
             /* Server second flight */
             wolfSSL_SetLoggingPrefix("server");
             ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
@@ -94400,8 +94400,8 @@ static int test_dtls12_basic_connection_id(void)
                     XSTRLEN(params[i]));
             ExpectStrEQ(readBuf, params[i]);
             if (!run_params[j].drop) {
-                ExpectIntEQ(wolfSSL_write(ssl_s, params[i], XSTRLEN(params[i])),
-                        XSTRLEN(params[i]));
+                ExpectIntEQ(wolfSSL_write(ssl_s, params[i],
+                        (int)XSTRLEN(params[i])), XSTRLEN(params[i]));
             }
             ExpectIntEQ(wolfSSL_negotiate(ssl_s), 1);
             ExpectNotNull(SERVER_CID());
@@ -94543,10 +94543,10 @@ static int test_dtls13_basic_connection_id(void)
         ExpectIntEQ(wolfSSL_negotiate(ssl_c), 1);
 
         /* Write some data */
-        ExpectIntEQ(wolfSSL_write(ssl_c, params[i], XSTRLEN(params[i])),
+        ExpectIntEQ(wolfSSL_write(ssl_c, params[i], (int)XSTRLEN(params[i])),
                 XSTRLEN(params[i]));
         ExpectNotNull(CLIENT_CID());
-        ExpectIntEQ(wolfSSL_write(ssl_s, params[i], XSTRLEN(params[i])),
+        ExpectIntEQ(wolfSSL_write(ssl_s, params[i], (int)XSTRLEN(params[i])),
                 XSTRLEN(params[i]));
         ExpectNotNull(SERVER_CID());
         /* Read the data */
