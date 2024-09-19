@@ -210,8 +210,8 @@ WOLFSSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
     #endif
 #endif
 
-static WC_MAYBE_UNUSED int writeAeadAuthData(WOLFSSL* ssl, word16 sz,
-        byte type, byte* additional, byte dec, byte** seq, int verifyOrder);
+int writeAeadAuthData(WOLFSSL* ssl, word16 sz, byte type, byte* additional,
+                      byte dec, byte** seq, int verifyOrder);
 
 #ifdef WOLFSSL_DTLS
     static int _DtlsCheckWindow(WOLFSSL* ssl);
@@ -18928,7 +18928,7 @@ typedef int (*Sm4AuthDecryptFunc)(wc_Sm4* sm4, byte* out, const byte* in,
  * @return > 0          length of auth data
  *         <=0          error
  */
-static int writeAeadAuthData(WOLFSSL* ssl, word16 sz, byte type,
+int writeAeadAuthData(WOLFSSL* ssl, word16 sz, byte type,
         byte* additional, byte dec, byte** seq, int verifyOrder)
 {
     word32 idx = 0;
