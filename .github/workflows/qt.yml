@@ -1,0 +1,32 @@
+name: QT Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+#    branches: [ 'master', 'main', 'release/**' ]
+#  pull_request:
+#    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  qt_check:
+    strategy:
+      fail-fast: false
+    name: ${{ matrix.ref }}
+#    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dependencies
+        run: |
+            export DEBIAN_FRONTEND=noninteractive
+            sudo apt-get update
+            sudo apt-get install -y build-essential autoconf libtool pkg-config tree
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/workflows/qt.sh
+      - run: tree
+      - run: bash qt.sh
