@@ -28,5 +28,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           sparse-checkout: .github/workflows/qt.sh
+          sparse-checkout-cone-mode: false
       - run: tree
       - run: bash qt.sh
