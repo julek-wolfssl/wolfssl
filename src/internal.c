@@ -1196,6 +1196,7 @@ static int ImportKeyState(WOLFSSL* ssl, const byte* exp, word32 len, byte ver,
         idx += wordAdj;
 
         /* do prevWindow */
+        wordAdj = 0;
         ato16(exp + idx, &wordCount);
         idx += OPAQUE16_LEN;
 
