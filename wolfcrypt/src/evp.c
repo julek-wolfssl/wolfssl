@@ -10025,14 +10025,9 @@ int wolfSSL_EVP_PKEY_set1_encoded_public_key(WOLFSSL_EVP_PKEY* pkey,
         case WC_EVP_PKEY_X25519: {
             curve25519_key* key;
 
-            /* Replace any existing key with a fresh one from the bytes. */
-            if ((pkey->curve25519 != NULL) && (pkey->ownCurve25519 == 1)) {
-                wc_curve25519_free(pkey->curve25519);
-                XFREE(pkey->curve25519, pkey->heap, DYNAMIC_TYPE_CURVE25519);
-            }
-            pkey->curve25519 = NULL;
-            pkey->ownCurve25519 = 0;
-
+            /* Build the replacement in a temporary first; only commit (and
+             * free the old key) once the import has succeeded, so a failure
+             * leaves the original EVP_PKEY intact. */
             key = (curve25519_key*)XMALLOC(sizeof(curve25519_key), pkey->heap,
                 DYNAMIC_TYPE_CURVE25519);
             if (key == NULL) {
@@ -10051,6 +10046,11 @@ int wolfSSL_EVP_PKEY_set1_encoded_public_key(WOLFSSL_EVP_PKEY* pkey,
                 XFREE(key, pkey->heap, DYNAMIC_TYPE_CURVE25519);
                 break;
             }
+            /* Import succeeded - replace any existing key. */
+            if ((pkey->curve25519 != NULL) && (pkey->ownCurve25519 == 1)) {
+                wc_curve25519_free(pkey->curve25519);
+                XFREE(pkey->curve25519, pkey->heap, DYNAMIC_TYPE_CURVE25519);
+            }
             pkey->curve25519 = key;
             pkey->ownCurve25519 = 1;
             ret = WOLFSSL_SUCCESS;
@@ -10061,14 +10061,9 @@ int wolfSSL_EVP_PKEY_set1_encoded_public_key(WOLFSSL_EVP_PKEY* pkey,
         case WC_EVP_PKEY_X448: {
             curve448_key* key;
 
-            /* Replace any existing key with a fresh one from the bytes. */
-            if ((pkey->curve448 != NULL) && (pkey->ownCurve448 == 1)) {
-                wc_curve448_free(pkey->curve448);
-                XFREE(pkey->curve448, pkey->heap, DYNAMIC_TYPE_CURVE448);
-            }
-            pkey->curve448 = NULL;
-            pkey->ownCurve448 = 0;
-
+            /* Build the replacement in a temporary first; only commit (and
+             * free the old key) once the import has succeeded, so a failure
+             * leaves the original EVP_PKEY intact. */
             key = (curve448_key*)XMALLOC(sizeof(curve448_key), pkey->heap,
                 DYNAMIC_TYPE_CURVE448);
             if (key == NULL) {
@@ -10086,6 +10081,11 @@ int wolfSSL_EVP_PKEY_set1_encoded_public_key(WOLFSSL_EVP_PKEY* pkey,
                 wc_curve448_free(key);
                 XFREE(key, pkey->heap, DYNAMIC_TYPE_CURVE448);
                 break;
+            }
+            /* Import succeeded - replace any existing key. */
+            if ((pkey->curve448 != NULL) && (pkey->ownCurve448 == 1)) {
+                wc_curve448_free(pkey->curve448);
+                XFREE(pkey->curve448, pkey->heap, DYNAMIC_TYPE_CURVE448);
             }
             pkey->curve448 = key;
             pkey->ownCurve448 = 1;
