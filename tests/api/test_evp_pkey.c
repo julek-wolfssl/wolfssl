@@ -3079,6 +3079,17 @@ int test_wolfSSL_EVP_PKEY_encoded_public_key(void)
             EVP_PKEY_get1_encoded_public_key(peer, &enc2)), (int)encLen);
         ExpectBufEQ(enc2, enc, encLen);
 
+        /* A failed set1 (wrong length) must leave the existing key intact. */
+        ExpectIntEQ(EVP_PKEY_set1_encoded_public_key(peer, enc, encLen - 1), 0);
+        {
+            unsigned char* enc3 = NULL;
+            size_t encLen3 = 0;
+            ExpectIntEQ((int)(encLen3 =
+                EVP_PKEY_get1_encoded_public_key(peer, &enc3)), (int)encLen);
+            ExpectBufEQ(enc3, enc, encLen);
+            OPENSSL_free(enc3);
+        }
+
         OPENSSL_free(enc);
         OPENSSL_free(enc2);
         EVP_PKEY_free(pkey);
