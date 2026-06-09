@@ -25,6 +25,7 @@ build-aux/
 rpm/spec
 *.rpm
 stamp-h
+wolfssl-test-data.stamp
 cyassl/options.h
 wolfssl/options.h
 .build_params
