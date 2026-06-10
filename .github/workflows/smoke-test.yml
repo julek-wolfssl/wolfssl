@@ -26,9 +26,7 @@ name: Smoke Test
 
 on:
   push:
-    # claude/** is temporary for testing on a fork; drop before upstreaming
-    # together with the matching repo guard on the smoke job below.
-    branches: [ master, main, 'claude/**' ]
+    branches: [ master, main ]
     paths-ignore:
       - '**/*.md'
       - 'doc/**'
@@ -48,11 +46,6 @@ permissions:
 
 jobs:
   smoke:
-    # Temporary, drop with the claude/** trigger above: claude/** pushes only
-    # run on the julek-wolfssl fork, not on julek-dev where automated agents
-    # push claude/** branches constantly. on.push cannot filter by repository,
-    # hence the job-level guard.
-    if: ${{ !startsWith(github.ref, 'refs/heads/claude/') || github.repository_owner == 'julek-wolfssl' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
