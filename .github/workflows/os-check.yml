@@ -7,9 +7,18 @@ on:
     # upstreaming together with the julek-wolfssl clauses in the job
     # conditions below.
     branches: [ 'release/**', 'claude/**' ]
+    # Docs-only changes cannot affect the build/test matrix - skip the
+    # run for them. Keep this list narrow (markdown + doc/ only);
+    # do not add cert/test data extensions here.
+    paths-ignore:
+      - '**/*.md'
+      - 'doc/**'
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
+    paths-ignore:
+      - '**/*.md'
+      - 'doc/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -325,6 +334,12 @@ jobs:
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
     steps:
+      # Local composite actions (./.github/actions/*) need the repo on
+      # disk before the runner can resolve them. The autotools-project
+      # step further down does its own checkout, so this explicit checkout
+      # is only required for the ccache-setup composite below.
+      - uses: actions/checkout@v4
+
       # tlslite-ng is consumed by scripts/multi-msg-record.test (run from
       # `make check`); without it that test is SKIPped.
       - uses: actions/setup-python@v5
@@ -332,11 +347,32 @@ jobs:
           python-version: '3.x'
       - run: pip install tlslite-ng
 
+      # ccache cuts ~50% off rebuild time - especially valuable here since
+      # macOS runners bill at 10x. The composite prepends the Homebrew ccache
+      # libexec dir (resolved at run time via `brew --prefix`, so it works on
+      # both arm64 and Intel runners) to PATH, transparently intercepting
+      # clang/cc - no other step needs to change.
+      - name: Set up ccache
+        uses: ./.github/actions/ccache-setup
+        with:
+          workflow-id: os-check-macos
+          config-hash: ${{ strategy.job-index }}
+          max-size: 250M
+
       - name: Build and test wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
         with:
           configure: CFLAGS="-pedantic -Wdeclaration-after-statement -Wnull-dereference -Wno-overlength-strings -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE" ${{ matrix.config }}
           check: true
+
+      - name: ccache stats (post-build)
+        if: always()
+        run: |
+          if command -v ccache >/dev/null 2>&1; then
+            ccache -s
+          else
+            echo "ccache not installed - composite likely skipped"
+          fi
 
   # Run on both OSes: the user_settings.h header-driven build path is
   # distinct from the autotools-driven --enable-all path in
