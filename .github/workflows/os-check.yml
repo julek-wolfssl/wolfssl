@@ -90,6 +90,7 @@ jobs:
           restore-keys: |
             os-check-linux-ccache-${{ matrix.shard }}-${{ github.base_ref || github.ref_name }}-
             os-check-linux-ccache-${{ matrix.shard }}-
+            os-check-linux-ccache-
 
       - name: autogen
         run: |
