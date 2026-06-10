@@ -13,6 +13,10 @@
 #   configure  list of extra ./configure arguments
 #   cflags     CFLAGS for make, overriding --cflags
 #   ldflags    LDFLAGS for make, overriding --ldflags
+#   minutes    expected duration, from the Minutes column of a previous
+#              run's summary (default 1.0). Schedule weight only - configs
+#              run longest-first and --shard balances shards by it; a stale
+#              value just packs the schedule a little worse.
 #   comment    ignored; JSON has no comment syntax, so notes go here
 #
 # For example:
@@ -58,6 +62,7 @@ class Config:
     configure: list = field(default_factory=list)
     cflags: str = ""
     ldflags: str = ""
+    minutes: float = 1.0
 
 SRCDIR = Path(__file__).resolve().parents[2]
 ON_GITHUB = os.environ.get("GITHUB_ACTIONS") == "true"
@@ -87,7 +92,7 @@ def load_configs(opts, error):
         if not isinstance(entry, dict):
             error(f"{opts.json}: config entries must be objects: {entry!r}")
         unknown = set(entry) - {"name", "configure", "cflags", "ldflags",
-                                "comment"}
+                                "minutes", "comment"}
         if unknown:
             error(f"{opts.json}: unknown key(s) in {entry.get('name', entry)!r}: "
                   f"{' '.join(sorted(unknown))}")
@@ -97,9 +102,15 @@ def load_configs(opts, error):
                   f"directory suffix: {entry!r}")
         if any(cfg.name == name for cfg in configs):
             error(f"{opts.json}: duplicate config name {name!r}")
+        minutes = entry.get("minutes", 1.0)
+        if isinstance(minutes, bool) or not isinstance(minutes, (int, float)) \
+                or minutes < 0:
+            error(f"{opts.json}: \"minutes\" must be a non-negative number "
+                  f"in {name!r}")
         configs.append(Config(name, list(entry.get("configure", [])),
                               entry.get("cflags", opts.cflags),
-                              entry.get("ldflags", opts.ldflags)))
+                              entry.get("ldflags", opts.ldflags),
+                              float(minutes)))
     if not configs:
         error(f"{opts.json}: no configs")
     return configs
@@ -219,6 +230,10 @@ def main():
     p.add_argument("--threads", type=int, default=nproc(),
                    help="worker threads; each takes the next pending config "
                         "when it is free (default: nproc)")
+    p.add_argument("--shard", metavar="K/N",
+                   help="run only the K-th (1-based) of N shards; configs "
+                        "are dealt to shards greedily by descending "
+                        "\"minutes\" so the shards' totals come out even")
     p.add_argument("--cc", default="ccache gcc" if shutil.which("ccache")
                    else None, help="compiler passed to configure as CC=")
     p.add_argument("--cflags", default="",
@@ -233,10 +248,6 @@ def main():
     opts = p.parse_args()
 
     all_configs = load_configs(opts, p.error)
-    if opts.list:
-        for cfg in all_configs:
-            print(f"{cfg.name}: {' '.join(cfg.configure)}")
-        return 0
     selected = all_configs
     if opts.configs:
         by_name = {cfg.name: cfg for cfg in all_configs}
@@ -244,6 +255,36 @@ def main():
         if unknown:
             p.error(f"unknown config(s): {' '.join(unknown)}")
         selected = [by_name[n] for n in opts.configs]
+
+    # Longest first, so the heavyweights never straggle on an otherwise
+    # idle machine. Stable: configs without "minutes" keep list order.
+    selected = sorted(selected, key=lambda cfg: -cfg.minutes)
+    if opts.shard:
+        try:
+            k, n = map(int, opts.shard.split("/"))
+        except ValueError:
+            k = n = 0
+        if not 1 <= k <= n:
+            p.error(f"--shard: expected K/N with 1 <= K <= N, "
+                    f"got {opts.shard!r}")
+        # Greedy multiway partition: longest first into the least-loaded
+        # shard. Deterministic, and with honest "minutes" within ~the
+        # longest config of optimal.
+        shards, loads = [[] for _ in range(n)], [0.0] * n
+        for cfg in selected:
+            i = loads.index(min(loads))
+            shards[i].append(cfg)
+            loads[i] += cfg.minutes
+        selected = shards[k - 1]
+
+    if opts.list:
+        for cfg in selected:
+            print(f"{cfg.name} [{cfg.minutes:g} min]: "
+                  f"{' '.join(cfg.configure)}")
+        return 0
+    if not selected:
+        print(f"shard {opts.shard}: no configs to run")
+        return 0
 
     if not (SRCDIR / "configure").exists():
         subprocess.run(["./autogen.sh"], cwd=SRCDIR, check=True)
