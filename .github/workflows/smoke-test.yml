@@ -24,7 +24,8 @@ name: Smoke Test
 
 on:
   push:
-    branches: [ master, main ]
+    # claude/** is temporary for testing on a fork; drop before upstreaming.
+    branches: [ master, main, 'claude/**' ]
     paths-ignore:
       - '**/*.md'
       - 'doc/**'
