@@ -8,8 +8,9 @@ name: Smoke Test
 # The smoke config list lives in the "Build and make check" step below;
 # the generic runner .github/scripts/parallel-make-check.py builds each
 # config in its own out-of-tree ("VPATH") build directory off this single
-# checkout and runs make check in all of them in parallel. bubblewrap is
-# installed so the script tests re-exec themselves under bwrap
+# checkout and runs make check across them on a pool of one-per-CPU worker
+# threads, reporting thread/CPU efficiency in the step summary. bubblewrap
+# is installed so the script tests re-exec themselves under bwrap
 # --unshare-net and concurrent checks cannot collide on TCP/UDP ports (do
 # not set AM_BWRAPPED here - that would disable it). Builds go through
 # ccache (cached across runs) to keep the single-runner job fast on warm

@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # Build and "make check" a set of configurations, each in its own out-of-tree
-# (VPATH) build directory, all in parallel (one thread per config).
+# (VPATH) build directory, on a pool of worker threads (default: one per
+# CPU); each thread takes the next pending config as soon as it is free.
+# The final summary reports how efficiently the pool used the machine
+# (thread occupancy and CPU utilization).
 #
 # The configurations come from a JSON file ("-" for stdin): a list of
 # objects, one per configuration. Recognized keys, all optional except
@@ -58,6 +61,14 @@ class Config:
 SRCDIR = Path(__file__).resolve().parents[2]
 ON_GITHUB = os.environ.get("GITHUB_ACTIONS") == "true"
 print_lock = threading.Lock()
+
+
+def nproc():
+    # Like nproc(1): CPUs usable by this process, falling back to all online.
+    try:
+        return len(os.sched_getaffinity(0))
+    except AttributeError:
+        return os.cpu_count() or 1
 
 
 def load_configs(opts, error):
@@ -157,14 +168,31 @@ def run_config(cfg, opts):
             dump(f"{cfg.name}: config.log", bdir / "config.log")
         elif failed == "make check":
             dump(f"{cfg.name}: test-suite.log", bdir / "test-suite.log")
-    return failed
+    return failed, minutes
 
 
-def summarize(results):
-    lines = ["| Config | Result |", "|---|---|"]
-    for cfg, failed in results:
+def summarize(results, wall_min, cpu_min, nthreads):
+    lines = ["| Config | Result | Minutes |", "|---|---|---|"]
+    for cfg, failed, minutes in results:
         ok = ":x: FAIL (%s)" % failed if failed else ":white_check_mark: pass"
-        lines.append(f"| {cfg.name} | {ok} |")
+        lines.append(f"| {cfg.name} | {ok} | {minutes:.1f} |")
+    # Two views of how efficiently the pool used the machine: thread
+    # occupancy is the time the workers spent running configs out of the
+    # thread-minutes available (a long config left for last idles the other
+    # workers and drags it down); CPU utilization is the CPU time the build
+    # and test children actually consumed out of the CPU-minutes available
+    # (too-shallow make -j and serial test phases show up here).
+    busy_min = sum(minutes for _, _, minutes in results)
+    ncpu = nproc()
+    lines += [
+        "",
+        f"{len(results)} configs in {wall_min:.1f} min on {nthreads} "
+        f"threads / {ncpu} CPUs: "
+        f"thread occupancy {100 * busy_min / (wall_min * nthreads):.0f}% "
+        f"({busy_min:.1f} of {wall_min * nthreads:.1f} thread-min), "
+        f"CPU utilization {100 * cpu_min / (wall_min * ncpu):.0f}% "
+        f"({cpu_min:.1f} of {wall_min * ncpu:.1f} CPU-min)",
+    ]
     table = "\n".join(lines)
     print(table)
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
@@ -186,6 +214,9 @@ def main():
     p.add_argument("--list", action="store_true", help="list configs")
     p.add_argument("--jobs", type=int, default=2,
                    help="make -j per config (default: 2)")
+    p.add_argument("--threads", type=int, default=nproc(),
+                   help="worker threads; each takes the next pending config "
+                        "when it is free (default: nproc)")
     p.add_argument("--cc", default="ccache gcc" if shutil.which("ccache")
                    else None, help="compiler passed to configure as CC=")
     p.add_argument("--cflags", default="",
@@ -215,11 +246,21 @@ def main():
     if not (SRCDIR / "configure").exists():
         subprocess.run(["./autogen.sh"], cwd=SRCDIR, check=True)
 
-    with ThreadPoolExecutor(max_workers=len(selected)) as pool:
-        results = list(zip(selected, pool.map(
-            lambda cfg: run_config(cfg, opts), selected)))
-    summarize(results)
-    failed = [cfg.name for cfg, failure in results if failure]
+    nthreads = max(1, min(opts.threads, len(selected)))
+    wall_start = time.monotonic()
+    cpu_start = os.times()
+    with ThreadPoolExecutor(max_workers=nthreads) as pool:
+        results = [(cfg, failed, minutes) for cfg, (failed, minutes)
+                   in zip(selected, pool.map(
+                       lambda cfg: run_config(cfg, opts), selected))]
+    wall_min = (time.monotonic() - wall_start) / 60
+    cpu_end = os.times()
+    # os.times() child counters cover the waited-for configure/make
+    # subprocesses of every worker thread.
+    cpu_min = (cpu_end.children_user - cpu_start.children_user
+               + cpu_end.children_system - cpu_start.children_system) / 60
+    summarize(results, wall_min, cpu_min, nthreads)
+    failed = [cfg.name for cfg, failure, _ in results if failure]
     if failed:
         print(f"::error::make check failed for: {' '.join(failed)}"
               if ON_GITHUB else f"make check failed for: {' '.join(failed)}")
