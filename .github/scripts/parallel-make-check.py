@@ -13,6 +13,7 @@
 #   configure  list of extra ./configure arguments
 #   cflags     CFLAGS for make, overriding --cflags
 #   ldflags    LDFLAGS for make, overriding --ldflags
+#   comment    ignored; JSON has no comment syntax, so notes go here
 #
 # For example:
 #
@@ -85,7 +86,8 @@ def load_configs(opts, error):
     for entry in entries:
         if not isinstance(entry, dict):
             error(f"{opts.json}: config entries must be objects: {entry!r}")
-        unknown = set(entry) - {"name", "configure", "cflags", "ldflags"}
+        unknown = set(entry) - {"name", "configure", "cflags", "ldflags",
+                                "comment"}
         if unknown:
             error(f"{opts.json}: unknown key(s) in {entry.get('name', entry)!r}: "
                   f"{' '.join(sorted(unknown))}")
