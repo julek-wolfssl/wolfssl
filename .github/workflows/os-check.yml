@@ -4,8 +4,8 @@ name: Ubuntu-Macos-Windows Tests
 on:
   push:
     # claude/** is temporary for testing on a fork; drop before
-    # upstreaming together with the julek-wolfssl clause in the
-    # make_check_linux job condition below.
+    # upstreaming together with the julek-wolfssl clauses in the job
+    # conditions below.
     branches: [ 'release/**', 'claude/**' ]
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -318,7 +318,9 @@ jobs:
           '--enable-cryptocb --enable-keygen --enable-cryptocbutils=setkey',
         ]
     name: make check macos
-    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    # The julek-wolfssl clause is temporary fork-testing glue for the
+    # claude/** push trigger above; drop before upstreaming.
+    if: ${{ (github.repository_owner == 'wolfssl' || (github.repository_owner == 'julek-wolfssl' && startsWith(github.ref, 'refs/heads/claude/'))) && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: macos-latest
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
@@ -351,7 +353,9 @@ jobs:
           'examples/configs/user_settings_all.h',
         ]
     name: make user_setting.h
-    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    # The julek-wolfssl clause is temporary fork-testing glue for the
+    # claude/** push trigger above; drop before upstreaming.
+    if: ${{ (github.repository_owner == 'wolfssl' || (github.repository_owner == 'julek-wolfssl' && startsWith(github.ref, 'refs/heads/claude/'))) && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ${{ matrix.os }}
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
@@ -398,7 +402,9 @@ jobs:
           # - user_settings_baremetal.h: Requires static memory, custom platform
         ]
     name: make user_setting.h (testwolfcrypt only)
-    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    # The julek-wolfssl clause is temporary fork-testing glue for the
+    # claude/** push trigger above; drop before upstreaming.
+    if: ${{ (github.repository_owner == 'wolfssl' || (github.repository_owner == 'julek-wolfssl' && startsWith(github.ref, 'refs/heads/claude/'))) && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
@@ -419,7 +425,9 @@ jobs:
   # the equivalent code paths on Darwin.
   make_user_all:
     name: make user_setting.h (with sed)
-    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    # The julek-wolfssl clause is temporary fork-testing glue for the
+    # claude/** push trigger above; drop before upstreaming.
+    if: ${{ (github.repository_owner == 'wolfssl' || (github.repository_owner == 'julek-wolfssl' && startsWith(github.ref, 'refs/heads/claude/'))) && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
@@ -442,7 +450,9 @@ jobs:
 
   windows_build:
     name: Windows Build Test
-    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    # The julek-wolfssl clause is temporary fork-testing glue for the
+    # claude/** push trigger above; drop before upstreaming.
+    if: ${{ (github.repository_owner == 'wolfssl' || (github.repository_owner == 'julek-wolfssl' && startsWith(github.ref, 'refs/heads/claude/'))) && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: windows-latest
     strategy:
       fail-fast: false
