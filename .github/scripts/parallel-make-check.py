@@ -243,8 +243,11 @@ def run_config(cfg, opts):
                 cmd()
                 continue
             print(f"+ {' '.join(cmd)}", file=logf, flush=True)
+            # stdin=DEVNULL so a test that reads stdin sees EOF (as in CI)
+            # instead of blocking forever on an interactive/socket stdin.
             proc = subprocess.Popen(cmd, cwd=bdir, stdout=logf,
                                     stderr=subprocess.STDOUT,
+                                    stdin=subprocess.DEVNULL,
                                     start_new_session=True)
             with procs_lock:
                 live_procs.add(proc)
