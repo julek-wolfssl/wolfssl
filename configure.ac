@@ -12654,7 +12654,7 @@ echo "" >> $OPTION_FILE
 
 if test "$ENABLED_DEBUG_TRACE_ERRCODES" != "no"
 then
-    support/gen-debug-trace-error-codes.sh || AC_MSG_ERROR([Header generation for debug-trace-errcodes failed.])
+    "$srcdir"/support/gen-debug-trace-error-codes.sh "$srcdir" || AC_MSG_ERROR([Header generation for debug-trace-errcodes failed.])
 fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "$ENABLED_LINUXKM" = "no"
