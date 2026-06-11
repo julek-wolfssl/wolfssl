@@ -46,11 +46,16 @@
 # themselves under "bwrap --unshare-net" when bubblewrap is installed (one
 # network namespace each) and the remaining test outputs land in the build
 # directory; see --private-dir for the exception.
+#
+# The first failing config aborts the others (pending configs are skipped,
+# in-flight ones are killed) so CI fails fast; pass --no-fail-fast to run
+# everything and report every failure.
 
 import argparse
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import threading
@@ -78,6 +83,26 @@ class Config:
 SRCDIR = Path(__file__).resolve().parents[2]
 ON_GITHUB = os.environ.get("GITHUB_ACTIONS") == "true"
 print_lock = threading.Lock()
+
+# Fail-fast state: the first failure sets stop_event (under fail_lock, so
+# exactly one config is reported as the origin) and kills the other
+# workers' in-flight process groups.
+stop_event = threading.Event()
+fail_lock = threading.Lock()
+live_procs = set()
+procs_lock = threading.Lock()
+
+
+def abort_others():
+    # Every subprocess starts its own session, so killing the process
+    # group takes down the whole make/test tree under it.
+    with procs_lock:
+        procs = list(live_procs)
+    for p in procs:
+        try:
+            os.killpg(p.pid, signal.SIGTERM)
+        except (ProcessLookupError, PermissionError):
+            pass
 
 
 def nproc():
@@ -170,6 +195,8 @@ def dump(title, path):
 
 
 def run_config(cfg, opts):
+    if opts.fail_fast and stop_event.is_set():
+        return "aborted", 0.0
     bdir = SRCDIR / f"build-{cfg.name}"
     if bdir.exists():
         shutil.rmtree(bdir)
@@ -203,29 +230,59 @@ def run_config(cfg, opts):
     log = bdir / "make-check.log"
     with open(log, "w") as logf:
         for step, cmd in steps:
+            if opts.fail_fast and stop_event.is_set():
+                failed = "aborted"
+                break
             if callable(cmd):
                 cmd()
                 continue
             print(f"+ {' '.join(cmd)}", file=logf, flush=True)
-            if subprocess.run(cmd, cwd=bdir, stdout=logf,
-                              stderr=subprocess.STDOUT).returncode != 0:
-                failed = step
+            proc = subprocess.Popen(cmd, cwd=bdir, stdout=logf,
+                                    stderr=subprocess.STDOUT,
+                                    start_new_session=True)
+            with procs_lock:
+                live_procs.add(proc)
+            try:
+                rc = proc.wait()
+            finally:
+                with procs_lock:
+                    live_procs.discard(proc)
+            if rc != 0:
+                if opts.fail_fast:
+                    # The first failure wins; any nonzero exit after the
+                    # abort began was most likely our SIGTERM.
+                    with fail_lock:
+                        failed = "aborted" if stop_event.is_set() else step
+                        stop_event.set()
+                    if failed != "aborted":
+                        abort_others()
+                else:
+                    failed = step
                 break
     minutes = (time.monotonic() - start) / 60
     with print_lock:
-        verdict = f"FAIL ({failed})" if failed else "pass"
-        dump(f"{cfg.name}: {verdict} [{minutes:.1f} min]", log)
-        if failed == "configure":
-            dump(f"{cfg.name}: config.log", bdir / "config.log")
-        elif failed == "make check":
-            dump(f"{cfg.name}: test-suite.log", bdir / "test-suite.log")
+        if failed == "aborted":
+            print(f"{cfg.name}: aborted (fail-fast) [{minutes:.1f} min]")
+            sys.stdout.flush()
+        else:
+            verdict = f"FAIL ({failed})" if failed else "pass"
+            dump(f"{cfg.name}: {verdict} [{minutes:.1f} min]", log)
+            if failed == "configure":
+                dump(f"{cfg.name}: config.log", bdir / "config.log")
+            elif failed == "make check":
+                dump(f"{cfg.name}: test-suite.log", bdir / "test-suite.log")
     return failed, minutes
 
 
 def summarize(results, wall_min, cpu_min, nthreads):
     lines = ["| Config | Result | Minutes |", "|---|---|---|"]
     for cfg, failed, minutes in results:
-        ok = ":x: FAIL (%s)" % failed if failed else ":white_check_mark: pass"
+        if failed == "aborted":
+            ok = ":heavy_minus_sign: aborted (fail-fast)"
+        elif failed:
+            ok = f":x: FAIL ({failed})"
+        else:
+            ok = ":white_check_mark: pass"
         lines.append(f"| {cfg.name} | {ok} | {minutes:.1f} |")
     # Two views of how efficiently the pool used the machine: thread
     # occupancy is the time the workers spent running configs out of the
@@ -272,6 +329,12 @@ def main():
                    help="run only the K-th (1-based) of N shards; configs "
                         "are dealt to shards greedily by descending "
                         "\"minutes\" so the shards' totals come out even")
+    p.add_argument("--fail-fast", action=argparse.BooleanOptionalAction,
+                   default=True,
+                   help="abort everything after the first failing config: "
+                        "pending configs are skipped and in-flight ones "
+                        "killed (--no-fail-fast runs everything and "
+                        "reports every failure)")
     p.add_argument("--cc", default="ccache gcc" if shutil.which("ccache")
                    else None, help="compiler passed to configure as CC=")
     p.add_argument("--cflags", default="",
@@ -341,10 +404,15 @@ def main():
     cpu_min = (cpu_end.children_user - cpu_start.children_user
                + cpu_end.children_system - cpu_start.children_system) / 60
     summarize(results, wall_min, cpu_min, nthreads)
-    failed = [cfg.name for cfg, failure, _ in results if failure]
-    if failed:
-        print(f"::error::make check failed for: {' '.join(failed)}"
-              if ON_GITHUB else f"make check failed for: {' '.join(failed)}")
+    failed = [cfg.name for cfg, failure, _ in results
+              if failure and failure != "aborted"]
+    aborted = sum(1 for _, failure, _ in results if failure == "aborted")
+    if failed or aborted:
+        msg = f"make check failed for: {' '.join(failed)}" if failed \
+            else "aborted without a recorded failure"
+        if aborted:
+            msg += f" ({aborted} config(s) aborted by fail-fast)"
+        print(f"::error::{msg}" if ON_GITHUB else msg)
         return 1
     return 0
 
