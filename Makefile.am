@@ -301,11 +301,14 @@ BUILT_SOURCES += wolfssl-test-data.stamp
 
 wolfssl-test-data.stamp:
 	$(AM_V_at)if test "$(abs_top_srcdir)" != "$(abs_top_builddir)"; then \
-		$(MKDIR_P) tests scripts; \
+		$(MKDIR_P) tests scripts examples; \
 		for f in certs input quit; do \
 			rm -f "$$f"; \
 			$(LN_S) "$(abs_top_srcdir)/$$f" "$$f"; \
 		done; \
+		rm -f examples/crypto_policies; \
+		$(LN_S) "$(abs_top_srcdir)/examples/crypto_policies" \
+			examples/crypto_policies; \
 		for f in "$(abs_top_srcdir)"/tests/*.conf \
 		         "$(abs_top_srcdir)"/tests/*.cnf \
 		         "$(abs_top_srcdir)"/tests/TXT_DB.txt; do \
@@ -336,6 +339,7 @@ distclean-local:
 		rm -f tests/*.conf tests/*.cnf tests/TXT_DB.txt; \
 		rm -f scripts/*.pcap scripts/*.out scripts/*.sslkeylog \
 		      scripts/multi-msg-record.py; \
+		rm -f examples/crypto_policies; \
 	fi
 
 test: check
