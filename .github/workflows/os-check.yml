@@ -402,7 +402,9 @@ jobs:
   # ("VPATH") build directory. Unlike Linux, the checks run one config at
   # a time (--threads 1): macOS has no bubblewrap, so concurrent make
   # checks would race on TCP/UDP ports. The user_settings_all.h entry is
-  # the former macOS half of the make_user_settings job.
+  # the former macOS half of the make_user_settings job, and the
+  # apple-native-cert-validation entry is the former standalone
+  # macos-apple-native-cert-validation.yml workflow.
   make_check_macos:
     name: make check macos
     if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
@@ -454,6 +456,10 @@ jobs:
            "user_settings": "examples/configs/user_settings_all.h",
            "cflags": "",
            "configure": ["--enable-usersettings"]},
+          {"name": "apple-native-cert-validation", "minutes": 1.5,
+           "comment": "Former macos-apple-native-cert-validation.yml workflow: WOLFSSL_APPLE_NATIVE_CERT_VALIDATION delegates chain verification to Security.framework instead of wolfSSL's verifier, and the TEST define enables its client tests in make check. CFLAGS go to configure (with \"cflags\": \"\" so the make-time --cflags do not override them), exactly like the old standalone job.",
+           "cflags": "",
+           "configure": ["CFLAGS=-DWOLFSSL_APPLE_NATIVE_CERT_VALIDATION -DWOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION -DRSA_MIN_SIZE=2048 -DNO_WOLFSSL_CIPHER_SUITE_TEST"]},
           {"name": "cryptocb-keygen-utils-setkey", "minutes": 1.0,
            "comment": "Crypto-callback dispatcher under Apple clang. Not covered by --enable-all; verifies the cryptocb find/setkey/keygen path compiles and runs on the macOS toolchain.",
            "configure": ["--enable-cryptocb", "--enable-keygen", "--enable-cryptocbutils=setkey"]},
