@@ -17,6 +17,13 @@
 #              run's summary (default 1.0). Schedule weight only - configs
 #              run longest-first and --shard balances shards by it; a stale
 #              value just packs the schedule a little worse.
+#   user_settings  header staged as <builddir>/user_settings.h before
+#              configure (path relative to the source root); pair it with
+#              --enable-usersettings in "configure"
+#   check      false skips the make-check phase entirely (default true)
+#   prepare    list of argv lists run in the build dir before configure
+#   run        list of argv lists run in the build dir after the build and
+#              checks, e.g. [["wolfcrypt/test/testwolfcrypt"]]
 #   comment    ignored; JSON has no comment syntax, so notes go here
 #
 # For example:
@@ -63,6 +70,10 @@ class Config:
     cflags: str = ""
     ldflags: str = ""
     minutes: float = 1.0
+    user_settings: str = ""
+    check: bool = True
+    prepare: list = field(default_factory=list)
+    run: list = field(default_factory=list)
 
 SRCDIR = Path(__file__).resolve().parents[2]
 ON_GITHUB = os.environ.get("GITHUB_ACTIONS") == "true"
@@ -92,7 +103,8 @@ def load_configs(opts, error):
         if not isinstance(entry, dict):
             error(f"{opts.json}: config entries must be objects: {entry!r}")
         unknown = set(entry) - {"name", "configure", "cflags", "ldflags",
-                                "minutes", "comment"}
+                                "minutes", "user_settings", "check",
+                                "prepare", "run", "comment"}
         if unknown:
             error(f"{opts.json}: unknown key(s) in {entry.get('name', entry)!r}: "
                   f"{' '.join(sorted(unknown))}")
@@ -107,10 +119,27 @@ def load_configs(opts, error):
                 or minutes < 0:
             error(f"{opts.json}: \"minutes\" must be a non-negative number "
                   f"in {name!r}")
+        user_settings = entry.get("user_settings", "")
+        if not isinstance(user_settings, str):
+            error(f"{opts.json}: \"user_settings\" must be a path string "
+                  f"in {name!r}")
+        check = entry.get("check", True)
+        if not isinstance(check, bool):
+            error(f"{opts.json}: \"check\" must be a boolean in {name!r}")
+        for key in ("prepare", "run"):
+            cmds = entry.get(key, [])
+            if not (isinstance(cmds, list)
+                    and all(isinstance(cmd, list) and cmd
+                            and all(isinstance(a, str) for a in cmd)
+                            for cmd in cmds)):
+                error(f"{opts.json}: \"{key}\" must be a list of argv lists "
+                      f"in {name!r}")
         configs.append(Config(name, list(entry.get("configure", [])),
                               entry.get("cflags", opts.cflags),
                               entry.get("ldflags", opts.ldflags),
-                              float(minutes)))
+                              float(minutes), user_settings, check,
+                              list(entry.get("prepare", [])),
+                              list(entry.get("run", []))))
     if not configs:
         error(f"{opts.json}: no configs")
     return configs
@@ -151,15 +180,24 @@ def run_config(cfg, opts):
     flags = [f"CFLAGS={cfg.cflags}"] if cfg.cflags else []
     flags += [f"LDFLAGS={cfg.ldflags}"] if cfg.ldflags else []
     make = ["make", f"-j{opts.jobs}"] + flags
-    steps = [
-        ("configure", configure),
-        ("make", make),
-        # Prebuild the check programs without running any tests so
-        # "make check" below is pure test execution.
-        ("make check TESTS=", make + ["check", "TESTS="]),
-        ("private dirs", lambda: privatize_dirs(bdir, opts.private_dir)),
-        ("make check", ["make"] + flags + ["check"]),
-    ]
+    steps = []
+    if cfg.user_settings:
+        # Staged before configure; --enable-usersettings builds pick it up
+        # from the build dir via the default include path.
+        steps.append((f"stage {cfg.user_settings}",
+                      lambda: shutil.copy(SRCDIR / cfg.user_settings,
+                                          bdir / "user_settings.h")))
+    steps += [(" ".join(cmd), cmd) for cmd in cfg.prepare]
+    steps += [("configure", configure), ("make", make)]
+    if cfg.check:
+        steps += [
+            # Prebuild the check programs without running any tests so
+            # "make check" below is pure test execution.
+            ("make check TESTS=", make + ["check", "TESTS="]),
+            ("private dirs", lambda: privatize_dirs(bdir, opts.private_dir)),
+            ("make check", ["make"] + flags + ["check"]),
+        ]
+    steps += [(" ".join(cmd), cmd) for cmd in cfg.run]
     failed = None
     start = time.monotonic()
     log = bdir / "make-check.log"
