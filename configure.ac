@@ -10766,9 +10766,6 @@ then
     if test "$ENABLED_CRYPTOCB" != "yes" && test "$enable_usersettings" != "yes"; then
         AC_MSG_ERROR([--enable-swdev requires --enable-cryptocb (or --enable-usersettings with WOLF_CRYPTO_CB defined in user_settings.h)])
     fi
-    if test "x$srcdir" != "x."; then
-        AC_MSG_ERROR([--enable-swdev currently supports in-tree builds only])
-    fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SWDEV -DWOLF_CRYPTO_CB_FIND"
 fi
 
