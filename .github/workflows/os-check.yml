@@ -426,6 +426,11 @@ jobs:
           python-version: '3.x'
       - run: pip install tlslite-ng
 
+      # The macos runner images ship without autotools (the old per-config
+      # matrix got them via wolfSSL/actions-build-autotools-project).
+      - name: Install autotools (brew)
+        run: brew install autoconf automake libtool
+
       # ccache via the cross-platform composite (brew install; compiler
       # symlinks on PATH). The script is told --cc= so it does not also
       # prefix the compiler with "ccache" - the PATH masquerade already
