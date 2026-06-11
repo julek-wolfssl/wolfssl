@@ -11,6 +11,8 @@
 #
 #   name       unique identifier; the config builds in build-<name>/
 #   configure  list of extra ./configure arguments
+#   cc         compiler passed to configure as CC=, overriding --cc
+#              ("" leaves CC entirely to configure / the environment)
 #   cflags     CFLAGS for make, overriding --cflags
 #   ldflags    LDFLAGS for make, overriding --ldflags
 #   minutes    expected duration, from the Minutes column of a previous
@@ -72,6 +74,7 @@ from pathlib import Path
 class Config:
     name: str
     configure: list = field(default_factory=list)
+    cc: str = ""
     cflags: str = ""
     ldflags: str = ""
     minutes: float = 1.0
@@ -127,9 +130,9 @@ def load_configs(opts, error):
     for entry in entries:
         if not isinstance(entry, dict):
             error(f"{opts.json}: config entries must be objects: {entry!r}")
-        unknown = set(entry) - {"name", "configure", "cflags", "ldflags",
-                                "minutes", "user_settings", "check",
-                                "prepare", "run", "comment"}
+        unknown = set(entry) - {"name", "configure", "cc", "cflags",
+                                "ldflags", "minutes", "user_settings",
+                                "check", "prepare", "run", "comment"}
         if unknown:
             error(f"{opts.json}: unknown key(s) in {entry.get('name', entry)!r}: "
                   f"{' '.join(sorted(unknown))}")
@@ -151,6 +154,9 @@ def load_configs(opts, error):
         check = entry.get("check", True)
         if not isinstance(check, bool):
             error(f"{opts.json}: \"check\" must be a boolean in {name!r}")
+        cc = entry.get("cc", opts.cc or "")
+        if not isinstance(cc, str):
+            error(f"{opts.json}: \"cc\" must be a string in {name!r}")
         for key in ("prepare", "run"):
             cmds = entry.get(key, [])
             if not (isinstance(cmds, list)
@@ -159,7 +165,7 @@ def load_configs(opts, error):
                             for cmd in cmds)):
                 error(f"{opts.json}: \"{key}\" must be a list of argv lists "
                       f"in {name!r}")
-        configs.append(Config(name, list(entry.get("configure", [])),
+        configs.append(Config(name, list(entry.get("configure", [])), cc,
                               entry.get("cflags", opts.cflags),
                               entry.get("ldflags", opts.ldflags),
                               float(minutes), user_settings, check,
@@ -202,8 +208,8 @@ def run_config(cfg, opts):
         shutil.rmtree(bdir)
     bdir.mkdir()
     configure = [str(SRCDIR / "configure")] + cfg.configure
-    if opts.cc:
-        configure.append(f"CC={opts.cc}")
+    if cfg.cc:
+        configure.append(f"CC={cfg.cc}")
     flags = [f"CFLAGS={cfg.cflags}"] if cfg.cflags else []
     flags += [f"LDFLAGS={cfg.ldflags}"] if cfg.ldflags else []
     make = ["make", f"-j{opts.jobs}"] + flags
@@ -336,7 +342,9 @@ def main():
                         "killed (--no-fail-fast runs everything and "
                         "reports every failure)")
     p.add_argument("--cc", default="ccache gcc" if shutil.which("ccache")
-                   else None, help="compiler passed to configure as CC=")
+                   else None,
+                   help="compiler passed to configure as CC= for configs "
+                        "that do not set their own \"cc\"")
     p.add_argument("--cflags", default="",
                    help="CFLAGS for configs that do not set their own")
     p.add_argument("--ldflags", default="",

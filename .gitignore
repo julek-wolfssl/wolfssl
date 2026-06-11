@@ -208,6 +208,8 @@ NTRU_algorithm/
 NTRU/
 build-test/
 build/
+# Out-of-tree build dirs created by .github/scripts/parallel-make-check.py
+/build-*/
 cyassl.xcodeproj/
 cyassl*rc*
 autoscan.log
