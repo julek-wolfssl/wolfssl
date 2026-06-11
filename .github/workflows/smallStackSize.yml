@@ -3,7 +3,10 @@ name: Stack Size warnings
 # START OF COMMON SECTION
 on:
   push:
-    branches: [ 'release/**' ]
+    # claude/** is temporary for testing on a fork; drop before
+    # upstreaming together with the julek-wolfssl clauses in the job
+    # conditions below.
+    branches: [ 'release/**', 'claude/**' ]
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [ '*' ]
@@ -21,7 +24,9 @@ jobs:
   # threads, longest first.
   build_library:
     name: build library
-    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    # The julek-wolfssl clause is temporary fork-testing glue for the
+    # claude/** push trigger above; drop before upstreaming.
+    if: ${{ (github.repository_owner == 'wolfssl' || (github.repository_owner == 'julek-wolfssl' && startsWith(github.ref, 'refs/heads/claude/'))) && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # Generous for a cold ccache; warm reruns finish in a fraction.
     timeout-minutes: 15

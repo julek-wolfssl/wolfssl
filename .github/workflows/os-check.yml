@@ -3,7 +3,10 @@ name: Ubuntu-Macos-Windows Tests
 # START OF COMMON SECTION
 on:
   push:
-    branches: [ 'release/**' ]
+    # claude/** is temporary for testing on a fork; drop before
+    # upstreaming together with the julek-wolfssl clauses in the job
+    # conditions below.
+    branches: [ 'release/**', 'claude/**' ]
     # Docs-only changes cannot affect the build/test matrix - skip the
     # run for them. Keep this list narrow (markdown + doc/ only);
     # do not add cert/test data extensions here.
@@ -45,7 +48,9 @@ jobs:
       fail-fast: false
       matrix:
         shard: [1, 2, 3, 4]
-    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    # The julek-wolfssl clause is temporary fork-testing glue for the
+    # claude/** push trigger above; drop before upstreaming.
+    if: ${{ (github.repository_owner == 'wolfssl' || (github.repository_owner == 'julek-wolfssl' && startsWith(github.ref, 'refs/heads/claude/'))) && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
     # The full set measures ~272 thread-minutes cold (~90 warm), i.e. about
     # 68 thread-minutes per shard / 4 worker threads: ~20 min of wall per
@@ -407,7 +412,9 @@ jobs:
   # macos-apple-native-cert-validation.yml workflow.
   make_check_macos:
     name: make check macos
-    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    # The julek-wolfssl clause is temporary fork-testing glue for the
+    # claude/** push trigger above; drop before upstreaming.
+    if: ${{ (github.repository_owner == 'wolfssl' || (github.repository_owner == 'julek-wolfssl' && startsWith(github.ref, 'refs/heads/claude/'))) && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: macos-latest
     # Serial checks: roughly the sum of the per-config minutes plus
     # one-time setup, with headroom for a cold ccache.
@@ -493,7 +500,9 @@ jobs:
 
   windows_build:
     name: Windows Build Test
-    if: ${{ (github.repository_owner == 'wolfssl') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    # The julek-wolfssl clause is temporary fork-testing glue for the
+    # claude/** push trigger above; drop before upstreaming.
+    if: ${{ (github.repository_owner == 'wolfssl' || (github.repository_owner == 'julek-wolfssl' && startsWith(github.ref, 'refs/heads/claude/'))) && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: windows-latest
     strategy:
       fail-fast: false
