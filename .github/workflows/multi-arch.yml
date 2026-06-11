@@ -52,8 +52,11 @@ jobs:
       # rules made each arch entry overwrite the previous one, so only the
       # last (armel) combinations actually ran. The JSON below restores the
       # evidently intended aarch64/armhf/riscv64 x opts coverage alongside
-      # armel. Cross builds run testwolfcrypt transparently under
-      # qemu-user (binfmt) with the matching QEMU_LD_PREFIX.
+      # armel, except riscv64 x sp-math: configure rejects --enable-sp-math
+      # without SP, and riscv64's --enable-riscv-asm (unlike the other
+      # arches' --enable-sp-asm) does not bring it in. Cross builds run
+      # testwolfcrypt transparently under qemu-user (binfmt) with the
+      # matching QEMU_LD_PREFIX.
       - name: Build all configs (parallel, out-of-tree)
         run: |
           cat > "$RUNNER_TEMP/multi-arch-configs.json" <<'EOF'
@@ -210,14 +213,6 @@ jobs:
             "--disable-examples",
             "CPPFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE -DWOLFCRYPT_TEST_LINT",
             "--enable-riscv-asm", "CFLAGS=-O2"],
-           "check": false,
-           "run": [["env", "QEMU_LD_PREFIX=/usr/riscv64-linux-gnu", "./wolfcrypt/test/testwolfcrypt"]]},
-          {"name": "riscv64-o2-sp-math", "minutes": 2.5,
-           "cc": "ccache riscv64-linux-gnu-gcc",
-           "configure": ["--host=riscv64-linux-gnu", "--enable-all",
-            "--disable-examples",
-            "CPPFLAGS=-pedantic -Wdeclaration-after-statement -Wnull-dereference -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE -DWOLFCRYPT_TEST_LINT",
-            "--enable-riscv-asm", "--enable-sp-math", "CFLAGS=-O2"],
            "check": false,
            "run": [["env", "QEMU_LD_PREFIX=/usr/riscv64-linux-gnu", "./wolfcrypt/test/testwolfcrypt"]]},
           {"name": "riscv64-ofast", "minutes": 2.5,
