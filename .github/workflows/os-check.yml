@@ -47,14 +47,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6]
+        shard: [1, 2, 3, 4]
     # The julek-wolfssl clause is temporary fork-testing glue for the
     # claude/** push trigger above; drop both before upstreaming.
     if: ${{ (github.repository_owner == 'wolfssl' || (github.repository_owner == 'julek-wolfssl' && startsWith(github.ref, 'refs/heads/claude/'))) && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ubuntu-24.04
-    # Sized for ~15 min per shard even on a cold ccache: the measured cold
-    # full set is ~253 thread-minutes, ~42 per shard / 4 worker threads,
-    # plus ~2-3 min of checkout/deps/autogen overhead.
+    # The full set measures ~272 thread-minutes cold (~90 warm), i.e. about
+    # 68 thread-minutes per shard / 4 worker threads: ~20 min of wall per
+    # shard cold and well under 10 warm, plus ~2-3 min of
+    # checkout/deps/autogen overhead.
     timeout-minutes: 30
     env:
       CCACHE_MAXSIZE: 500M
